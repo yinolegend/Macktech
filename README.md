@@ -1,5 +1,7 @@
 ## Mack — Self-hosted Chat & Ticket System (Overview)
 
+**🚀 New to this project? Check out the [Quick Start Guide](QUICKSTART.md) for the fastest way to get started!**
+
 This repository contains a minimal, self-hostable web application that provides:
 
 - A realtime chat powered by Socket.IO (no persistence in this minimal version)

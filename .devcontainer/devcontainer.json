@@ -15,7 +15,10 @@
   },
 
   "postCreateCommand": "cd backend && npm install",
-  "postStartCommand": "cd backend && npm start &",
+  
+  "postAttachCommand": {
+    "server": "bash start-codespaces.sh"
+  },
 
   "customizations": {
     "vscode": {
