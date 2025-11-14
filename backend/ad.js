@@ -60,7 +60,6 @@ async function lookupUserBySamAccountName(sam) {
   }
 }
 
-module.exports = { configured, lookupUserBySamAccountName };
 // Search AD for users matching a query (displayName or sAMAccountName). Returns an array.
 async function searchUsers(query, limit = 50) {
   if (!configured()) return [];
