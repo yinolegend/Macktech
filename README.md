@@ -8,6 +8,14 @@ This repository contains a minimal, self-hostable web application that provides:
 
 The project is intentionally lightweight so you can self-host it on a small VPS, a Docker host, or run locally for testing.
 
+## 🚀 Quick Start for Public Testing
+
+**Want to test the application quickly?** See [QUICKSTART.md](./QUICKSTART.md) for:
+- Local testing without Docker (2 minutes)
+- Docker deployment steps
+- How to expose to the internet for public testing
+- Common troubleshooting tips
+
 ## Production Deployment
 
 **📘 For production deployment and public testing, see [DEPLOYMENT.md](./DEPLOYMENT.md)**
