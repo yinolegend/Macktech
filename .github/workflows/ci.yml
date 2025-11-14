@@ -6,9 +6,15 @@ on:
   pull_request:
     branches: [ main, master ]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
 
     strategy:
       matrix:
@@ -48,6 +54,9 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
 
     steps:
     - name: Checkout repository
