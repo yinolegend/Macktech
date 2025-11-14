@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: macktech
+    env: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    disk:
+      name: data
+      mountPath: /app/data
+      sizeGB: 1
+    autoDeploy: true

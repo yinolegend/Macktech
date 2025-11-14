@@ -112,3 +112,19 @@ If you want, I can now:
 - Run a local smoke test (install dependencies and start the server here).
 - Convert the frontend to a React + Vite app and add basic auth.
 - Add server-side persistence for chat messages.
+
+## Deploying from GitHub (Render)
+
+This repo includes a `render.yaml` blueprint so you can launch the site directly from GitHub without tunnels. Steps:
+
+1. Push your latest changes to GitHub (already done if you're reading this there).
+2. In Render, click **New** → **Blueprint** and connect the `yinolegend/Macktech` repository.
+3. Accept the defaults from `render.yaml`:
+	- Web service rooted at `backend/`
+	- `npm install` build command
+	- `npm start` start command
+	- 1 GB persistent disk mounted at `/app/data` for SQLite persistence
+4. Click **Apply** and wait for the build to finish. Render will output a public URL you can share for testing.
+5. Future `git push` events to `main` will trigger automatic redeploys (you can toggle auto-deploy in Render if needed).
+
+Need environment secrets (e.g., `JWT_SECRET`)? Add them in Render → **Environment** before deploying.
