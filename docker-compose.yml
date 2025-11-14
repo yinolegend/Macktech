@@ -7,4 +7,16 @@ services:
     volumes:
       - ./data:/app/data
       - ./backend/public:/app/backend/public
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      # Set JWT_SECRET via .env file or pass directly
+      - JWT_SECRET=${JWT_SECRET:-please-change-this-secret-in-production}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-12h}
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/__ping', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

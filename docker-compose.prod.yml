@@ -1,0 +1,60 @@
+version: '3.8'
+
+# Production Docker Compose Configuration
+# Usage: docker compose -f docker-compose.prod.yml up -d
+
+services:
+  app:
+    build: .
+    container_name: macktech-app
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+      - ./backend/public/PDF handbook:/app/backend/public/PDF handbook
+      - ./backend/public/announcements_files:/app/backend/public/announcements_files
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set in .env file}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-12h}
+    restart: always
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/__ping', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Optional: Resource limits
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '1.0'
+    #       memory: 512M
+    #     reservations:
+    #       cpus: '0.5'
+    #       memory: 256M
+
+  # Optional: nginx reverse proxy
+  # Uncomment to enable nginx with SSL
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: macktech-nginx
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./ssl:/etc/nginx/ssl:ro
+  #   depends_on:
+  #     - app
+  #   restart: always
+
+volumes:
+  data:
+    driver: local
