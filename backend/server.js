@@ -72,6 +72,73 @@ const ANNOUNCEMENTS_FILES_DIR = path.join(__dirname, 'public', 'announcements_fi
 if (!fs.existsSync(ANNOUNCEMENTS_FILES_DIR)) fs.mkdirSync(ANNOUNCEMENTS_FILES_DIR, { recursive: true });
 app.use('/announcements-files', express.static(ANNOUNCEMENTS_FILES_DIR));
 
+function extractAnnouncementFileNames(announcement) {
+  const refs = new Set();
+  if (!announcement) return refs;
+  const pushRef = (value) => {
+    if (!value || typeof value !== 'string') return;
+    const match = value.match(/\/announcements-files\/([^"'\s)<>?#]+)/i);
+    if (match && match[1]) {
+      try {
+        refs.add(decodeURIComponent(match[1]));
+      } catch (err) {
+        refs.add(match[1]);
+      }
+    }
+  };
+  if (typeof announcement.image === 'string') pushRef(announcement.image);
+  if (typeof announcement.body === 'string') {
+    const regex = /\/announcements-files\/([^"'\s)<>?#]+)/ig;
+    let match;
+    while ((match = regex.exec(announcement.body)) !== null) {
+      try {
+        refs.add(decodeURIComponent(match[1]));
+      } catch (err) {
+        refs.add(match[1]);
+      }
+    }
+  }
+  return refs;
+}
+
+function cleanupUnusedAnnouncementFiles(currentAnnouncements) {
+  try {
+    let announcements = currentAnnouncements;
+    if (!Array.isArray(announcements)) {
+      try {
+        const raw = fs.readFileSync(ANNOUNCEMENTS_PATH, 'utf8');
+        announcements = JSON.parse(raw || '[]');
+      } catch (err) {
+        announcements = [];
+      }
+    }
+    const referenced = new Set();
+    for (const announcement of announcements) {
+      for (const name of extractAnnouncementFileNames(announcement)) {
+        referenced.add(name);
+      }
+    }
+    const entries = fs.readdirSync(ANNOUNCEMENTS_FILES_DIR, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      const name = entry.name;
+      if (name.startsWith('.')) continue;
+      if (!referenced.has(name)) {
+        const target = path.join(ANNOUNCEMENTS_FILES_DIR, name);
+        try {
+          fs.unlinkSync(target);
+        } catch (err) {
+          console.error('failed to remove announcement file', target, err && err.message ? err.message : err);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('cleanup announcement files failed', err && err.message ? err.message : err);
+  }
+}
+
+cleanupUnusedAnnouncementFiles();
+
 // Multer storage for image uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, ANNOUNCEMENTS_FILES_DIR),
@@ -492,6 +559,7 @@ app.delete('/api/announcements/:id', authMiddleware, (req, res) => {
     if (idx === -1) return res.status(404).json({ error: 'not found' });
     const [removed] = arr.splice(idx, 1);
     fs.writeFileSync(ANNOUNCEMENTS_PATH, JSON.stringify(arr, null, 2), 'utf8');
+    cleanupUnusedAnnouncementFiles(arr);
     try { io.emit('announcement.deleted', { id: removed && removed.id }); } catch(e){}
     res.json({ ok: true, removed });
   } catch (err) {
@@ -524,6 +592,7 @@ app.patch('/api/announcements/:id', authMiddleware, (req, res) => {
     if (typeof patch.image !== 'undefined') ann.image = patch.image ? String(patch.image) : undefined;
     arr[idx] = ann;
     fs.writeFileSync(ANNOUNCEMENTS_PATH, JSON.stringify(arr, null, 2), 'utf8');
+    cleanupUnusedAnnouncementFiles(arr);
     try { io.emit('announcement.updated', ann); } catch(e){}
     res.json({ ok: true, announcement: ann });
   } catch (err) {

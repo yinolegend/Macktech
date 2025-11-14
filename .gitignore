@@ -2,5 +2,7 @@ node_modules/
 backend/node_modules/
 data/
 backend/server.log
+backend/public/announcements_files/*
+!backend/public/announcements_files/.gitkeep
 .env
 .DS_Store
