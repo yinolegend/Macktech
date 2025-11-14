@@ -5,13 +5,28 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Mack — App</title>
     <style>
-      :root { --sidebar-w:320px; --brand:#0b74ff; --muted:#6b7a99 }
-      .top-button{ background:linear-gradient(180deg,#dff0ff,#cfefff); border:1px solid rgba(11,116,255,0.12); color:var(--brand); padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:600 }
+      :root { --sidebar-w:320px; --brand:#0b74ff; --muted:#6b7a99; --card-shadow:0 30px 90px rgba(14,43,92,0.14) }
+      .top-button{
+        background:var(--brand);
+        color:#fff;
+        border:0;
+        padding:8px 12px;
+        border-radius:8px;
+        cursor:pointer;
+        font-weight:600;
+        box-shadow:0 2px 8px rgba(11,116,255,0.18);
+        transition:background 0.2s ease, transform 0.2s ease;
+      }
+      .top-button:hover{
+        background:#095ed6;
+        transform:translateY(-1px);
+      }
       .top-header{ display:flex; align-items:center; justify-content:space-between; gap:12px }
-      body { font-family: system-ui, -apple-system, Arial; margin:0; display:flex; height:100vh; background:linear-gradient(180deg,#f6fbff,#ffffff) }
-      #sidebar { width:var(--sidebar-w); border-right:1px solid rgba(11,116,255,0.06); padding:16px; box-sizing:border-box; overflow:auto; background:linear-gradient(180deg,#f8fbff,#ffffff) }
-      #main { flex:1; padding:16px; box-sizing:border-box; display:flex; flex-direction:column }
-      .messages { flex:1; overflow:auto; border:1px solid #e9f2ff; padding:8px; margin-bottom:8px; background:white }
+      body { font-family: system-ui, -apple-system, Arial; margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:32px 16px; background:linear-gradient(180deg,#eef3ff,#ffffff) }
+      .app-shell{ width:min(1200px,100%); min-height:80vh; background:#fff; border-radius:26px; box-shadow:0 45px 120px rgba(9,30,68,0.18); border:1px solid rgba(11,116,255,0.08); display:flex; overflow:hidden; }
+      #sidebar { width:var(--sidebar-w); border-right:1px solid rgba(11,116,255,0.08); padding:20px; box-sizing:border-box; overflow:auto; background:linear-gradient(180deg,#f8fbff,#ffffff) }
+      #main { flex:1; padding:24px; box-sizing:border-box; display:flex; flex-direction:column; gap:20px; overflow:auto; background:linear-gradient(180deg,#ffffff,#f5f9ff) }
+      .messages { flex:1; overflow:auto; border:1px solid #e0ecff; padding:12px; margin-bottom:12px; background:white; border-radius:14px; box-shadow:inset 0 1px 0 rgba(255,255,255,0.6) }
       .message { padding:6px 8px; border-bottom:1px solid #f2f8ff }
       .ticket { border:1px solid #e6f0ff; padding:8px; margin-bottom:8px; background:white }
       form { display:flex; gap:8px; flex-direction:column }
@@ -20,13 +35,22 @@
       button.btn.primary { background:var(--brand); color:white }
       button.btn.ghost { background:transparent; border:1px solid rgba(11,116,255,0.12); color:var(--brand) }
       nav { display:flex; gap:8px; margin-bottom:12px }
-      .section { display:none; height:100%; }
+      .section { display:none; width:100%; }
       .section.active { display:block; }
+      .section-card{ width:min(900px,100%); margin:0 auto; background:#fff; border-radius:20px; padding:24px; box-shadow:var(--card-shadow); border:1px solid rgba(11,116,255,0.06); }
+      .section-card h2 { margin:0 0 6px 0; color:var(--brand) }
+      #handbook .section-card, #tickets .section-card, #chat .section-card{ background:linear-gradient(180deg,#ffffff,#fafdff); }
+      #tickets-full{ display:flex; flex-direction:column; gap:14px; }
+      #tickets-full .ticket{ margin-bottom:0; border-radius:14px; padding:12px; box-shadow:inset 0 1px 0 rgba(255,255,255,0.5); }
+      #chat .messages, #chat form{ max-width:640px; width:100%; margin:0 auto; }
+      #chat form{ gap:10px; }
+      #chat form button{ align-self:flex-end; min-width:140px; }
       h2 { color:var(--brand) }
     </style>
   </head>
   <body>
-    <div id="sidebar">
+    <div class="app-shell">
+      <div id="sidebar">
       <!-- Sidebar (navigation moved to the main landing page). -->
 
       <div id="tickets-list-mini" style="margin-top:12px"></div>
@@ -43,9 +67,9 @@
         </form>
         <div id="create-ticket-note" style="margin-top:8px;font-size:13px;color:var(--muted)">Anyone can create tickets — sign in at <a href="/admin.html">/admin.html</a> if you're an admin.</div>
       </div>
-    </div>
+      </div>
 
-    <div id="main">
+      <div id="main">
       <div class="top-header" style="margin-bottom:8px">
         <div></div>
         <div>
@@ -53,36 +77,43 @@
         </div>
       </div>
       <div id="handbook" class="section">
-        <h2>Handbook</h2>
-        <p>Welcome to the Mack Technologies handbook — drop PDF files into the server folder <code>backend/public/PDF handbook/</code> and they will appear below.</p>
-        <div id="handbook-list" style="margin-top:12px"></div>
-        <!-- PDF viewer: opens selected handbook PDF inside the app -->
-        <div id="pdf-viewer" style="display:none; position:relative; margin-top:12px; height:70vh; border:1px solid #e6f0ff; border-radius:6px; overflow:hidden">
-          <div style="padding:8px; background:#f5fbff; border-bottom:1px solid #e6f0ff; display:flex; align-items:center; gap:8px">
-            <strong id="pdf-title">Document</strong>
-            <div style="margin-left:auto">
-              <button id="pdf-close" class="btn">Close</button>
+        <div class="section-card">
+          <h2>Handbook</h2>
+          <p>Welcome to the Mack Technologies handbook — drop PDF files into the server folder <code>backend/public/PDF handbook/</code> and they will appear below.</p>
+          <div id="handbook-list" style="margin-top:12px"></div>
+          <!-- PDF viewer: opens selected handbook PDF inside the app -->
+          <div id="pdf-viewer" style="display:none; position:relative; margin-top:12px; height:70vh; border:1px solid #e6f0ff; border-radius:6px; overflow:hidden">
+            <div style="padding:8px; background:#f5fbff; border-bottom:1px solid #e6f0ff; display:flex; align-items:center; gap:8px">
+              <strong id="pdf-title">Document</strong>
+              <div style="margin-left:auto">
+                <button id="pdf-close" class="btn">Close</button>
+              </div>
             </div>
+            <iframe id="pdf-frame" style="width:100%; height:calc(100% - 44px); border:0"></iframe>
           </div>
-          <iframe id="pdf-frame" style="width:100%; height:calc(100% - 44px); border:0"></iframe>
         </div>
       </div>
 
       <div id="tickets" class="section">
-        <h2>Tickets</h2>
-        <div id="tickets-full"></div>
+        <div class="section-card">
+          <h2>Tickets</h2>
+          <div id="tickets-full"></div>
+        </div>
       </div>
 
       <!-- Help section removed per request -->
 
       <div id="chat" class="section">
-        <h2>Chat</h2>
-        <div class="messages" id="messages"></div>
-        <form id="chat-form">
-          <input id="chat-user" placeholder="Your name" />
-          <input id="chat-input" placeholder="Message" required />
-          <button type="submit">Send</button>
-        </form>
+        <div class="section-card">
+          <h2>Chat</h2>
+          <div class="messages" id="messages"></div>
+          <form id="chat-form">
+            <input id="chat-user" placeholder="Your name" />
+            <input id="chat-input" placeholder="Message" required />
+            <button type="submit">Send</button>
+          </form>
+        </div>
+      </div>
       </div>
     </div>
 

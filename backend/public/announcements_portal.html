@@ -18,7 +18,7 @@
       .layout {
         display: flex;
         gap: 18px;
-        align-items: flex-start;
+        align-items: stretch;
         flex-wrap: wrap;
       }
 
@@ -41,6 +41,8 @@
         padding: 18px;
         min-height: 420px;
         background: var(--surface);
+        display: flex;
+        flex-direction: column;
       }
 
       @media (max-width: 1080px) {
@@ -81,7 +83,8 @@
         background: white;
         border-radius: 8px;
         padding: 8px;
-        height: 500px;
+        flex: 1;
+        min-height: 0;
         overflow-y: auto;
         scroll-behavior: smooth;
       }
@@ -242,15 +245,15 @@
 
       #ap_title {
         width: 100%;
-        max-width: 640px;
+        max-width: 420px;
         border: 1px solid var(--border);
         border-radius: 10px;
-        padding: 10px 12px;
-        font-size: 18px;
+        padding: 8px 10px;
+        font-size: 16px;
         font-weight: 600;
         resize: none;
         overflow: hidden;
-        min-height: 44px;
+        min-height: 38px;
         line-height: 1.3;
         transition: border-color 0.2s ease, box-shadow 0.2s ease;
         text-align: center;
@@ -277,10 +280,95 @@
         overflow: auto;
       }
 
+
       #editor img {
         max-width: 100%;
         border-radius: 10px;
         margin: 10px 0;
+      }
+
+      .media-insert {
+        margin-top: 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        background: #f8fbff;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .media-insert-header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .media-insert-header label {
+        font-weight: 600;
+        color: #12335a;
+      }
+
+      .media-insert select {
+        border-radius: 8px;
+        border: 1px solid rgba(11, 116, 255, 0.35);
+        padding: 6px 10px;
+        font-weight: 600;
+        color: #0b74ff;
+        min-width: 200px;
+      }
+
+      .media-input-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .media-input-row input[type="text"] {
+        flex: 1 1 240px;
+        padding: 8px;
+        border-radius: 8px;
+        border: 1px solid #d9e6ff;
+      }
+
+      .media-input-row .muted {
+        font-size: 13px;
+      }
+
+      .editor-media {
+        border: 1px solid rgba(11, 116, 255, 0.25);
+        border-radius: 12px;
+        padding: 10px;
+        margin: 12px 0;
+        background: #f7fbff;
+      }
+
+      .editor-media iframe {
+        width: 100%;
+        border: 0;
+        border-radius: 8px;
+      }
+
+      .editor-media[data-media-type="pdf"],
+      .editor-media-pdf {
+        background: #eef4ff;
+        padding: 16px;
+      }
+
+      .editor-media[data-media-type="pdf"] iframe,
+      .editor-media-pdf iframe {
+        height: clamp(520px, 70vh, 960px);
+        box-shadow: 0 10px 30px rgba(13, 60, 116, 0.15);
+      }
+
+      .editor-media .media-caption {
+        font-size: 12px;
+        color: #6c7a99;
+        margin-top: 6px;
+        text-align: right;
       }
 
       .image-panel {
@@ -330,7 +418,7 @@
         color: var(--brand);
       }
 
-      .image-selected {
+      .editor-media-selected {
         outline: 2px solid var(--brand);
         outline-offset: 4px;
       }
@@ -515,39 +603,54 @@
               <div class="expiry-note">Expired announcements are hidden automatically.</div>
             </div>
             <div id="editor" contenteditable="true"></div>
-            <div class="inline-row" id="ap_inline_image_row" style="margin-top:12px">
-              <input id="ap_inline_image_url" placeholder="Paste image URL" />
-              <button type="button" class="btn" style="margin:0" id="ap_insert_inline_image">Insert Image</button>
+            <div class="media-insert" id="ap_media_insert">
+              <div class="media-insert-header">
+                <label for="ap_media_mode">Insert media</label>
+                <select id="ap_media_mode">
+                  <option value="image-url">Image from URL</option>
+                  <option value="upload-image">Upload image</option>
+                  <option value="upload-pdf">Upload PDF</option>
+                </select>
+              </div>
+              <div class="media-input-row" id="ap_media_url_group">
+                <input id="ap_media_url" placeholder="https://example.com/image.jpg" />
+                <button type="button" class="btn" style="margin:0" id="ap_media_action_btn">Insert</button>
+              </div>
+              <div class="media-input-row" id="ap_media_upload_group" style="display:none">
+                <button type="button" class="btn" style="margin:0" id="ap_media_upload_btn">Select File</button>
+                <div class="muted" id="ap_media_upload_hint">PNG, JPG, WEBP, or PDF</div>
+              </div>
+              <input id="ap_media_file" type="file" accept="image/*,.svg,.svgz,.webp,application/pdf" style="display:none" />
             </div>
-            <div id="ap_image_panel" class="image-panel">
-              <h4>Image Controls</h4>
-              <div class="muted" style="margin-bottom:4px">Adjust size, alignment, or order of the selected image.</div>
+            <div id="ap_media_panel" class="image-panel">
+              <h4>Media Controls</h4>
+              <div class="muted" style="margin-bottom:4px">Adjust size, alignment, or order of the selected media item.</div>
               <div class="row">
                 <label style="flex:1 1 220px">Size
-                  <input type="range" id="ap_image_size" min="20" max="100" value="100" />
+                  <input type="range" id="ap_media_size" min="20" max="100" value="100" />
                 </label>
-                <div class="image-size-value" id="ap_image_size_value">100%</div>
+                <div class="image-size-value" id="ap_media_size_value">100%</div>
               </div>
               <div class="row">
-                <button type="button" class="img-align" data-align="left">Align Left</button>
-                <button type="button" class="img-align" data-align="center">Center</button>
-                <button type="button" class="img-align" data-align="right">Align Right</button>
+                <button type="button" class="media-align" data-align="left">Align Left</button>
+                <button type="button" class="media-align" data-align="center">Center</button>
+                <button type="button" class="media-align" data-align="right">Align Right</button>
               </div>
               <div class="row">
-                <button type="button" id="ap_img_up">Move Up</button>
-                <button type="button" id="ap_img_down">Move Down</button>
-                <button type="button" id="ap_img_remove" style="background:#ffecec;color:#b2362d">Remove Image</button>
+                <button type="button" id="ap_media_up">Move Up</button>
+                <button type="button" id="ap_media_down">Move Down</button>
+                <button type="button" id="ap_media_remove" style="background:#ffecec;color:#b2362d">Remove Media</button>
               </div>
               <div class="row" style="justify-content:flex-end">
-                <button type="button" id="ap_img_done" class="primary">Done</button>
+                <button type="button" id="ap_media_done" class="primary">Done</button>
               </div>
             </div>
             <div class="dropzone" id="ap_dropzone">
-              Drag & drop PNG, JPG, WEBP, GIF, or SVG files here to upload automatically
+              Drag & drop PNG, JPG, WEBP, GIF, SVG, or PDF files here to upload automatically
               <div style="margin-top:6px">
                 <label class="file-picker">
                   Select File
-                  <input id="ap_filepicker" type="file" accept="image/*,.svg,.svgz,.webp" style="display:none" />
+                  <input id="ap_filepicker" type="file" accept="image/*,.svg,.svgz,.webp,application/pdf" style="display:none" />
                 </label>
               </div>
             </div>
@@ -569,18 +672,25 @@
       const editorEl = document.getElementById('editor');
       const dropzone = document.getElementById('ap_dropzone');
       const filepicker = document.getElementById('ap_filepicker');
-      const inlineImageInput = document.getElementById('ap_inline_image_url');
+      const mediaModeSelect = document.getElementById('ap_media_mode');
+      const mediaUrlInput = document.getElementById('ap_media_url');
+      const mediaActionBtn = document.getElementById('ap_media_action_btn');
+      const mediaUploadBtn = document.getElementById('ap_media_upload_btn');
+      const mediaUploadGroup = document.getElementById('ap_media_upload_group');
+      const mediaUploadHint = document.getElementById('ap_media_upload_hint');
+      const mediaUrlGroup = document.getElementById('ap_media_url_group');
+      const mediaFileInput = document.getElementById('ap_media_file');
       const titleInput = document.getElementById('ap_title');
       const quickActionsSelect = document.getElementById('ap_quick_actions');
       const statusBanner = document.getElementById('ap_status');
       const manageStatus = document.getElementById('ap_manage_status');
-      const imagePanel = document.getElementById('ap_image_panel');
-      const imageSizeInput = document.getElementById('ap_image_size');
-      const imageSizeValue = document.getElementById('ap_image_size_value');
-      const imageMoveUpBtn = document.getElementById('ap_img_up');
-      const imageMoveDownBtn = document.getElementById('ap_img_down');
-      const imageRemoveBtn = document.getElementById('ap_img_remove');
-      const imageDoneBtn = document.getElementById('ap_img_done');
+      const mediaPanel = document.getElementById('ap_media_panel');
+      const mediaSizeInput = document.getElementById('ap_media_size');
+      const mediaSizeValue = document.getElementById('ap_media_size_value');
+      const mediaMoveUpBtn = document.getElementById('ap_media_up');
+      const mediaMoveDownBtn = document.getElementById('ap_media_down');
+      const mediaRemoveBtn = document.getElementById('ap_media_remove');
+      const mediaDoneBtn = document.getElementById('ap_media_done');
       const linkPanel = document.getElementById('ap_link_panel');
       const linkTextInput = document.getElementById('ap_link_text');
       const linkUrlInput = document.getElementById('ap_link_url');
@@ -602,44 +712,78 @@
         return base.replace(/\/$/, '') + path;
       }
 
-      let selectedImage = null;
-      let linkPanelVisible = false;
+      function escapeHtml(str){
+        if (typeof str !== 'string') return '';
+        return str.replace(/[&<>]/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[ch] || ch));
+      }
 
-      ensureTopTextBlock();
-      ensureTopTextSpacer();
+      function escapeAttribute(str){
+        if (typeof str !== 'string') return '';
+        return str.replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;' }[ch] || ch));
+      }
+
+      function insertImageElement(url){
+        const safeUrl = escapeAttribute(url);
+        insertHtml(`<img src="${safeUrl}" alt="" />`);
+      }
+
+      function insertPdfBlock(url, name){
+        const safeUrl = escapeAttribute(url);
+        const safeName = escapeHtml(name || 'PDF attachment');
+        insertHtml(`
+          <div class="editor-media editor-media-pdf" data-media-type="pdf" data-src="${safeUrl}">
+            <iframe src="${safeUrl}#view=FitH" title="${safeName}"></iframe>
+            <div class="media-caption">${safeName}</div>
+          </div>
+        `);
+      }
+
+      let selectedMedia = null;
+      let pendingUploadMode = 'upload-image';
+      let linkPanelVisible = false;
+      const TEXT_CONTAINER_TAGS = ['P','DIV','H1','H2','H3','H4','H5','H6','BLOCKQUOTE','UL','OL','PRE'];
+      const MEDIA_TAGS = ['IMG','VIDEO','AUDIO','IFRAME'];
+
+      ensureLeadingParagraph();
       initTitleAutosize();
       initializeExpirationControls();
 
-      function ensureTopTextBlock(){
-        if (!editorEl) return;
-        const hasMeaningfulContent = Array.from(editorEl.childNodes).some(node => {
-          if (node.nodeType === Node.TEXT_NODE) return node.textContent.trim().length > 0;
-          if (node.nodeType === Node.ELEMENT_NODE){
-            if (node.tagName === 'BR') return false;
-            if (node.tagName === 'P' && node.textContent.trim().length === 0 && !node.querySelector('img, video, audio')) return false;
-            return true;
-          }
-          return false;
-        });
-        if (!hasMeaningfulContent){
-          const placeholder = document.createElement('p');
-          placeholder.appendChild(document.createElement('br'));
-          editorEl.replaceChildren(placeholder);
-          focusEmptyEditor(placeholder);
-        }
-      }
-
-      function ensureTopTextSpacer(){
+      function ensureLeadingParagraph(){
         if (!editorEl) return;
         const firstElement = editorEl.firstElementChild;
-        if (!firstElement) return;
-        const needsSpacer = firstElement.tagName && firstElement.tagName !== 'P' && firstElement.tagName !== 'DIV';
-        if (needsSpacer){
-          preserveSelection(()=>{
-            const spacer = document.createElement('p');
-            spacer.innerHTML = '<br>';
-            editorEl.insertBefore(spacer, firstElement);
-          });
+        if (!firstElement){
+          editorEl.innerHTML = '<p><br></p>';
+          return;
+        }
+        const tag = firstElement.tagName;
+        const isMediaBlock = nodeIsMediaBlock(firstElement);
+        const isTextContainer = TEXT_CONTAINER_TAGS.includes(tag) && !(firstElement.classList && firstElement.classList.contains('editor-media'));
+        const hasMediaInside = firstElement.querySelector ? firstElement.querySelector('img,video,audio,iframe,.editor-media') : null;
+        const hasVisibleText = firstElement.textContent && firstElement.textContent.trim().length > 0;
+        const needsSpacer = isMediaBlock || (isTextContainer && hasMediaInside && !hasVisibleText);
+        if (!needsSpacer) return;
+        preserveSelection(()=>{
+          const spacer = document.createElement('p');
+          spacer.innerHTML = '<br>';
+          editorEl.insertBefore(spacer, firstElement);
+        });
+      }
+
+      function nodeIsMediaBlock(node){
+        if (!node || node.nodeType !== Node.ELEMENT_NODE) return false;
+        if (node.classList && node.classList.contains('editor-media')) return true;
+        return MEDIA_TAGS.includes(node.tagName);
+      }
+
+      function syncMediaModeUI(){
+        if (!mediaModeSelect) return;
+        const mode = mediaModeSelect.value || 'image-url';
+        if (mediaUrlGroup) mediaUrlGroup.style.display = mode === 'image-url' ? 'flex' : 'none';
+        if (mediaUploadGroup) mediaUploadGroup.style.display = mode === 'image-url' ? 'none' : 'flex';
+        if (mediaUploadHint){
+          mediaUploadHint.textContent = mode === 'upload-pdf'
+            ? 'Upload PDF files (visible inline)'
+            : 'PNG, JPG, WEBP, GIF, or SVG';
         }
       }
 
@@ -677,12 +821,6 @@
         }
       }
 
-      function selectionInEditor(){
-        const sel = window.getSelection();
-        if (!sel || sel.rangeCount === 0) return false;
-        return editorEl && editorEl.contains(sel.anchorNode);
-      }
-
       function preserveSelection(mutate){
         const sel = window.getSelection();
         const shouldPreserve = sel && sel.rangeCount > 0 && editorEl && editorEl.contains(sel.anchorNode);
@@ -692,19 +830,6 @@
           sel.removeAllRanges();
           sel.addRange(range);
         }
-      }
-
-      function focusEmptyEditor(placeholder){
-        if (!editorEl) return;
-        const sel = window.getSelection();
-        if (!sel) return;
-        if (!selectionInEditor() && document.activeElement !== editorEl) return;
-        const range = document.createRange();
-        range.setStart(placeholder, 0);
-        range.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(range);
-        editorEl.focus();
       }
 
       function toggleExpiryInputs(enable, preserveValues){
@@ -804,12 +929,12 @@
         resizeTitleField();
       }
 
-      function clearImageSelection(){
-        if (selectedImage){
-          selectedImage.classList.remove('image-selected');
+      function clearMediaSelection(){
+        if (selectedMedia){
+          selectedMedia.classList.remove('editor-media-selected');
         }
-        selectedImage = null;
-        if (imagePanel) imagePanel.style.display = 'none';
+        selectedMedia = null;
+        if (mediaPanel) mediaPanel.style.display = 'none';
       }
 
       function hideLinkPanel(){
@@ -832,45 +957,48 @@
         },0);
       }
 
-      function updateImagePanel(){
-        if (!selectedImage || !imagePanel) return;
+      function updateMediaPanel(){
+        if (!selectedMedia || !mediaPanel) return;
         const editorWidth = editorEl.getBoundingClientRect().width || 1;
-        const imgWidth = selectedImage.getBoundingClientRect().width || editorWidth;
-        const percent = Math.max(20, Math.min(100, Math.round((imgWidth / editorWidth) * 100)));
-        imageSizeInput.value = percent;
-        imageSizeValue.textContent = percent + '%';
-        imagePanel.style.display = 'block';
+        const mediaWidth = selectedMedia.getBoundingClientRect().width || editorWidth;
+        const percent = Math.max(20, Math.min(100, Math.round((mediaWidth / editorWidth) * 100)));
+        mediaSizeInput.value = percent;
+        mediaSizeValue.textContent = percent + '%';
+        mediaPanel.style.display = 'block';
       }
 
-      function selectImage(img){
-        if (!img) return;
-        if (selectedImage === img){
-          updateImagePanel();
+      function selectMedia(node){
+        if (!node) return;
+        const mediaNode = node.classList && node.classList.contains('editor-media') ? node : node.closest('.editor-media');
+        const target = mediaNode || node;
+        if (!target) return;
+        if (selectedMedia === target){
+          updateMediaPanel();
           return;
         }
-        clearImageSelection();
-        selectedImage = img;
-        selectedImage.classList.add('image-selected');
-        updateImagePanel();
+        clearMediaSelection();
+        selectedMedia = target;
+        selectedMedia.classList.add('editor-media-selected');
+        updateMediaPanel();
       }
 
-      function setImageAlignment(alignment){
-        if (!selectedImage) return;
-        selectedImage.style.display = 'block';
-        selectedImage.style.marginTop = '12px';
-        selectedImage.style.marginBottom = '12px';
-        selectedImage.style.float = 'none';
+      function setMediaAlignment(alignment){
+        if (!selectedMedia) return;
+        selectedMedia.style.display = 'block';
+        selectedMedia.style.marginTop = '12px';
+        selectedMedia.style.marginBottom = '12px';
+        selectedMedia.style.float = 'none';
         if (alignment === 'left'){
-          selectedImage.style.marginLeft = '0';
-          selectedImage.style.marginRight = 'auto';
+          selectedMedia.style.marginLeft = '0';
+          selectedMedia.style.marginRight = 'auto';
         } else if (alignment === 'right'){
-          selectedImage.style.marginLeft = 'auto';
-          selectedImage.style.marginRight = '0';
+          selectedMedia.style.marginLeft = 'auto';
+          selectedMedia.style.marginRight = '0';
         } else {
-          selectedImage.style.marginLeft = 'auto';
-          selectedImage.style.marginRight = 'auto';
+          selectedMedia.style.marginLeft = 'auto';
+          selectedMedia.style.marginRight = 'auto';
         }
-        selectedImage.dataset.align = alignment;
+        selectedMedia.dataset.align = alignment;
       }
 
       function findSibling(node, direction){
@@ -881,34 +1009,37 @@
         return sib;
       }
 
-      function moveImage(direction){
-        if (!selectedImage) return;
+      function moveMedia(direction){
+        if (!selectedMedia) return;
         const parent = editorEl;
         if (!parent) return;
         if (direction === 'up'){
-          const prev = findSibling(selectedImage, 'up');
-          if (prev) parent.insertBefore(selectedImage, prev);
-          else parent.insertBefore(selectedImage, parent.firstChild);
+          const prev = findSibling(selectedMedia, 'up');
+          if (prev) parent.insertBefore(selectedMedia, prev);
+          else parent.insertBefore(selectedMedia, parent.firstChild);
         } else {
-          const next = findSibling(selectedImage, 'down');
-          if (next) parent.insertBefore(selectedImage, next.nextSibling);
-          else parent.appendChild(selectedImage);
+          const next = findSibling(selectedMedia, 'down');
+          if (next) parent.insertBefore(selectedMedia, next.nextSibling);
+          else parent.appendChild(selectedMedia);
         }
-        ensureTopTextBlock();
-        ensureTopTextSpacer();
+        ensureLeadingParagraph();
       }
 
       function resetComposer(){
         currentEditingId = null;
         titleInput.value = '';
         resizeTitleField();
-        inlineImageInput.value = '';
+        if (mediaUrlInput) mediaUrlInput.value = '';
         editorEl.innerHTML = '<p><br></p>';
         statusBanner.textContent = '';
         document.getElementById('ap_post').textContent = 'Post Announcement';
-        clearImageSelection();
+        clearMediaSelection();
         hideLinkPanel();
         applyAnnouncementExpiry(null);
+        if (mediaModeSelect){
+          mediaModeSelect.value = 'image-url';
+          syncMediaModeUI();
+        }
       }
 
       function showSignin(){
@@ -1046,9 +1177,8 @@
         statusBanner.textContent = `Editing announcement #${ann.id}`;
         document.getElementById('ap_post').textContent = 'Save Changes';
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        ensureTopTextBlock();
-        ensureTopTextSpacer();
-        clearImageSelection();
+        ensureLeadingParagraph();
+        clearMediaSelection();
         hideLinkPanel();
         applyAnnouncementExpiry(ann);
       }
@@ -1103,8 +1233,7 @@
         editorEl.focus();
         document.execCommand('insertHTML', false, html);
         setTimeout(()=>{
-          ensureTopTextBlock();
-          ensureTopTextSpacer();
+          ensureLeadingParagraph();
         },0);
       }
 
@@ -1129,27 +1258,58 @@
         });
       }
 
+      if (mediaModeSelect){
+        syncMediaModeUI();
+        mediaModeSelect.addEventListener('change', syncMediaModeUI);
+      }
+
+      if (mediaActionBtn){
+        mediaActionBtn.addEventListener('click', ()=>{
+          if (!mediaUrlInput) return;
+          const url = mediaUrlInput.value.trim();
+          if (!url) return;
+          insertImageElement(url);
+          mediaUrlInput.value = '';
+        });
+      }
+
+      if (mediaUploadBtn){
+        mediaUploadBtn.addEventListener('click', ()=>{
+          pendingUploadMode = mediaModeSelect ? mediaModeSelect.value : 'upload-image';
+          if (mediaFileInput) mediaFileInput.click();
+        });
+      }
+
+      if (mediaFileInput){
+        mediaFileInput.addEventListener('change', ()=>{
+          if (!mediaFileInput.files || !mediaFileInput.files.length) return;
+          handleFiles(mediaFileInput.files, pendingUploadMode);
+          mediaFileInput.value = '';
+        });
+      }
+
       editorEl.addEventListener('click', (event)=>{
+        const mediaBlock = event.target.closest('.editor-media');
+        if (mediaBlock) return selectMedia(mediaBlock);
         const img = event.target.closest('img');
-        if (img) selectImage(img);
+        if (img) selectMedia(img);
       });
 
       editorEl.addEventListener('input', ()=>{
-        ensureTopTextBlock();
-        ensureTopTextSpacer();
-        if (selectedImage && !editorEl.contains(selectedImage)){
-          clearImageSelection();
+        ensureLeadingParagraph();
+        if (selectedMedia && !editorEl.contains(selectedMedia)){
+          clearMediaSelection();
         }
       });
 
       editorEl.addEventListener('keyup', (event)=>{
-        if (event.key === 'Escape') clearImageSelection();
+        if (event.key === 'Escape') clearMediaSelection();
       });
 
       document.addEventListener('click', (event)=>{
-        const clickedInsideImagePanel = imagePanel && imagePanel.contains(event.target);
-        if (!clickedInsideImagePanel && !editorEl.contains(event.target)){
-          clearImageSelection();
+        const clickedInsideMediaPanel = mediaPanel && mediaPanel.contains(event.target);
+        if (!clickedInsideMediaPanel && !editorEl.contains(event.target)){
+          clearMediaSelection();
         }
         const clickedLinkControls = linkPanel && linkPanel.contains(event.target);
         const clickedLinkToggle = linkToggleBtn && linkToggleBtn.contains(event.target);
@@ -1185,17 +1345,9 @@
           exitListMode();
           document.execCommand('removeFormat', false, null);
           document.execCommand('formatBlock', false, '<p>');
-          ensureTopTextBlock();
-          ensureTopTextSpacer();
+          ensureLeadingParagraph();
         });
       }
-
-      document.getElementById('ap_insert_inline_image').addEventListener('click', ()=>{
-        const url = inlineImageInput.value.trim();
-        if (!url) return;
-        insertHtml(`<img src="${url}" alt="" />`);
-        inlineImageInput.value = '';
-      });
 
       if (linkToggleBtn){
         linkToggleBtn.addEventListener('click', ()=>{
@@ -1219,39 +1371,38 @@
         });
       }
 
-      if (imageSizeInput){
-        imageSizeInput.addEventListener('input', ()=>{
-          if (!selectedImage) return;
-          const value = Number(imageSizeInput.value) || 100;
-          selectedImage.style.width = value + '%';
-          selectedImage.style.maxWidth = value + '%';
-          imageSizeValue.textContent = value + '%';
+      if (mediaSizeInput){
+        mediaSizeInput.addEventListener('input', ()=>{
+          if (!selectedMedia) return;
+          const value = Number(mediaSizeInput.value) || 100;
+          selectedMedia.style.width = value + '%';
+          selectedMedia.style.maxWidth = value + '%';
+          mediaSizeValue.textContent = value + '%';
         });
       }
 
-      document.querySelectorAll('.img-align').forEach(btn => {
+      document.querySelectorAll('.media-align').forEach(btn => {
         btn.addEventListener('click', ()=>{
-          if (!selectedImage) return;
-          setImageAlignment(btn.getAttribute('data-align'));
+          if (!selectedMedia) return;
+          setMediaAlignment(btn.getAttribute('data-align'));
         });
       });
 
-      if (imageMoveUpBtn) imageMoveUpBtn.addEventListener('click', ()=> moveImage('up'));
-      if (imageMoveDownBtn) imageMoveDownBtn.addEventListener('click', ()=> moveImage('down'));
-      if (imageRemoveBtn) imageRemoveBtn.addEventListener('click', ()=>{
-        if (!selectedImage) return;
-        const toRemove = selectedImage;
-        clearImageSelection();
+      if (mediaMoveUpBtn) mediaMoveUpBtn.addEventListener('click', ()=> moveMedia('up'));
+      if (mediaMoveDownBtn) mediaMoveDownBtn.addEventListener('click', ()=> moveMedia('down'));
+      if (mediaRemoveBtn) mediaRemoveBtn.addEventListener('click', ()=>{
+        if (!selectedMedia) return;
+        const toRemove = selectedMedia;
+        clearMediaSelection();
         toRemove.remove();
-        ensureTopTextBlock();
-        ensureTopTextSpacer();
+        ensureLeadingParagraph();
       });
-      if (imageDoneBtn) imageDoneBtn.addEventListener('click', ()=> clearImageSelection());
+      if (mediaDoneBtn) mediaDoneBtn.addEventListener('click', ()=> clearMediaSelection());
 
-      async function uploadImage(file){
+      async function uploadMedia(file){
         const fd = new FormData();
         fd.append('image', file);
-        statusBanner.textContent = 'Uploading image...';
+        statusBanner.textContent = 'Uploading media...';
         const res = await fetchWithAuth('/api/announcements/upload-image', { method:'POST', body: fd });
         const data = await res.json();
         if (!res.ok) throw new Error((data && data.error) || 'Upload failed');
@@ -1259,11 +1410,25 @@
         return data.url;
       }
 
-      async function handleFiles(files){
+      function isPdfFile(file){
+        if (!file) return false;
+        if (file.type && file.type.toLowerCase().includes('pdf')) return true;
+        return /\.pdf$/i.test(file.name || '');
+      }
+
+      async function handleFiles(files, forcedMode){
         if (!files || !files.length) return;
+        const file = files[0];
+        const pdfPreferred = forcedMode === 'upload-pdf';
+        const imagePreferred = forcedMode === 'upload-image';
+        const treatAsPdf = pdfPreferred || (!imagePreferred && isPdfFile(file));
         try {
-          const url = await uploadImage(files[0]);
-          insertHtml(`<img src="${url}" alt="" />`);
+          const url = await uploadMedia(file);
+          if (treatAsPdf){
+            insertPdfBlock(url, file.name);
+          } else {
+            insertImageElement(url);
+          }
         } catch (err) {
           statusBanner.textContent = err.message;
         }
@@ -1286,7 +1451,7 @@
       });
 
       async function saveAnnouncement(){
-        clearImageSelection();
+        clearMediaSelection();
         const title = titleInput.value.trim();
         const body = editorEl.innerHTML.trim();
         if (!title || !body){

@@ -15,7 +15,21 @@
       .row > *{ flex:1 }
       .actions{ margin-top:14px; display:flex; gap:8px }
       .btn{ padding:10px 14px; border-radius:8px; border:0; cursor:pointer }
-      .top-button{ background:linear-gradient(180deg,#dff0ff,#cfefff); border:1px solid rgba(11,116,255,0.12); color:var(--brand); padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:600 }
+      .top-button{
+        background:var(--brand);
+        color:#fff;
+        border:0;
+        padding:8px 12px;
+        border-radius:8px;
+        cursor:pointer;
+        font-weight:600;
+        box-shadow:0 2px 8px rgba(11,116,255,0.18);
+        transition:background 0.2s ease, transform 0.2s ease;
+      }
+      .top-button:hover{
+        background:#095ed6;
+        transform:translateY(-1px);
+      }
       .btn.primary{ background:var(--brand); color:#fff }
       .muted{ color:var(--muted); font-size:13px }
     </style>

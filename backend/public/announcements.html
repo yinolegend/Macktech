@@ -6,22 +6,61 @@
     <title>Announcements — Mack Technologies</title>
     <style>
       :root{ --brand:#0b74ff; --muted:#6b7a99 }
-      body{ font-family:system-ui, -apple-system, Arial; margin:0; padding:20px; background:linear-gradient(180deg,#f6fbff,#ffffff) }
-      .card{ max-width:1080px; margin:18px auto; background:white; border-radius:10px; padding:18px; box-shadow:0 8px 30px rgba(11,27,60,0.06) }
-      h1{ margin:0; color:var(--brand) }
-      .muted{ color:var(--muted); margin-top:6px }
+      body{ font-family:system-ui, -apple-system, Arial; margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:32px 16px; background:linear-gradient(180deg,#eaf2ff,#ffffff) }
+      .card{ width:100%; max-width:1080px; background:white; border-radius:20px; padding:24px; box-shadow:0 40px 110px rgba(9,30,68,0.18); border:1px solid rgba(11,116,255,0.08); transition:min-height 0.3s ease, padding 0.3s ease; }
+      .card.card--few{ min-height:80vh; display:flex; flex-direction:column; justify-content:center; }
+      .card.card--many{ min-height:auto; }
+      h1{ margin:0; color:var(--brand); text-align:center }
+      .muted{ color:var(--muted); margin-top:6px; text-align:center }
       .ann-list{ margin-top:14px; display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
       .ann-list.single-view{ display:block; }
-      .ann{ border:1px solid #e6f3ff; padding:12px; border-radius:8px; background:linear-gradient(180deg,#ffffff,#fbfdff); cursor:pointer; transition:box-shadow 0.2s ease, transform 0.2s ease; }
-      .ann:hover{ box-shadow:0 6px 24px rgba(11,27,60,0.12); transform:translateY(-2px); }
-      .ann h3{ margin:0 0 6px 0; font-size:18px; }
-      .top-button{ background:linear-gradient(180deg,#dff0ff,#cfefff); border:1px solid rgba(11,116,255,0.12); color:var(--brand); padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:600 }
+      .ann-list.empty{ display:flex; align-items:center; justify-content:center; min-height:220px; text-align:center; }
+      .ann{ border:1px solid #e6f3ff; padding:16px; border-radius:14px; background:linear-gradient(180deg,#ffffff,#fbfdff); cursor:pointer; transition:box-shadow 0.2s ease, transform 0.2s ease; }
+      .ann:hover{ box-shadow:0 12px 32px rgba(11,27,60,0.18); transform:translateY(-4px); }
+      .ann h3{ margin:0 0 10px 0; font-size:22px; text-align:center; letter-spacing:-0.25px; color:#0b2a6f; }
+      .ann.single h3{ text-align:center; }
+      .top-button{
+        background:var(--brand);
+        color:#fff;
+        border:0;
+        padding:8px 12px;
+        border-radius:8px;
+        cursor:pointer;
+        font-weight:600;
+        box-shadow:0 2px 8px rgba(11,116,255,0.18);
+        transition:background 0.2s ease, transform 0.2s ease;
+      }
+      .top-button:hover{
+        background:#095ed6;
+        transform:translateY(-1px);
+      }
       .actions{ display:flex; gap:8px; margin-top:12px }
       .small{ color:#6b7a99; font-size:13px }
       .ann-body-preview{ color:#41506e; font-size:14px; line-height:1.4; max-height:130px; overflow:hidden; margin-top:8px; }
       .ann-body-preview img{ max-width:100%; border-radius:6px; margin-top:8px; }
       .ann-full-body{ color:#374463; font-size:15px; line-height:1.5; margin-top:12px; }
       .ann-full-body img{ max-width:100%; border-radius:8px; margin:10px 0; }
+      .ann-list.ann-list--few{ grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:20px; }
+      .ann-list.ann-list--few .ann{ padding:24px; min-height:220px; }
+      .ann-list.ann-list--many{ grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; }
+      .ann-list.ann-list--many .ann{ padding:14px; }
+
+      .ann .pdf-preview{
+        margin-top:12px;
+        border:1px solid rgba(11,116,255,0.2);
+        border-radius:12px;
+        overflow:hidden;
+        background:#eef4ff;
+      }
+
+      .ann .pdf-preview iframe,
+      .ann .pdf-preview img{
+        width:100%;
+        height:clamp(420px,65vh,900px);
+        border:0;
+        display:block;
+        background:#fdfdfd;
+      }
     </style>
   </head>
   <body>
@@ -44,6 +83,28 @@
     </div>
 
     <script>
+      const cardRoot = document.querySelector('.card');
+      const annListRoot = document.getElementById('announcements');
+
+      function updateCardSizing(count){
+        if (cardRoot){
+          cardRoot.classList.remove('card--few','card--many');
+          if (!Number.isFinite(count) || count <= 2){
+            cardRoot.classList.add('card--few');
+          } else {
+            cardRoot.classList.add('card--many');
+          }
+        }
+        if (annListRoot){
+          annListRoot.classList.remove('ann-list--few','ann-list--many');
+          if (!Number.isFinite(count) || count <= 2){
+            annListRoot.classList.add('ann-list--few');
+          } else {
+            annListRoot.classList.add('ann-list--many');
+          }
+        }
+      }
+
       // This page intentionally keeps the logic small and readable:
       // 1) Fetch `/announcements.json` (the same file the landing page uses).
       // 2) Render either a grid of cards or a single announcement view.
@@ -93,10 +154,36 @@
         return ts < Date.now();
       }
 
+      function isImageOnlyElement(node){
+        if (!node || node.nodeType !== 1) return false;
+        if (node.tagName === 'IMG') return true;
+        const hasImage = node.querySelector && node.querySelector('img');
+        if (!hasImage) return false;
+        const text = node.textContent ? node.textContent.replace(/\s+/g,'').length : 0;
+        return text === 0;
+      }
+
+      function prioritizeTextBeforeImages(container){
+        if (!container) return;
+        let moved = false;
+        while (container.firstElementChild && isImageOnlyElement(container.firstElementChild)){
+          container.appendChild(container.firstElementChild);
+          moved = true;
+        }
+        const firstNode = container.firstChild;
+        if (firstNode && firstNode.nodeType === 1 && firstNode.tagName === 'IMG'){
+          container.appendChild(firstNode);
+          moved = true;
+        }
+        return moved;
+      }
+
       function renderExpiredNotice(){
         const container = document.getElementById('announcements');
         container.classList.remove('single-view');
+        container.classList.add('empty');
         container.innerHTML = '<div class="muted">This announcement is no longer available.</div>';
+        updateCardSizing(0);
       }
 
       // Each announcement created in the admin console already has an ID.
@@ -111,11 +198,14 @@
       function renderAllAnnouncements(list){
         const container = document.getElementById('announcements');
         container.classList.remove('single-view');
+        container.classList.remove('empty');
         container.innerHTML = '';
         if (!Array.isArray(list) || list.length === 0){
+          container.classList.add('empty');
           container.innerHTML = '<div style="color:var(--muted)">No announcements available.</div>';
           return;
         }
+        container.classList.remove('empty');
 
         list.forEach((announcement, idx)=>{
           const card = document.createElement('div');
@@ -125,6 +215,9 @@
 
           const bodyPreview = sanitizeAnnouncementBody(toHtmlContent(announcement.body || announcement.html || ''));
           bodyPreview.classList.add('ann-body-preview');
+          prioritizeTextBeforeImages(bodyPreview);
+
+          transformPdfBlocks(bodyPreview);
 
           card.appendChild(title);
           if (bodyPreview.childNodes.length) card.appendChild(bodyPreview);
@@ -166,16 +259,20 @@
       function renderSingleAnnouncement(target, list){
         const container = document.getElementById('announcements');
         container.classList.add('single-view');
+        container.classList.remove('empty');
         container.innerHTML = '';
 
         const wrap = document.createElement('div');
         wrap.className = 'ann';
+        wrap.classList.add('single');
         wrap.style.cursor = 'default';
 
         const title = document.createElement('h3');
         title.textContent = target.title || 'Announcement';
         const body = sanitizeAnnouncementBody(toHtmlContent(target.body || target.html || ''));
         body.classList.add('ann-full-body');
+        prioritizeTextBeforeImages(body);
+        transformPdfBlocks(body);
 
         wrap.appendChild(title);
         if (body.childNodes.length) wrap.appendChild(body);
@@ -188,35 +285,75 @@
         if (meta.textContent) wrap.appendChild(meta);
 
         container.appendChild(wrap);
+        updateCardSizing(1);
+      }
+
+      function transformPdfBlocks(container){
+        if (!container) return;
+        container.querySelectorAll('img').forEach(img => {
+          const parsed = parsePdfUrl(img.src);
+          if (!parsed) return;
+          const iframe = document.createElement('iframe');
+          iframe.src = parsed + '#view=FitH';
+          iframe.title = img.alt || 'PDF preview';
+          iframe.loading = 'lazy';
+          const wrapper = document.createElement('div');
+          wrapper.className = 'pdf-preview';
+          wrapper.appendChild(iframe);
+          img.replaceWith(wrapper);
+        });
+        container.querySelectorAll('.editor-media[data-media-type="pdf"] iframe').forEach(iframe => {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'pdf-preview';
+          iframe.parentElement.insertBefore(wrapper, iframe);
+          wrapper.appendChild(iframe);
+        });
+      }
+
+      function parsePdfUrl(url){
+        if (!url) return null;
+        try {
+          const parsed = new URL(url, window.location.origin);
+          const path = parsed.pathname || '';
+          if (!path.toLowerCase().endsWith('.pdf')) return null;
+          return parsed.toString().replace(/#.*$/, '');
+        } catch (err) {
+          if (!/\.pdf($|\?)/i.test(url)) return null;
+          return url.replace(/#.*$/, '');
+        }
       }
 
       // --- Data load ----------------------------------------------------------
       async function loadAnnouncements(){
         const el = document.getElementById('announcements');
         el.innerHTML = '';
+        el.classList.remove('empty');
+        el.classList.remove('single-view');
         try{
           const res = await fetch('/announcements.json', { cache: 'no-store' });
-          if (!res.ok) { el.innerHTML = '<div style="color:var(--muted)">No announcements available.</div>'; return; }
+          if (!res.ok) { el.classList.add('empty'); el.innerHTML = '<div style="color:var(--muted)">No announcements available.</div>'; updateCardSizing(0); return; }
           const list = await res.json();
-          if (!Array.isArray(list) || list.length === 0) { el.innerHTML = '<div style="color:var(--muted)">No announcements available.</div>'; return; }
-          const visibleList = list.filter(item => !isAnnouncementExpired(item));
+          if (!Array.isArray(list) || list.length === 0) { el.classList.add('empty'); el.innerHTML = '<div style="color:var(--muted)">No announcements available.</div>'; updateCardSizing(0); return; }
+          const visibleList = list.filter(item => !item.hidden && !isAnnouncementExpired(item));
 
           const params = new URLSearchParams(window.location.search);
           const idParam = params.get('id');
           if (idParam !== null){
-            const target = list.find((announcement, idx)=> String(getAnnouncementId(announcement, idx)) === idParam);
+            const target = list.find((announcement, idx)=> !announcement.hidden && String(getAnnouncementId(announcement, idx)) === idParam);
             if (target){
               if (isAnnouncementExpired(target)) {
                 renderExpiredNotice();
                 return;
               }
               renderSingleAnnouncement(target, list);
+              updateCardSizing(1);
               return;
             }
           }
 
           renderAllAnnouncements(visibleList);
-        }catch(e){ el.innerHTML = '<div style="color:#b33737">Failed to load announcements</div>'; }
+          updateCardSizing(visibleList.length);
+        }catch(e){ el.classList.add('empty'); el.innerHTML = '<div style="color:#b33737">Failed to load announcements</div>'; updateCardSizing(0); }
       }
 
       document.getElementById('btnHomeFromAnnouncements').addEventListener('click', ()=> { window.location.href = '/'; });

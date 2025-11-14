@@ -16,6 +16,9 @@
       .hero p { margin:6px 0 0 0; color:var(--muted) }
       .slides { display:flex; gap:0; overflow:hidden; position:relative; flex:1 1 auto; min-height:0 }
       .slide { min-width:100%; padding:28px; box-sizing:border-box; display:flex; align-items:center; justify-content:space-between }
+      .slide.announcement-slide{ justify-content:center; text-align:center; flex-direction:column; gap:18px; }
+      .slide.announcement-slide > div{ width:100%; max-width:720px; }
+      .slide.announcement-slide .announcement-body{ margin:0 auto; }
       .slide > div:first-child{ flex:1 1 55%; max-width:60%; }
       .slide > div:last-child{ flex:0 0 auto; }
       .announcement-body{ font-size:15px; line-height:1.45; max-width:520px; max-height:220px; overflow:hidden; margin-bottom:8px; }
@@ -188,7 +191,7 @@
 
           visibleAnnouncements.forEach((a, idx) => {
             const s = document.createElement('div');
-            s.className = 'slide';
+            s.className = 'slide announcement-slide';
             s.style.background = 'linear-gradient(90deg,#eef6ff,#ffffff)';
             const left = document.createElement('div');
             const h = document.createElement('h2');
