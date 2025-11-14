@@ -1,0 +1,226 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Announcements — Mack Technologies</title>
+    <style>
+      :root{ --brand:#0b74ff; --muted:#6b7a99 }
+      body{ font-family:system-ui, -apple-system, Arial; margin:0; padding:20px; background:linear-gradient(180deg,#f6fbff,#ffffff) }
+      .card{ max-width:1080px; margin:18px auto; background:white; border-radius:10px; padding:18px; box-shadow:0 8px 30px rgba(11,27,60,0.06) }
+      h1{ margin:0; color:var(--brand) }
+      .muted{ color:var(--muted); margin-top:6px }
+      .ann-list{ margin-top:14px; display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
+      .ann-list.single-view{ display:block; }
+      .ann{ border:1px solid #e6f3ff; padding:12px; border-radius:8px; background:linear-gradient(180deg,#ffffff,#fbfdff); cursor:pointer; transition:box-shadow 0.2s ease, transform 0.2s ease; }
+      .ann:hover{ box-shadow:0 6px 24px rgba(11,27,60,0.12); transform:translateY(-2px); }
+      .ann h3{ margin:0 0 6px 0; font-size:18px; }
+      .top-button{ background:linear-gradient(180deg,#dff0ff,#cfefff); border:1px solid rgba(11,116,255,0.12); color:var(--brand); padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:600 }
+      .actions{ display:flex; gap:8px; margin-top:12px }
+      .small{ color:#6b7a99; font-size:13px }
+      .ann-body-preview{ color:#41506e; font-size:14px; line-height:1.4; max-height:130px; overflow:hidden; margin-top:8px; }
+      .ann-body-preview img{ max-width:100%; border-radius:6px; margin-top:8px; }
+      .ann-full-body{ color:#374463; font-size:15px; line-height:1.5; margin-top:12px; }
+      .ann-full-body img{ max-width:100%; border-radius:8px; margin:10px 0; }
+    </style>
+  </head>
+  <body>
+    <!-- Card layout keeps things approachable for non-technical viewers. -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <h1>Mack Technologies</h1>    
+          <div class="muted">Company announcements and notices</div>
+        </div>
+        <div>
+          <button id="btnHomeFromAnnouncements" class="top-button">Home</button>
+        </div>
+      </div>
+
+      <div id="announcements" class="ann-list">
+        <!-- Announcements will be loaded here from announcements.json -->
+      </div>
+
+    </div>
+
+    <script>
+      // This page intentionally keeps the logic small and readable:
+      // 1) Fetch `/announcements.json` (the same file the landing page uses).
+      // 2) Render either a grid of cards or a single announcement view.
+      // 3) Keep helpers like sanitizer/meta formatting separate so each
+      //    function can be scanned quickly by new contributors.
+
+      // --- Helper utilities ---------------------------------------------------
+      // Normalize HTML that may have been produced by a rich-text editor.
+      function sanitizeAnnouncementBody(html){
+        const container = document.createElement('div');
+        if (typeof html === 'string' && html.trim()) container.innerHTML = html;
+        container.querySelectorAll('.resize-handle').forEach(el => el.remove());
+        container.querySelectorAll('.editor-image-wrapper').forEach(wrapper => {
+          wrapper.removeAttribute('contenteditable');
+          wrapper.removeAttribute('draggable');
+          wrapper.removeAttribute('data-configured');
+          wrapper.classList.remove('selected', 'dragging');
+        });
+        return container;
+      }
+
+      // Convert plain text bodies into simple <br>-separated HTML if editors
+      // pasted text without tags.
+      function toHtmlContent(raw){
+        if (typeof raw !== 'string') return '';
+        return raw.includes('<') ? raw : raw.replace(/\n/g, '<br>');
+      }
+
+      // Compose the "date • author" line that appears under each card.
+      function buildMetaText(announcement){
+        const metaParts = [];
+        if (announcement.date) metaParts.push(announcement.date);
+        if (announcement.author) metaParts.push(announcement.author);
+        return metaParts.join(' • ');
+      }
+
+      function getExpirationValue(announcement){
+        if (!announcement) return null;
+        return announcement.expiresAt || announcement.expires_at || null;
+      }
+
+      function isAnnouncementExpired(announcement){
+        const value = getExpirationValue(announcement);
+        if (!value) return false;
+        const ts = Date.parse(value);
+        if (Number.isNaN(ts)) return false;
+        return ts < Date.now();
+      }
+
+      function renderExpiredNotice(){
+        const container = document.getElementById('announcements');
+        container.classList.remove('single-view');
+        container.innerHTML = '<div class="muted">This announcement is no longer available.</div>';
+      }
+
+      // Each announcement created in the admin console already has an ID.
+      // Legacy entries might not, so fall back to their array index.
+      function getAnnouncementId(announcement, fallback){
+        if (announcement && announcement.id !== undefined && announcement.id !== null && announcement.id !== '') return announcement.id;
+        return fallback;
+      }
+
+      // --- View renderers -----------------------------------------------------
+      // Build the masonry-like grid showing all announcements.
+      function renderAllAnnouncements(list){
+        const container = document.getElementById('announcements');
+        container.classList.remove('single-view');
+        container.innerHTML = '';
+        if (!Array.isArray(list) || list.length === 0){
+          container.innerHTML = '<div style="color:var(--muted)">No announcements available.</div>';
+          return;
+        }
+
+        list.forEach((announcement, idx)=>{
+          const card = document.createElement('div');
+          card.className = 'ann';
+          const title = document.createElement('h3');
+          title.textContent = announcement.title || 'Announcement';
+
+          const bodyPreview = sanitizeAnnouncementBody(toHtmlContent(announcement.body || announcement.html || ''));
+          bodyPreview.classList.add('ann-body-preview');
+
+          card.appendChild(title);
+          if (bodyPreview.childNodes.length) card.appendChild(bodyPreview);
+
+          const meta = document.createElement('div');
+          meta.className = 'small';
+          meta.style.textAlign = 'right';
+          meta.style.marginTop = '12px';
+          meta.textContent = buildMetaText(announcement);
+          if (meta.textContent) card.appendChild(meta);
+
+          const cardId = getAnnouncementId(announcement, idx);
+          card.addEventListener('click', (event)=>{
+            event.preventDefault();
+            try {
+              const targetUrl = new URL(window.location.href);
+              targetUrl.pathname = targetUrl.pathname.replace(/[^/]*$/, 'announcements.html');
+              targetUrl.search = '';
+              targetUrl.hash = '';
+              targetUrl.searchParams.set('id', String(cardId));
+              const win = window.open(targetUrl.toString(), '_blank', 'noopener');
+              if (!win) window.location.href = targetUrl.toString();
+            } catch (err) {
+              const fallbackUrl = '/announcements.html?id=' + encodeURIComponent(String(cardId));
+              const win = window.open(fallbackUrl, '_blank');
+              if (!win) window.location.href = fallbackUrl;
+            }
+          });
+          card.addEventListener('keydown', (event)=>{
+            if (event.key === 'Enter' || event.key === ' '){ event.preventDefault(); card.click(); }
+          });
+          card.setAttribute('tabindex','0');
+
+          container.appendChild(card);
+        });
+      }
+
+      // When someone deep-links with ?id=123, render only that card in focus.
+      function renderSingleAnnouncement(target, list){
+        const container = document.getElementById('announcements');
+        container.classList.add('single-view');
+        container.innerHTML = '';
+
+        const wrap = document.createElement('div');
+        wrap.className = 'ann';
+        wrap.style.cursor = 'default';
+
+        const title = document.createElement('h3');
+        title.textContent = target.title || 'Announcement';
+        const body = sanitizeAnnouncementBody(toHtmlContent(target.body || target.html || ''));
+        body.classList.add('ann-full-body');
+
+        wrap.appendChild(title);
+        if (body.childNodes.length) wrap.appendChild(body);
+
+        const meta = document.createElement('div');
+        meta.className = 'small';
+        meta.style.textAlign = 'right';
+        meta.style.marginTop = '16px';
+        meta.textContent = buildMetaText(target);
+        if (meta.textContent) wrap.appendChild(meta);
+
+        container.appendChild(wrap);
+      }
+
+      // --- Data load ----------------------------------------------------------
+      async function loadAnnouncements(){
+        const el = document.getElementById('announcements');
+        el.innerHTML = '';
+        try{
+          const res = await fetch('/announcements.json', { cache: 'no-store' });
+          if (!res.ok) { el.innerHTML = '<div style="color:var(--muted)">No announcements available.</div>'; return; }
+          const list = await res.json();
+          if (!Array.isArray(list) || list.length === 0) { el.innerHTML = '<div style="color:var(--muted)">No announcements available.</div>'; return; }
+          const visibleList = list.filter(item => !isAnnouncementExpired(item));
+
+          const params = new URLSearchParams(window.location.search);
+          const idParam = params.get('id');
+          if (idParam !== null){
+            const target = list.find((announcement, idx)=> String(getAnnouncementId(announcement, idx)) === idParam);
+            if (target){
+              if (isAnnouncementExpired(target)) {
+                renderExpiredNotice();
+                return;
+              }
+              renderSingleAnnouncement(target, list);
+              return;
+            }
+          }
+
+          renderAllAnnouncements(visibleList);
+        }catch(e){ el.innerHTML = '<div style="color:#b33737">Failed to load announcements</div>'; }
+      }
+
+      document.getElementById('btnHomeFromAnnouncements').addEventListener('click', ()=> { window.location.href = '/'; });
+      loadAnnouncements();
+    </script>
+  </body>
+</html>

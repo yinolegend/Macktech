@@ -1,0 +1,521 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Create Ticket — Mack Technologies</title>
+    <style>
+      :root{
+        --brand:#0b74ff;
+        --ink:#122546;
+        --muted:#6b7a99;
+        --border:#e0e8f8;
+        --surface:#f5f8ff;
+      }
+      *{ box-sizing:border-box; }
+      body{
+        font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial;
+        margin:0;
+        padding:32px 16px 48px;
+        background:linear-gradient(180deg,#f8fbff 0%,#ffffff 60%);
+        color:var(--ink);
+      }
+      .page-shell{
+        max-width:960px;
+        margin:0 auto;
+      }
+      .card{
+        background:#fff;
+        border-radius:16px;
+        padding:28px;
+        box-shadow:0 18px 50px rgba(12,34,77,0.08);
+      }
+      .page-header{
+        display:flex;
+        justify-content:space-between;
+        align-items:flex-start;
+        gap:16px;
+        margin-bottom:18px;
+      }
+      .page-header h1{
+        margin:0;
+        font-size:28px;
+      }
+      .page-header p{
+        margin:6px 0 0;
+        color:var(--muted);
+      }
+      .top-button{
+        background:#eef6ff;
+        color:var(--brand);
+        border-radius:10px;
+        border:1px solid rgba(11,116,255,0.15);
+        padding:10px 16px;
+        font-weight:600;
+        cursor:pointer;
+      }
+      .field-section{
+        display:flex;
+        flex-wrap:wrap;
+        gap:18px;
+        margin-bottom:22px;
+      }
+      .field{
+        flex:1 1 260px;
+        display:flex;
+        flex-direction:column;
+      }
+      .field.full-width{ flex-basis:100%; }
+      label{
+        font-size:14px;
+        font-weight:600;
+        color:#1c3058;
+      }
+      .control{
+        position:relative;
+        margin-top:8px;
+      }
+      input[type=text],
+      select,
+      textarea{
+        width:100%;
+        border-radius:12px;
+        border:1px solid var(--border);
+        padding:12px 14px;
+        font-size:15px;
+        background:#fff;
+      }
+      textarea{ resize:vertical; min-height:96px; }
+      .combo-input{
+        display:flex;
+        align-items:center;
+        gap:10px;
+        padding:10px 12px;
+        border:1px solid var(--border);
+        border-radius:12px;
+        background:#fff;
+      }
+      .combo-input input{
+        border:0;
+        padding:0;
+        flex:1;
+        font-size:15px;
+      }
+      .combo-input input:focus{ outline:none; }
+      .icon-button{
+        border:0;
+        background:var(--surface);
+        border-radius:8px;
+        width:36px;
+        height:36px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        color:var(--brand);
+        cursor:pointer;
+      }
+      .two-col .field{ flex:1 1 calc(50% - 10px); }
+      .editor-shell{
+        margin-top:10px;
+        border:1px solid var(--border);
+        border-radius:14px;
+        background:white;
+        overflow:hidden;
+      }
+      .editor-toolbar{
+        display:flex;
+        flex-wrap:wrap;
+        gap:6px;
+        padding:10px;
+        background:var(--surface);
+        border-bottom:1px solid var(--border);
+      }
+      .editor-toolbar button,
+      .editor-toolbar select,
+      .editor-toolbar input[type=color]{
+        border:1px solid rgba(11,116,255,0.15);
+        border-radius:8px;
+        background:white;
+        padding:6px 10px;
+        font-size:13px;
+        cursor:pointer;
+        color:var(--ink);
+      }
+      .editor-toolbar button{ min-width:32px; font-weight:600; }
+      .editor-toolbar button:hover{ background:#eef5ff; }
+      .editor-toolbar select{ padding-right:28px; }
+      #ticket_editor{
+        min-height:220px;
+        padding:16px;
+        line-height:1.5;
+        font-size:15px;
+        outline:none;
+      }
+      #ticket_editor:empty:before{
+        content:'Describe the issue with as much detail as possible…';
+        color:#98a5c6;
+      }
+      .emoji-panel{
+        position:absolute;
+        background:#fff;
+        border:1px solid var(--border);
+        border-radius:10px;
+        box-shadow:0 14px 40px rgba(12,34,77,0.12);
+        padding:6px;
+        display:flex;
+        gap:4px;
+        top:100%;
+        margin-top:4px;
+        z-index:20;
+      }
+      .emoji-panel button{
+        width:32px;
+        height:32px;
+        border-radius:8px;
+        border:0;
+        background:#f4f7ff;
+        font-size:18px;
+        cursor:pointer;
+      }
+      .info-hint{
+        display:flex;
+        align-items:center;
+        gap:6px;
+        margin-top:6px;
+        font-size:13px;
+        color:var(--muted);
+      }
+      .info-icon{
+        width:18px;
+        height:18px;
+        border-radius:50%;
+        border:1px solid var(--brand);
+        color:var(--brand);
+        font-size:12px;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+      }
+      .form-actions{
+        display:flex;
+        justify-content:flex-end;
+        gap:12px;
+        margin-top:8px;
+      }
+      .btn{
+        border-radius:10px;
+        padding:12px 18px;
+        border:1px solid var(--border);
+        background:#fff;
+        font-weight:600;
+        cursor:pointer;
+      }
+      .btn.primary{
+        background:var(--brand);
+        border-color:var(--brand);
+        color:#fff;
+        box-shadow:0 10px 30px rgba(11,116,255,0.35);
+      }
+      #result{ margin-top:16px; font-weight:600; }
+      @media (max-width:640px){
+        .page-header{ flex-direction:column; }
+        .two-col .field{ flex-basis:100%; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-shell">
+      <div class="card">
+        <div class="page-header">
+          <div>
+            <h1>New Support Ticket</h1>
+            <p>Provide the request details and attach context so we can help quickly.</p>
+          </div>
+          <button id="btnHomeTicket" class="top-button" title="Home">Home</button>
+        </div>
+
+        <form id="ticketForm" class="ticket-form">
+          <div class="field-section">
+            <div class="field full-width">
+              <label for="ticket_requester">Requester</label>
+              <div class="combo-input">
+                <span style="color:#a4b3d6">🔎</span>
+                <input id="ticket_requester" name="requester" list="requester_list" placeholder="Search or select a requester" />
+                <datalist id="requester_list">
+                  <option value="Alyssa Torres"></option>
+                  <option value="Brian Clarkson"></option>
+                  <option value="Casey Whitman"></option>
+                  <option value="Daria Velez"></option>
+                </datalist>
+              </div>
+            </div>
+            <div class="field full-width">
+              <label for="ticket_assets">Asset(s)</label>
+              <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+                <select id="ticket_assets" style="flex:1">
+                  <option value="">Select asset…</option>
+                  <option>MBP-38942 • MacBook Pro</option>
+                  <option>DL-11490 • Dell Latitude</option>
+                  <option>MS-55410 • Microsoft Surface</option>
+                </select>
+                <button type="button" class="icon-button" id="asset_attach" title="Attach asset">
+                  📎
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="field-section two-col">
+            <div class="field">
+              <label for="ticket_priority">Priority</label>
+              <select id="ticket_priority">
+                <option value="Low">Low</option>
+                <option value="Medium" selected>Medium</option>
+                <option value="High">High</option>
+                <option value="Critical">Critical</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="ticket_category">Category</label>
+              <select id="ticket_category">
+                <option value="Hardware">Hardware</option>
+                <option value="Software" selected>Software</option>
+                <option value="Access">Access</option>
+                <option value="Network">Network</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field-section">
+            <div class="field full-width">
+              <label for="ticket_subject">Subject</label>
+              <input id="ticket_subject" type="text" placeholder="Short summary" />
+            </div>
+            <div class="field full-width">
+              <label for="ticket_editor">Description</label>
+              <div class="editor-shell">
+                <div class="editor-toolbar" role="toolbar" aria-label="Rich text toolbar">
+                  <button type="button" data-command="bold">B</button>
+                  <button type="button" data-command="italic" style="font-style:italic">I</button>
+                  <button type="button" data-command="underline" style="text-decoration:underline">U</button>
+                  <button type="button" data-command="strikeThrough" style="text-decoration:line-through">S</button>
+                  <select data-command-select="fontName">
+                    <option value="">Font</option>
+                    <option value="Arial">Arial</option>
+                    <option value="Georgia">Georgia</option>
+                    <option value="'Courier New'">Courier</option>
+                    <option value="'Times New Roman'">Times</option>
+                  </select>
+                  <select data-command-select="fontSize">
+                    <option value="">Size</option>
+                    <option value="2">Small</option>
+                    <option value="3">Normal</option>
+                    <option value="4">Large</option>
+                    <option value="5">XL</option>
+                  </select>
+                  <input type="color" id="toolbar_color" title="Text color" />
+                  <button type="button" data-command="justifyLeft">⟸</button>
+                  <button type="button" data-command="justifyCenter">≡</button>
+                  <button type="button" data-command="justifyRight">⟹</button>
+                  <button type="button" data-command="insertUnorderedList">• List</button>
+                  <button type="button" data-command="insertOrderedList">1. List</button>
+                  <button type="button" data-command="outdent">Outdent</button>
+                  <button type="button" data-command="indent">Indent</button>
+                  <button type="button" id="toolbar_link">Link</button>
+                  <button type="button" id="toolbar_image">Image</button>
+                  <button type="button" id="toolbar_table">Table</button>
+                  <div style="position:relative">
+                    <button type="button" id="toolbar_emoji">Emoji</button>
+                    <div id="emoji_panel" class="emoji-panel" style="display:none">
+                      <button type="button" data-emoji="😀">😀</button>
+                      <button type="button" data-emoji="😊">😊</button>
+                      <button type="button" data-emoji="🔥">🔥</button>
+                      <button type="button" data-emoji="🚀">🚀</button>
+                      <button type="button" data-emoji="✅">✅</button>
+                    </div>
+                  </div>
+                  <button type="button" data-command="undo">Undo</button>
+                  <button type="button" data-command="redo">Redo</button>
+                </div>
+                <div id="ticket_editor" contenteditable="true"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="field-section two-col">
+            <div class="field">
+              <label for="ticket_site">Site</label>
+              <select id="ticket_site">
+                <option value="Boston">Boston</option>
+                <option value="Melbourne" selected>Melbourne</option>
+                <option value="Monterrey">Monterrey</option>
+                <option value="Pune">Pune</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="ticket_computer">Computer Name</label>
+              <input id="ticket_computer" type="text" placeholder="E.g. MSP-12345" />
+              <div class="info-hint">
+                <span class="info-icon">i</span>
+                Found under Settings → About → Device name.
+              </div>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn" id="ticket_reset">Clear</button>
+            <button type="submit" class="btn primary">Submit Ticket</button>
+          </div>
+        </form>
+
+        <div id="result"></div>
+      </div>
+    </div>
+
+    <script>
+      const TOKEN_KEY = 'mack_token';
+      const editorEl = document.getElementById('ticket_editor');
+      const colorInput = document.getElementById('toolbar_color');
+      const emojiPanel = document.getElementById('emoji_panel');
+
+      function applyCommand(command, value = null){
+        editorEl.focus();
+        document.execCommand(command, false, value);
+      }
+
+      document.querySelectorAll('.editor-toolbar button[data-command]').forEach(btn => {
+        btn.addEventListener('click', ()=>{
+          applyCommand(btn.dataset.command, btn.dataset.value || null);
+        });
+      });
+
+      document.querySelectorAll('[data-command-select]').forEach(select => {
+        select.addEventListener('change', (event)=>{
+          const { value } = event.target;
+          if (!value) return;
+          applyCommand(event.target.getAttribute('data-command-select'), value);
+          event.target.value = '';
+        });
+      });
+
+      if (colorInput){
+        colorInput.addEventListener('input', (event)=>{
+          applyCommand('foreColor', event.target.value);
+        });
+      }
+
+      document.getElementById('toolbar_link').addEventListener('click', ()=>{
+        const url = prompt('Enter URL');
+        if (url) applyCommand('createLink', url);
+      });
+
+      document.getElementById('toolbar_image').addEventListener('click', ()=>{
+        const url = prompt('Paste image URL');
+        if (url) applyCommand('insertImage', url);
+      });
+
+      document.getElementById('toolbar_table').addEventListener('click', ()=>{
+        const table = '<table style="width:100%;border-collapse:collapse" border="1"><tr><td>&nbsp;</td><td>&nbsp;</td></tr><tr><td>&nbsp;</td><td>&nbsp;</td></tr></table>';
+        applyCommand('insertHTML', table);
+      });
+
+      document.getElementById('toolbar_emoji').addEventListener('click', ()=>{
+        emojiPanel.style.display = emojiPanel.style.display === 'none' ? 'flex' : 'none';
+      });
+
+      emojiPanel.querySelectorAll('button[data-emoji]').forEach(btn => {
+        btn.addEventListener('click', ()=>{
+          applyCommand('insertText', btn.dataset.emoji);
+          emojiPanel.style.display = 'none';
+        });
+      });
+
+      document.addEventListener('click', (event)=>{
+        if (!emojiPanel.contains(event.target) && event.target.id !== 'toolbar_emoji'){
+          emojiPanel.style.display = 'none';
+        }
+      });
+
+      const assetAttach = document.getElementById('asset_attach');
+      if (assetAttach){
+        assetAttach.addEventListener('click', ()=>{
+          alert('Attach asset picker coming soon.');
+        });
+      }
+
+      (async function prefillRequester(){
+        try{
+          const token = localStorage.getItem(TOKEN_KEY);
+          if (!token) return;
+          const res = await fetch('/api/me', { headers:{ Authorization:'Bearer ' + token } });
+          if (!res.ok) return;
+          const user = await res.json();
+          const nameField = document.getElementById('ticket_requester');
+          if (user && user.username && nameField){
+            nameField.value = user.display_name || user.username;
+          }
+        }catch(err){
+          console.warn('Prefill failed', err);
+        }
+      })();
+
+      document.getElementById('ticket_reset').addEventListener('click', ()=>{
+        document.getElementById('ticketForm').reset();
+        editorEl.innerHTML = '';
+        document.getElementById('result').textContent = '';
+      });
+
+      document.getElementById('ticketForm').addEventListener('submit', async (event)=>{
+        event.preventDefault();
+        const requester = document.getElementById('ticket_requester').value.trim();
+        const asset = document.getElementById('ticket_assets').value;
+        const priority = document.getElementById('ticket_priority').value;
+        const category = document.getElementById('ticket_category').value;
+        const subject = document.getElementById('ticket_subject').value.trim();
+        const site = document.getElementById('ticket_site').value;
+        const computerName = document.getElementById('ticket_computer').value.trim();
+        const descriptionHtml = editorEl.innerHTML.trim();
+        const descriptionText = editorEl.textContent.trim();
+
+        if (!requester) return alert('Requester is required');
+        if (!subject) return alert('Subject is required');
+        if (!descriptionText) return alert('Description is required');
+
+        const payload = {
+          title: subject,
+          description: descriptionHtml || descriptionText,
+          requester,
+          priority,
+          category,
+          site,
+          computerName,
+          asset
+        };
+
+        const headers = { 'Content-Type':'application/json' };
+        const token = localStorage.getItem(TOKEN_KEY);
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+
+        const resultEl = document.getElementById('result');
+        resultEl.textContent = 'Submitting…';
+
+        try{
+          const res = await fetch('/api/tickets', { method:'POST', headers, body: JSON.stringify(payload) });
+          const data = await res.json();
+          if (!res.ok){
+            resultEl.innerHTML = '<span style="color:#c0392b">Failed: ' + (data && data.error ? data.error : 'Unknown error') + '</span>';
+            return;
+          }
+          resultEl.innerHTML = '<span style="color:#1b8a2f">Ticket created — ID ' + (data.id ?? 'n/a') + '</span>';
+        }catch(err){
+          resultEl.innerHTML = '<span style="color:#c0392b">Network error</span>';
+        }
+      });
+
+      const btnHomeTicket = document.getElementById('btnHomeTicket');
+      if (btnHomeTicket){
+        btnHomeTicket.addEventListener('click', ()=>{ window.location.href = '/'; });
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,329 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Welcome — Mack Technologies</title>
+    <style>
+      /* Blue-focused theme for landing */
+      :root{ --brand:#0b74ff; --muted:#6b7a99 }
+      body { font-family: system-ui, -apple-system, Arial; margin:0; display:flex; align-items:center; justify-content:center; min-height:100vh; background:linear-gradient(180deg,#eaf4ff,#ffffff); padding:20px 0 }
+      /* Make the landing card use most of the viewport so it feels like a full-screen panel */
+      .card { width:94vw; max-width:1400px; min-height:90vh; background:white; border-radius:12px; box-shadow:0 8px 40px rgba(11,27,60,0.08); overflow:hidden; border:1px solid rgba(11,116,255,0.06); display:flex; flex-direction:column }
+      .hero { position:relative; padding:64px 36px 48px 36px; display:flex; flex-direction:column; align-items:center; gap:28px; border-bottom:1px solid #f2f6ff; flex:0 0 auto }
+      .hero h1 { margin:0; font-size:36px; color:var(--brand); font-weight:600; letter-spacing:-0.5px }
+      .hero nav { display:flex; gap:12px; align-items:center; flex-wrap:wrap }
+      .hero p { margin:6px 0 0 0; color:var(--muted) }
+      .slides { display:flex; gap:0; overflow:hidden; position:relative; flex:1 1 auto; min-height:0 }
+      .slide { min-width:100%; padding:28px; box-sizing:border-box; display:flex; align-items:center; justify-content:space-between }
+      .slide > div:first-child{ flex:1 1 55%; max-width:60%; }
+      .slide > div:last-child{ flex:0 0 auto; }
+      .announcement-body{ font-size:15px; line-height:1.45; max-width:520px; max-height:220px; overflow:hidden; margin-bottom:8px; }
+      .announcement-body p{ margin-top:0; margin-bottom:12px; }
+      .announcement-body img{ max-width:100%; height:auto; border-radius:8px; margin:12px 0; }
+      .controls { display:flex; gap:8px; padding:12px 24px; justify-content:center; background:linear-gradient(180deg, #fbfdff, #f7fbff) }
+      .dot { width:10px; height:10px; border-radius:50%; background:#d6e7ff }
+      .dot.active { background:var(--brand) }
+      .cta { display:flex; gap:8px }
+      .btn { padding:11px 18px; border-radius:8px; border:0; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; font-size:15px; font-weight:500; transition:all 0.2s ease }
+      .btn.primary { background:var(--brand); color:white; box-shadow:0 2px 8px rgba(11,116,255,0.15) }
+      .btn.primary:hover { background:#0962e0; box-shadow:0 4px 12px rgba(11,116,255,0.25); transform:translateY(-1px) }
+      .btn.ghost { background:transparent; border:1px solid rgba(11,116,255,0.12); color:var(--brand) }
+      .hero .login-links{ position:absolute; top:20px; right:20px; display:flex; gap:10px }
+      .hero .login-links .btn{ padding:6px 10px; font-size:13px }
+      /* Modal for slide manager */
+      .modal-backdrop { position:fixed; inset:0; background:rgba(2,6,23,0.45); display:none; align-items:center; justify-content:center }
+      .modal { background:white; width:min(720px,94vw); border-radius:10px; padding:18px; box-shadow:0 8px 40px rgba(2,6,23,0.16) }
+      .modal h3{ margin:0 0 8px 0 }
+      .field { display:flex; flex-direction:column; gap:6px; margin-bottom:10px }
+      .field input, .field textarea { padding:8px; border:1px solid #e6eefc; border-radius:6px; font-size:14px }
+      .slides-list { max-height:220px; overflow:auto; border:1px dashed #e6eefc; padding:8px; border-radius:6px; margin-bottom:10px }
+      .slide-item { display:flex; justify-content:space-between; gap:8px; padding:6px; border-radius:6px; background:#fbfdff }
+      h2 { margin:0 0 6px 0 }
+      p.lead { color:var(--muted) }
+    </style>
+  </head>
+  <body>
+    <!-- Clean landing page. Links point to /app with hashes to open specific sections. -->
+    <div class="card">
+      <div class="hero">
+        <h1>Mack Technologies</h1>
+        <div class="login-links">
+          <a class="btn ghost" href="admin.html#signin" data-path="admin.html#signin">Admin Login</a>
+          <a class="btn ghost" href="announcements_portal.html#signin" data-path="announcements_portal.html#signin">Announcements Login</a>
+        </div>
+        <nav style="margin-top:20px">
+          <a class="btn primary" href="app.html#handbook">Handbook</a>
+          <a class="btn primary" href="app.html#chat">Chat</a>
+          <a class="btn primary" href="announcements.html">Announcements</a>
+          <a class="btn primary" href="#">New Ticket</a>
+        </nav>
+          <div style="margin-left:auto" class="cta">
+        </div>
+        <!-- userInfo removed from public landing (admin login via modal) -->
+        <div style="margin-left:16px; display:flex; align-items:center">
+        </div>
+      </div>
+
+      <div class="slides" id="slides">
+        <div class="slide" style="background:linear-gradient(90deg,#eef6ff,#ffffff)">
+          <div>
+            <h2>Handbook</h2>
+            <p>Company docs and onboarding material. Click to open the handbook in the app.</p>
+          </div>
+              <div><a class="btn" href="app.html#handbook">Open Handbook</a></div>
+        </div>
+
+        <!-- Open Ticket slide removed (use 'New Ticket' or Help instead) -->
+
+        <!-- Help slide removed -->
+      </div>
+
+      <div class="controls" id="dots"></div>
+    </div>
+
+    <script>
+      // Landing page script cheat-sheet:
+      // 1. Manage the hero slider (built-in slides + announcements feed).
+      // 2. Let admins add lightweight custom slides saved to localStorage.
+      // 3. Wire CTA buttons so non-technical staff can relink them easily.
+      // The logic is grouped in sections below so you can jump to the part you
+      // care about without reading everything.
+
+      // Slide controller: small, dependency-free.
+      const slides = document.querySelectorAll('.slide');
+      const dots = document.getElementById('dots');
+      let i = 0;
+      const slidesContainer = document.getElementById('slides');
+      // Slide manager modal elements (for client-side custom slides)
+      const managerTpl = `
+      <div class="modal-backdrop" id="slideManager">
+        <div class="modal" role="dialog" aria-modal="true">
+          <h3>Manage Custom Slides</h3>
+          <div class="slides-list" id="slidesList"></div>
+          <div class="field"><label>Title</label><input id="slideTitle" placeholder="Short title"></div>
+          <div class="field"><label>Body</label><textarea id="slideBody" rows="4" placeholder="Text or HTML content"></textarea></div>
+          <div class="field"><label>Image URL (optional)</label><input id="slideImage" placeholder="https://... or relative path"></div>
+          <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:6px">
+            <button id="addSlideBtn" class="btn primary">Add Slide</button>
+            <button id="closeManager" class="btn ghost">Close</button>
+          </div>
+        </div>
+      </div>`;
+      document.body.insertAdjacentHTML('beforeend', managerTpl);
+      const slideManager = document.getElementById('slideManager');
+      const slidesList = document.getElementById('slidesList');
+      const slideTitle = document.getElementById('slideTitle');
+      const slideBody = document.getElementById('slideBody');
+      const slideImage = document.getElementById('slideImage');
+      const addSlideBtn = document.getElementById('addSlideBtn');
+      const closeManager = document.getElementById('closeManager');
+      // Manage custom slides in localStorage under key 'customSlides'
+      function loadCustomSlides() {
+        try { return JSON.parse(localStorage.getItem('customSlides')||'[]'); } catch(e){ return []; }
+      }
+      function saveCustomSlides(list) { localStorage.setItem('customSlides', JSON.stringify(list)); }
+      function renderSlidesList(){
+        const items = loadCustomSlides();
+        slidesList.innerHTML = '';
+        if (items.length===0) { slidesList.textContent = 'No custom slides yet.'; return; }
+        items.forEach((s, idx)=>{
+          const el = document.createElement('div'); el.className='slide-item';
+          const left = document.createElement('div'); left.style.flex='1';
+          left.innerHTML = `<strong>${s.title||'Untitled'}</strong><div style="color:#8a98b3">${(s.body||'').slice(0,120)}</div>`;
+          const right = document.createElement('div');
+          const del = document.createElement('button'); del.className='btn ghost'; del.textContent='Delete';
+          del.addEventListener('click', ()=>{ const arr=loadCustomSlides(); arr.splice(idx,1); saveCustomSlides(arr); renderSlidesList(); loadAnnouncements(); });
+          right.appendChild(del);
+          el.appendChild(left); el.appendChild(right);
+          slidesList.appendChild(el);
+        });
+      }
+      // Open manager button: small unobtrusive control
+      const manageBtn = document.createElement('button'); manageBtn.className='btn ghost'; manageBtn.style.marginLeft='8px'; manageBtn.textContent='Manage Slides';
+      document.querySelector('.controls').appendChild(manageBtn);
+      manageBtn.addEventListener('click', ()=>{ slideManager.style.display='flex'; renderSlidesList(); });
+      closeManager.addEventListener('click', ()=>{ slideManager.style.display='none'; slideTitle.value=''; slideBody.value=''; slideImage.value=''; });
+      addSlideBtn.addEventListener('click', ()=>{
+        const arr = loadCustomSlides(); arr.push({ title: slideTitle.value.trim(), body: slideBody.value.trim(), image: slideImage.value.trim(), date: new Date().toISOString().slice(0,10) });
+        saveCustomSlides(arr); renderSlidesList(); loadAnnouncements(); slideTitle.value=''; slideBody.value=''; slideImage.value='';
+      });
+      // Load announcements into the slider by fetching the static JSON file.
+      // If the fetch fails (e.g., opened via file://), we gracefully keep the existing slides.
+      function isAnnouncementExpired(item){
+        if (!item) return false;
+        const value = item.expiresAt || item.expires_at;
+        if (!value) return false;
+        const ts = Date.parse(value);
+        if (Number.isNaN(ts)) return false;
+        return ts < Date.now();
+      }
+
+      async function loadAnnouncements() {
+        try {
+          const res = await fetch('announcements.json', { cache: 'no-store' });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const list = await res.json();
+          if (!Array.isArray(list) || list.length === 0) return;
+          const visibleAnnouncements = list.filter(item => !item.hidden && !isAnnouncementExpired(item));
+          if (visibleAnnouncements.length === 0) return;
+          // Replace slides with announcement slides
+          slidesContainer.innerHTML = '';
+          const sanitizeAnnouncementBody = (html)=>{
+            const container = document.createElement('div');
+            container.className = 'announcement-body';
+            if (typeof html === 'string' && html.trim()){
+              container.innerHTML = html;
+            }
+            // Remove editor-only artifacts
+            container.querySelectorAll('.resize-handle').forEach(el => el.remove());
+            container.querySelectorAll('.editor-image-wrapper').forEach(wrapper => {
+              wrapper.removeAttribute('contenteditable');
+              wrapper.removeAttribute('draggable');
+              wrapper.removeAttribute('data-configured');
+              wrapper.classList.remove('selected', 'dragging');
+            });
+            return container;
+          };
+
+          visibleAnnouncements.forEach((a, idx) => {
+            const s = document.createElement('div');
+            s.className = 'slide';
+            s.style.background = 'linear-gradient(90deg,#eef6ff,#ffffff)';
+            const left = document.createElement('div');
+            const h = document.createElement('h2');
+            h.textContent = a.title || 'Announcement';
+            const dateText = a.date ? new Date(a.date).toLocaleDateString() : '';
+            const authorText = a.author || '';
+            const meta = document.createElement('div');
+            meta.style.color = '#8a98b3';
+            meta.style.marginBottom = '8px';
+            meta.style.textAlign = 'right';
+            const metaParts = [dateText, authorText].filter(Boolean);
+            meta.textContent = metaParts.length ? metaParts.join(' • ') : '';
+            const bodyFragment = sanitizeAnnouncementBody(a.body || a.html || '');
+            left.appendChild(h);
+            if (bodyFragment.childNodes.length){
+              left.appendChild(bodyFragment);
+            }
+            if (meta.textContent){
+              left.appendChild(meta);
+            }
+
+            const right = document.createElement('div');
+            if (a.image) {
+              const img = document.createElement('img');
+              img.src = a.image;
+              img.style.maxWidth = '320px'; img.style.maxHeight='260px'; img.style.objectFit='cover'; img.style.borderRadius='8px'; img.style.marginLeft='16px';
+              right.appendChild(img);
+            } else {
+              const open = document.createElement('a');
+              open.className = 'btn';
+              open.href = 'announcements.html';
+              open.textContent = 'Read Announcements';
+              right.appendChild(open);
+            }
+
+            s.appendChild(left);
+            s.appendChild(right);
+
+            const announcementId = (a && a.id !== undefined && a.id !== null && a.id !== '') ? a.id : idx;
+            s.addEventListener('click', ()=>{
+              const target = 'announcements.html?id=' + encodeURIComponent(String(announcementId));
+              openRelative(target);
+            });
+            slidesContainer.appendChild(s);
+          });
+          // append custom slides stored in localStorage
+          const custom = loadCustomSlides();
+          custom.forEach(a => {
+            const s = document.createElement('div');
+            s.className='slide'; s.style.background='linear-gradient(90deg,#ffffff,#f7fbff)';
+            const left = document.createElement('div');
+            const h = document.createElement('h2'); h.textContent = a.title || 'Slide';
+            const date = document.createElement('div'); date.style.color='#8a98b3'; date.style.marginBottom='8px'; date.textContent = a.date || '';
+            const p = document.createElement('p'); p.innerHTML = a.body || '';
+            left.appendChild(h); left.appendChild(date); left.appendChild(p);
+            const right = document.createElement('div'); if (a.image){ const img=document.createElement('img'); img.src=a.image; img.style.maxWidth='320px'; img.style.maxHeight='260px'; img.style.objectFit='cover'; img.style.borderRadius='8px'; img.style.marginLeft='16px'; right.appendChild(img);} s.appendChild(left); s.appendChild(right); slidesContainer.appendChild(s);
+          });
+          // re-query slides collection used by the controller
+          renderDots();
+        } catch (err) {
+          console.warn('Could not load announcements.json for index slider:', err);
+        }
+      }
+      function renderDots() {
+        dots.innerHTML = '';
+        const currentSlides = document.querySelectorAll('.slide');
+        currentSlides.forEach((s, idx) => {
+          const d = document.createElement('div');
+          d.className = 'dot' + (idx===i? ' active': '');
+          d.addEventListener('click', ()=> { i = idx; update(); });
+          dots.appendChild(d);
+        });
+      }
+      function update(){
+        const w = document.querySelector('.slides').clientWidth;
+        document.getElementById('slides').scrollTo({ left: i*w, behavior:'smooth' });
+        renderDots();
+      }
+      // Try to load announcements and then start the carousel.
+      (async ()=>{ await loadAnnouncements(); renderDots();
+        setInterval(()=>{ const s = document.querySelectorAll('.slide'); if (s.length===0) return; i = (i+1) % s.length; update(); }, 4500);
+      })();
+      // Wire the quick-create ticket button to open the ticket form
+      function openRelative(path) {
+        // If path is absolute (starts with /) use as-is, otherwise resolve relative to current document
+        if (!path) return;
+        if (path.startsWith('/')) { window.location.href = path; return; }
+        // Remove any query/hash from current url, then append path
+        try {
+          const href = window.location.href;
+          // If URL ends with a slash, append directly
+          if (href.endsWith('/')) {
+            window.location.href = href + path;
+          } else {
+            // Replace last segment (file or empty) with path
+            const base = href.replace(/\/[^\/]*([?#].*)?$/, '/');
+            window.location.href = base + path;
+          }
+        } catch (e) { window.location.href = path; }
+      }
+
+      // Wire up navigation buttons
+      document.querySelectorAll('nav a[href="#"]').forEach(btn => {
+        btn.addEventListener('click', (e) => { 
+          e.preventDefault(); 
+          if (btn.textContent.includes('New Ticket')) openRelative('Ticketform.html');
+          else if (btn.textContent.includes('Tickets')) openRelative('Ticketform.html');
+        });
+      });
+
+      // Make sure the hero login buttons always resolve correctly even if index
+      // is served from a subpath (e.g., behind a proxy).
+      document.querySelectorAll('.login-links a[data-path]').forEach(link => {
+        link.addEventListener('click', (e)=>{
+          e.preventDefault();
+          const target = link.getAttribute('data-path');
+          if (target) openRelative(target);
+        });
+      });
+
+      // Listen for announcement.created events to refresh the slider in real-time
+      (function(){
+        const s = document.createElement('script'); s.src = '/socket.io/socket.io.js';
+        s.onload = ()=>{
+          try{
+            const sock = io();
+            const refresh = ()=> loadAnnouncements();
+            sock.on('announcement.created', refresh);
+            sock.on('announcement.updated', refresh);
+            sock.on('announcement.deleted', refresh);
+            sock.on('announcement.toggled', refresh);
+          }catch(e){ console.warn('socket.io not available', e); }
+        };
+        document.head.appendChild(s);
+      })();
+    </script>
+  </body>
+</html>

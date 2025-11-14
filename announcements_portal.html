@@ -1,0 +1,697 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Announcements Portal — Mack Technologies</title>
+    <link rel="stylesheet" href="css/admin-shared.css" />
+    <style>
+      :root {
+        --surface: #fbfdff;
+        --border: #e3edff;
+      }
+
+      body {
+        padding: 24px;
+      }
+
+      .layout {
+        display: flex;
+        gap: 18px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+
+      .card-main,
+      .card-manage {
+        border-radius: 10px;
+        box-shadow: 0 10px 35px rgba(12, 40, 90, 0.08);
+        background: white;
+        border: 1px solid var(--border);
+      }
+
+      .card-main {
+        flex: 1 1 660px;
+        padding: 18px;
+        min-width: 520px;
+      }
+
+      .card-manage {
+        flex: 0 0 320px;
+        padding: 18px;
+        min-height: 420px;
+        background: var(--surface);
+      }
+
+      @media (max-width: 1080px) {
+        .card-main,
+        .card-manage {
+          flex: 1 1 100%;
+          min-width: 0;
+        }
+      }
+
+      .manage-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .manage-scroll-controls {
+        display: flex;
+        gap: 6px;
+      }
+
+      .manage-scroll-controls button {
+        border: 1px solid var(--border);
+        background: #fff;
+        border-radius: 6px;
+        padding: 4px 8px;
+        cursor: pointer;
+      }
+
+      .manage-scroll-controls button:hover {
+        background: #f2f6ff;
+      }
+
+      .manage-list {
+        border: 1px solid var(--border);
+        background: white;
+        border-radius: 8px;
+        padding: 8px;
+        height: 500px;
+        overflow-y: auto;
+        scroll-behavior: smooth;
+      }
+
+      .manage-item {
+        border: 1px solid #e8f0ff;
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 8px;
+        background: linear-gradient(180deg, #ffffff, #f7fbff);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .manage-item.hidden {
+        opacity: 0.55;
+      }
+
+      .manage-item h4 {
+        margin: 0;
+        font-size: 15px;
+      }
+
+      .manage-item .item-meta {
+        font-size: 12px;
+        color: #6b7a99;
+      }
+
+      .manage-item .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+      }
+
+      .toolbar button,
+      .toolbar select {
+        border-radius: 8px;
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        background: #f4f7ff;
+        cursor: pointer;
+      }
+
+      .toolbar select {
+        background: white;
+      }
+
+      #editor {
+        margin-top: 12px;
+        min-height: 240px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        background: #fff;
+        line-height: 1.45;
+        overflow: auto;
+      }
+
+      #editor img {
+        max-width: 100%;
+        border-radius: 10px;
+        margin: 10px 0;
+      }
+
+      .inline-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      .inline-row input {
+        flex: 1 1 260px;
+      }
+
+      .dropzone {
+        margin-top: 12px;
+        padding: 14px;
+        border: 2px dashed var(--border);
+        border-radius: 10px;
+        background: var(--surface);
+        color: #64739b;
+        text-align: center;
+        transition: border-color 0.2s ease, background 0.2s ease;
+      }
+
+      .dropzone.dragging {
+        border-color: var(--brand);
+        background: #eaf2ff;
+        color: var(--brand);
+      }
+
+      .compose-footer {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+        justify-content: flex-end;
+      }
+
+      .status-text {
+        margin-top: 8px;
+        color: #2f6fb6;
+        min-height: 20px;
+      }
+
+      .chip {
+        cursor: default;
+      }
+
+      .hero-info {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 8px;
+      }
+
+      .hero-info .muted {
+        margin: 0;
+      }
+
+      label.file-picker {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        background: #eef6ff;
+        color: var(--brand);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="top-header">
+        <div>
+          <h2 style="margin:0">Announcements Portal</h2>
+          <div class="muted" style="margin-top:6px">Full editor with drag & drop images and quick access to recent announcements.</div>
+        </div>
+        <div>
+          <button id="ap_home" class="top-button" title="Home">Home</button>
+        </div>
+      </div>
+
+      <div id="signin" style="margin-top:14px;display:flex;flex-wrap:wrap;gap:8px">
+        <input id="ap_username" placeholder="Username" style="flex:1 1 200px" />
+        <input id="ap_password" type="password" placeholder="Password" style="flex:1 1 200px" />
+        <button id="ap_btnSignIn" class="btn">Sign In</button>
+        <div id="ap_msg" style="flex-basis:100%;margin-top:6px;color:#b54a4a"></div>
+      </div>
+
+      <div id="portal" style="display:none;margin-top:18px">
+        <div class="hero-info">
+          <div class="muted">Signed in as <strong id="ap_user"></strong></div>
+          <button id="ap_signout" class="btn" style="margin:0;background:#e6f0ff;color:var(--brand)">Sign Out</button>
+          <div class="chip" id="ap_manage_status"></div>
+        </div>
+
+        <div class="layout" style="margin-top:18px">
+          <div class="card-manage" id="manage_card">
+            <div class="manage-header">
+              <div>
+                <h3 style="margin:0">Recent Announcements</h3>
+                <div class="muted" style="margin-top:2px">Scroll, preview, edit, or delete.</div>
+              </div>
+              <div class="manage-scroll-controls">
+                <button type="button" title="Scroll up" id="btnScrollUp">↑</button>
+                <button type="button" title="Scroll down" id="btnScrollDown">↓</button>
+              </div>
+            </div>
+            <div class="manage-list" id="ap_ann_list">
+              <div class="muted">No announcements loaded yet.</div>
+            </div>
+          </div>
+
+          <div class="card-main">
+            <h3 style="margin:0">Compose Announcement</h3>
+            <div class="muted">Use the toolbar to format rich text, drag images into the editor, or upload files. Preview before posting.</div>
+            <div style="margin-top:12px">
+              <input id="ap_title" placeholder="Title" />
+            </div>
+            <div class="inline-row">
+              <input id="ap_image" placeholder="Hero image URL (optional)" />
+            </div>
+            <div class="toolbar" aria-label="Formatting toolbar">
+              <button type="button" data-cmd="bold" title="Bold">Bold</button>
+              <button type="button" data-cmd="italic" title="Italic">Italic</button>
+              <button type="button" data-cmd="underline" title="Underline">Underline</button>
+              <button type="button" data-cmd="insertOrderedList" title="Numbered list">1.</button>
+              <button type="button" data-cmd="insertUnorderedList" title="Bulleted list">•</button>
+              <button type="button" data-cmd="justifyLeft" title="Align left">Left</button>
+              <button type="button" data-cmd="justifyCenter" title="Align center">Center</button>
+              <button type="button" data-cmd="justifyRight" title="Align right">Right</button>
+              <select id="ap_block_format" title="Heading style">
+                <option value="p">Paragraph</option>
+                <option value="h2">Heading</option>
+                <option value="h3">Subheading</option>
+              </select>
+              <select id="ap_fontsize" title="Font size">
+                <option value="">Font size</option>
+                <option value="14">14 px</option>
+                <option value="16">16 px</option>
+                <option value="18">18 px</option>
+                <option value="24">24 px</option>
+                <option value="32">32 px</option>
+              </select>
+              <button type="button" id="ap_clear_formatting" title="Clear formatting">Clear</button>
+            </div>
+            <div class="inline-row" id="ap_inline_image_row">
+              <input id="ap_inline_image_url" placeholder="Paste image URL" />
+              <button type="button" class="btn" style="margin:0" id="ap_insert_inline_image">Insert Image</button>
+              <button type="button" class="btn" style="margin:0;background:#eef6ff;color:var(--brand)" id="ap_insert_inline_link">Insert Link</button>
+            </div>
+            <div id="editor" contenteditable="true"></div>
+            <div class="dropzone" id="ap_dropzone">
+              Drag & drop PNG, JPG, WEBP, GIF, or SVG files here to upload automatically
+              <div style="margin-top:6px">
+                <label class="file-picker">
+                  Select File
+                  <input id="ap_filepicker" type="file" accept="image/*,.svg,.svgz,.webp" style="display:none" />
+                </label>
+              </div>
+            </div>
+            <div class="compose-footer">
+              <button id="ap_preview" class="btn" type="button" style="background:#eef6ff;color:var(--brand)">Preview</button>
+              <button id="ap_post" class="btn" type="button">Post Announcement</button>
+            </div>
+            <div class="status-text" id="ap_status"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const TOKEN_KEY = 'mack_token';
+      let announcementCache = [];
+      let currentEditingId = null;
+
+      const editorEl = document.getElementById('editor');
+      const dropzone = document.getElementById('ap_dropzone');
+      const filepicker = document.getElementById('ap_filepicker');
+      const inlineImageInput = document.getElementById('ap_inline_image_url');
+      const titleInput = document.getElementById('ap_title');
+      const heroImageInput = document.getElementById('ap_image');
+      const statusBanner = document.getElementById('ap_status');
+      const manageStatus = document.getElementById('ap_manage_status');
+
+      function getApiBase(){
+        if (location.protocol === 'http:' || location.protocol === 'https:') return location.origin;
+        if (location.protocol === 'file:') return 'http://localhost:3000';
+        return '';
+      }
+      function apiUrl(path){
+        const base = getApiBase();
+        if (!base) return path;
+        return base.replace(/\/$/, '') + path;
+      }
+
+      function resetComposer(){
+        currentEditingId = null;
+        titleInput.value = '';
+        heroImageInput.value = '';
+        inlineImageInput.value = '';
+        editorEl.innerHTML = '<p><br></p>';
+        statusBanner.textContent = '';
+        document.getElementById('ap_post').textContent = 'Post Announcement';
+      }
+
+      function showSignin(){
+        document.getElementById('signin').style.display = 'flex';
+        document.getElementById('portal').style.display = 'none';
+        manageStatus.textContent = '';
+      }
+
+      function showPortalForUser(username){
+        document.getElementById('signin').style.display = 'none';
+        document.getElementById('portal').style.display = 'block';
+        document.getElementById('ap_user').textContent = username;
+        loadAnnouncements();
+      }
+
+      async function signIn(){
+        const u = document.getElementById('ap_username').value.trim();
+        const p = document.getElementById('ap_password').value;
+        const msg = document.getElementById('ap_msg');
+        msg.textContent = '';
+        if (!u || !p) { msg.textContent = 'username and password required'; return; }
+        try {
+          const res = await fetch(apiUrl('/api/login'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: u, password: p })
+          });
+          const data = await res.json().catch(()=>null);
+          if (!res.ok) {
+            msg.textContent = (data && (data.error || data.message)) || 'Sign in failed';
+            return;
+          }
+          localStorage.setItem(TOKEN_KEY, data.token);
+          showPortalForUser(data.user && (data.user.display_name || data.user.username || u));
+        } catch (err) {
+          msg.textContent = 'Network error: ' + err.message;
+        }
+      }
+
+      async function fetchWithAuth(path, options){
+        const token = localStorage.getItem(TOKEN_KEY);
+        const headers = Object.assign({}, options && options.headers, { Authorization: 'Bearer ' + token });
+        return await fetch(apiUrl(path), Object.assign({}, options, { headers }));
+      }
+
+      function renderAnnouncementList(){
+        const list = document.getElementById('ap_ann_list');
+        list.innerHTML = '';
+        if (!announcementCache.length){
+          list.innerHTML = '<div class="muted">No announcements yet.</div>';
+          return;
+        }
+        announcementCache.forEach(ann => {
+          const item = document.createElement('div');
+          item.className = 'manage-item' + (ann.hidden ? ' hidden' : '');
+          item.innerHTML = `
+            <h4>${ann.title || 'Untitled'}</h4>
+            <div class="item-meta">${ann.date || ''}${ann.author ? ' • ' + ann.author : ''}</div>
+            <div class="actions">
+              <button class="btn" data-action="preview" data-id="${ann.id}" style="margin:0;background:#eef6ff;color:var(--brand)">Preview</button>
+              <button class="btn" data-action="edit" data-id="${ann.id}" style="margin:0">Edit</button>
+              <button class="btn" data-action="toggle" data-id="${ann.id}" style="margin:0;background:#fff;color:#0a5fab;border:1px solid #d5e6ff">${ann.hidden ? 'Show' : 'Hide'}</button>
+              <button class="btn" data-action="delete" data-id="${ann.id}" style="margin:0;background:#ffe5e5;color:#a12f2f">Delete</button>
+            </div>`;
+          list.appendChild(item);
+        });
+      }
+
+      async function loadAnnouncements(){
+        try {
+          manageStatus.textContent = 'Loading announcements...';
+          const res = await fetchWithAuth('/api/announcements', {});
+          if (!res.ok) throw new Error('Failed to load');
+          announcementCache = await res.json();
+          renderAnnouncementList();
+          manageStatus.textContent = `${announcementCache.length} announcement${announcementCache.length === 1 ? '' : 's'}`;
+        } catch (err) {
+          manageStatus.textContent = 'Unable to load announcements';
+        }
+      }
+
+      function openPreviewWindow(ann){
+        const win = window.open('', '_blank');
+        if (!win) {
+          statusBanner.textContent = 'Allow pop-ups to preview announcements.';
+          return;
+        }
+        const bodyHtml = ann.body || '<p>(No content)</p>';
+        win.document.write(`<!doctype html>
+          <html>
+            <head>
+              <meta charset="utf-8" />
+              <title>${ann.title || 'Preview'}</title>
+              <style>
+                body{font-family:system-ui,-apple-system,Arial;background:#f3f7ff;padding:24px;margin:0;color:#12345a;}
+                .container{max-width:600px;margin:0 auto;background:white;border-radius:12px;box-shadow:0 16px 40px rgba(12,34,77,0.12);padding:24px;}
+                h1{margin-top:0;font-size:26px;}
+                .meta{color:#6b7a99;font-size:13px;margin-top:18px;text-align:right;}
+                .content{color:#1b243d;font-size:15px;line-height:1.55;}
+                img{max-width:100%;border-radius:10px;margin:12px 0;}
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <h1>${ann.title || 'Announcement'}</h1>
+                ${ann.image ? `<img src="${ann.image}" alt="" />` : ''}
+                <div class="content">${bodyHtml}</div>
+                <div class="meta">${ann.date || ''}${ann.author ? ' • ' + ann.author : ''}</div>
+              </div>
+            </body>
+          </html>`);
+        win.document.close();
+      }
+
+      function startEditingAnnouncement(ann){
+        currentEditingId = ann.id;
+        titleInput.value = ann.title || '';
+        heroImageInput.value = ann.image || '';
+        editorEl.innerHTML = ann.body || '<p><br></p>';
+        statusBanner.textContent = `Editing announcement #${ann.id}`;
+        document.getElementById('ap_post').textContent = 'Save Changes';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      async function handleManageAction(target){
+        const action = target.getAttribute('data-action');
+        const id = target.getAttribute('data-id');
+        if (!action || !id) return;
+        const ann = announcementCache.find(a => String(a.id) === String(id));
+        if (!ann) return;
+        if (action === 'preview') return openPreviewWindow(ann);
+        if (action === 'edit') return startEditingAnnouncement(ann);
+        if (action === 'toggle') {
+          try {
+            await fetchWithAuth(`/api/announcements/${id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ hidden: !ann.hidden })
+            });
+            manageStatus.textContent = 'Updated visibility';
+            await loadAnnouncements();
+          } catch (err) {
+            manageStatus.textContent = 'Failed to toggle visibility';
+          }
+        }
+        if (action === 'delete') {
+          if (!confirm('Delete this announcement?')) return;
+          try {
+            await fetchWithAuth(`/api/announcements/${id}`, { method: 'DELETE' });
+            manageStatus.textContent = 'Announcement deleted';
+            if (currentEditingId && String(currentEditingId) === String(id)) resetComposer();
+            await loadAnnouncements();
+          } catch (err) {
+            manageStatus.textContent = 'Failed to delete';
+          }
+        }
+      }
+
+      document.getElementById('ap_ann_list').addEventListener('click', (ev)=>{
+        const btn = ev.target.closest('button[data-action]');
+        if (btn) handleManageAction(btn);
+      });
+
+      document.getElementById('btnScrollUp').addEventListener('click', ()=>{
+        document.getElementById('ap_ann_list').scrollBy({ top: -180, behavior: 'smooth' });
+      });
+      document.getElementById('btnScrollDown').addEventListener('click', ()=>{
+        document.getElementById('ap_ann_list').scrollBy({ top: 180, behavior: 'smooth' });
+      });
+
+      function insertHtml(html){
+        editorEl.focus();
+        document.execCommand('insertHTML', false, html);
+      }
+
+      document.querySelectorAll('.toolbar button[data-cmd]').forEach(btn => {
+        btn.addEventListener('click', ()=>{
+          const cmd = btn.getAttribute('data-cmd');
+          document.execCommand(cmd, false, null);
+        });
+      });
+
+      document.getElementById('ap_block_format').addEventListener('change', (e)=>{
+        const val = e.target.value;
+        editorEl.focus();
+        if (val === 'p') document.execCommand('formatBlock', false, '<p>');
+        else document.execCommand('formatBlock', false, '<' + val + '>');
+        e.target.value = 'p';
+      });
+
+      document.getElementById('ap_fontsize').addEventListener('change', (e)=>{
+        const size = e.target.value;
+        if (size) {
+          document.execCommand('fontSize', false, '7');
+          document.querySelectorAll('#editor font[size="7"]').forEach(node => {
+            node.removeAttribute('size');
+            node.style.fontSize = size + 'px';
+          });
+        }
+        e.target.value = '';
+      });
+
+      document.getElementById('ap_clear_formatting').addEventListener('click', ()=>{
+        document.execCommand('removeFormat', false, null);
+      });
+
+      document.getElementById('ap_insert_inline_image').addEventListener('click', ()=>{
+        const url = inlineImageInput.value.trim();
+        if (!url) return;
+        insertHtml(`<img src="${url}" alt="" />`);
+        inlineImageInput.value = '';
+      });
+
+      document.getElementById('ap_insert_inline_link').addEventListener('click', ()=>{
+        const url = prompt('Enter URL');
+        if (!url) return;
+        const label = prompt('Link text', url) || url;
+        insertHtml(`<a href="${url}" target="_blank" rel="noopener">${label}</a>`);
+      });
+
+      async function uploadImage(file){
+        const fd = new FormData();
+        fd.append('image', file);
+        statusBanner.textContent = 'Uploading image...';
+        const res = await fetchWithAuth('/api/announcements/upload-image', { method:'POST', body: fd });
+        const data = await res.json();
+        if (!res.ok) throw new Error((data && data.error) || 'Upload failed');
+        statusBanner.textContent = '';
+        return data.url;
+      }
+
+      async function handleFiles(files){
+        if (!files || !files.length) return;
+        try {
+          const url = await uploadImage(files[0]);
+          insertHtml(`<img src="${url}" alt="" />`);
+        } catch (err) {
+          statusBanner.textContent = err.message;
+        }
+      }
+
+      filepicker.addEventListener('change', (e)=>{
+        handleFiles(e.target.files);
+        filepicker.value = '';
+      });
+
+      dropzone.addEventListener('dragover', (e)=>{
+        e.preventDefault();
+        dropzone.classList.add('dragging');
+      });
+      dropzone.addEventListener('dragleave', ()=> dropzone.classList.remove('dragging'));
+      dropzone.addEventListener('drop', (e)=>{
+        e.preventDefault();
+        dropzone.classList.remove('dragging');
+        handleFiles(e.dataTransfer.files);
+      });
+
+      async function saveAnnouncement(){
+        const title = titleInput.value.trim();
+        const body = editorEl.innerHTML.trim();
+        const hero = heroImageInput.value.trim();
+        if (!title || !body){
+          statusBanner.textContent = 'Title and body required';
+          return;
+        }
+        try {
+          statusBanner.textContent = currentEditingId ? 'Saving changes...' : 'Publishing...';
+          const payload = { title, body, image: hero || undefined };
+          let res;
+          if (currentEditingId) {
+            res = await fetchWithAuth(`/api/announcements/${currentEditingId}`, {
+              method:'PATCH',
+              headers:{ 'Content-Type':'application/json' },
+              body: JSON.stringify(payload)
+            });
+          } else {
+            res = await fetchWithAuth('/api/announcements', {
+              method:'POST',
+              headers:{ 'Content-Type':'application/json' },
+              body: JSON.stringify(payload)
+            });
+          }
+          const data = await res.json().catch(()=>null);
+          if (!res.ok) throw new Error((data && data.error) || 'Request failed');
+          statusBanner.textContent = currentEditingId ? 'Announcement updated' : 'Announcement published';
+          resetComposer();
+          await loadAnnouncements();
+        } catch (err) {
+          statusBanner.textContent = err.message;
+        }
+      }
+
+      document.getElementById('ap_post').addEventListener('click', saveAnnouncement);
+
+      document.getElementById('ap_preview').addEventListener('click', ()=>{
+        openPreviewWindow({
+          title: titleInput.value.trim() || 'Announcement',
+          body: editorEl.innerHTML.trim() || '<p>(No content)</p>',
+          image: heroImageInput.value.trim(),
+          author: document.getElementById('ap_user').textContent,
+          date: new Date().toISOString().slice(0,10)
+        });
+      });
+
+      document.getElementById('ap_btnSignIn').addEventListener('click', signIn);
+      document.getElementById('ap_signout').addEventListener('click', ()=>{
+        localStorage.removeItem(TOKEN_KEY);
+        resetComposer();
+        showSignin();
+      });
+
+      document.getElementById('ap_home').addEventListener('click', (e)=>{
+        e.preventDefault();
+        window.location.href = 'index.html';
+      });
+
+      // Auto-fill defaults for dev convenience
+      document.getElementById('ap_username').value = 'admin';
+      document.getElementById('ap_password').value = 'admin';
+
+      // Attempt auto sign-in by token
+      (async () => {
+        const tok = localStorage.getItem(TOKEN_KEY);
+        if (!tok) return;
+        try {
+          const res = await fetchWithAuth('/api/me', {});
+          if (!res.ok) throw new Error('bad token');
+          const user = await res.json();
+          showPortalForUser(user.display_name || user.username || 'admin');
+        } catch (err) {
+          localStorage.removeItem(TOKEN_KEY);
+        }
+      })();
+    </script>
+  </body>
+</html>

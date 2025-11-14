@@ -1,0 +1,1370 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Announcements Portal — Mack Technologies</title>
+    <link rel="stylesheet" href="css/admin-shared.css" />
+    <style>
+      :root {
+        --surface: #fbfdff;
+        --border: #e3edff;
+      }
+
+      body {
+        padding: 24px;
+      }
+
+      .layout {
+        display: flex;
+        gap: 18px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+
+      .card-main,
+      .card-manage {
+        border-radius: 10px;
+        box-shadow: 0 10px 35px rgba(12, 40, 90, 0.08);
+        background: white;
+        border: 1px solid var(--border);
+      }
+
+      .card-main {
+        flex: 1 1 660px;
+        padding: 18px;
+        min-width: 520px;
+      }
+
+      .card-manage {
+        flex: 0 0 320px;
+        padding: 18px;
+        min-height: 420px;
+        background: var(--surface);
+      }
+
+      @media (max-width: 1080px) {
+        .card-main,
+        .card-manage {
+          flex: 1 1 100%;
+          min-width: 0;
+        }
+      }
+
+      .manage-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .manage-scroll-controls {
+        display: flex;
+        gap: 6px;
+      }
+
+      .manage-scroll-controls button {
+        border: 1px solid var(--border);
+        background: #fff;
+        border-radius: 6px;
+        padding: 4px 8px;
+        cursor: pointer;
+      }
+
+      .manage-scroll-controls button:hover {
+        background: #f2f6ff;
+      }
+
+      .manage-list {
+        border: 1px solid var(--border);
+        background: white;
+        border-radius: 8px;
+        padding: 8px;
+        height: 500px;
+        overflow-y: auto;
+        scroll-behavior: smooth;
+      }
+
+      .manage-item {
+        border: 1px solid #e8f0ff;
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 8px;
+        background: linear-gradient(180deg, #ffffff, #f7fbff);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .manage-item.hidden {
+        opacity: 0.55;
+      }
+
+      .manage-item h4 {
+        margin: 0;
+        font-size: 15px;
+      }
+
+      .manage-item .item-meta {
+        font-size: 12px;
+        color: #6b7a99;
+      }
+
+      .manage-item .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+      }
+
+      .toolbar button,
+      .toolbar select {
+        border-radius: 8px;
+        padding: 6px 10px;
+        border: 1px solid rgba(11, 116, 255, 0.25);
+        background: rgba(11, 116, 255, 0.12);
+        color: var(--brand);
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+      }
+
+      .toolbar button:hover {
+        background: rgba(11, 116, 255, 0.2);
+        border-color: rgba(11, 116, 255, 0.35);
+      }
+
+      .toolbar button:active {
+        transform: scale(0.98);
+      }
+
+      .toolbar select {
+        appearance: none;
+        background: rgba(11, 116, 255, 0.12);
+        color: var(--brand);
+        font-weight: 600;
+        padding-right: 32px;
+        background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%230b74ff' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: calc(100% - 10px) 50%;
+      }
+
+      .toolbar select optgroup {
+        font-weight: 700;
+        color: #12345a;
+        background: #e8f0ff;
+        padding: 4px 0;
+      }
+
+      .toolbar select optgroup option {
+        font-weight: 500;
+        color: #0f2244;
+        background: #fff;
+      }
+
+      .expiry-panel {
+        margin-top: 10px;
+        border: 1px solid rgba(11, 116, 255, 0.18);
+        border-radius: 10px;
+        padding: 8px 10px;
+        background: #eef4ff;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .expiry-panel label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #50618c;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .expiry-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        flex: 1 1 auto;
+      }
+
+      .expiry-row select,
+      .expiry-row input[type="date"],
+      .expiry-row input[type="time"] {
+        border: 1px solid rgba(11, 116, 255, 0.2);
+        border-radius: 8px;
+        padding: 4px 9px;
+        font-size: 13px;
+        min-height: 32px;
+        background: #ffffff;
+      }
+
+      .expiry-note {
+        font-size: 11px;
+        color: #8894b0;
+      }
+
+      .badge-line {
+        display: flex;
+        gap: 6px;
+        margin-top: 6px;
+        flex-wrap: wrap;
+      }
+
+      .status-badge {
+        padding: 2px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        background: #e8eefc;
+        color: #20305a;
+      }
+
+      .status-badge.expired {
+        background: #ffe9e9;
+        color: #a42828;
+      }
+
+      .toolbar select:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(11, 116, 255, 0.25);
+      }
+
+      #ap_title {
+        width: 100%;
+        max-width: 640px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 18px;
+        font-weight: 600;
+        resize: none;
+        overflow: hidden;
+        min-height: 44px;
+        line-height: 1.3;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        text-align: center;
+      }
+
+      #ap_title:focus {
+        outline: none;
+        border-color: rgba(11, 116, 255, 0.9);
+        box-shadow: 0 0 0 2px rgba(11, 116, 255, 0.2);
+      }
+
+      #ap_title::placeholder {
+        text-align: center;
+      }
+
+      #editor {
+        margin-top: 12px;
+        min-height: 240px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        background: #fff;
+        line-height: 1.45;
+        overflow: auto;
+      }
+
+      #editor img {
+        max-width: 100%;
+        border-radius: 10px;
+        margin: 10px 0;
+      }
+
+      .image-panel {
+        margin-top: 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        background: #f8fbff;
+        display: none;
+      }
+
+      .image-panel h4 {
+        margin: 0 0 6px 0;
+        font-size: 15px;
+      }
+
+      .image-panel .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin-top: 8px;
+      }
+
+      .image-panel button,
+      .image-panel select,
+      .image-panel input[type="range"] {
+        flex: 1 1 120px;
+      }
+
+      .image-panel button {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 6px 10px;
+        cursor: pointer;
+      }
+
+      .image-panel button.primary {
+        background: #eef6ff;
+        color: var(--brand);
+      }
+
+      .image-size-value {
+        min-width: 48px;
+        font-weight: 600;
+        color: var(--brand);
+      }
+
+      .image-selected {
+        outline: 2px solid var(--brand);
+        outline-offset: 4px;
+      }
+
+      .inline-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      .inline-row input {
+        flex: 1 1 260px;
+      }
+
+      .dropzone {
+        margin-top: 12px;
+        padding: 14px;
+        border: 2px dashed var(--border);
+        border-radius: 10px;
+        background: var(--surface);
+        color: #64739b;
+        text-align: center;
+        transition: border-color 0.2s ease, background 0.2s ease;
+      }
+
+      .dropzone.dragging {
+        border-color: var(--brand);
+        background: #eaf2ff;
+        color: var(--brand);
+      }
+
+      .compose-footer {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+        justify-content: flex-end;
+      }
+
+      .status-text {
+        margin-top: 8px;
+        color: #2f6fb6;
+        min-height: 20px;
+      }
+
+      .chip {
+        cursor: default;
+      }
+
+      .hero-info {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 8px;
+      }
+
+      .hero-info .muted {
+        margin: 0;
+      }
+
+      label.file-picker {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        background: #eef6ff;
+        color: var(--brand);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="top-header">
+        <div>
+          <h2 style="margin:0">Announcements Portal</h2>
+          <div class="muted" style="margin-top:6px">Full editor with drag & drop images and quick access to recent announcements.</div>
+        </div>
+        <div>
+          <button id="ap_home" class="top-button" title="Home">Home</button>
+        </div>
+      </div>
+
+      <div id="signin" style="margin-top:14px;display:flex;flex-wrap:wrap;gap:8px">
+        <input id="ap_username" placeholder="Username" style="flex:1 1 200px" />
+        <input id="ap_password" type="password" placeholder="Password" style="flex:1 1 200px" />
+        <button id="ap_btnSignIn" class="btn">Sign In</button>
+        <div id="ap_msg" style="flex-basis:100%;margin-top:6px;color:#b54a4a"></div>
+      </div>
+
+      <div id="portal" style="display:none;margin-top:18px">
+        <div class="hero-info">
+          <div class="muted">Signed in as <strong id="ap_user"></strong></div>
+          <button id="ap_signout" class="btn" style="margin:0;background:#e6f0ff;color:var(--brand)">Sign Out</button>
+          <div class="chip" id="ap_manage_status"></div>
+        </div>
+
+        <div class="layout" style="margin-top:18px">
+          <div class="card-manage" id="manage_card">
+            <div class="manage-header">
+              <div>
+                <h3 style="margin:0">Recent Announcements</h3>
+                <div class="muted" style="margin-top:2px">Scroll, preview, edit, or delete.</div>
+              </div>
+              <div class="manage-scroll-controls">
+                <button type="button" title="Scroll up" id="btnScrollUp">↑</button>
+                <button type="button" title="Scroll down" id="btnScrollDown">↓</button>
+              </div>
+            </div>
+            <div class="manage-list" id="ap_ann_list">
+              <div class="muted">No announcements loaded yet.</div>
+            </div>
+          </div>
+
+          <div class="card-main">
+            <h3 style="margin:0">Compose Announcement</h3>
+            <div class="muted">Use the toolbar to format rich text, drag images into the editor, or upload files. Preview before posting.</div>
+            <div style="margin-top:12px;display:flex;justify-content:center">
+              <textarea id="ap_title" placeholder="Title" rows="1"></textarea>
+            </div>
+            <div class="toolbar" aria-label="Formatting toolbar">
+              <select id="ap_quick_actions" title="Quick formatting actions">
+                <option value="">Formatting actions…</option>
+                <optgroup label="Text Emphasis">
+                  <option value="bold">Bold</option>
+                  <option value="italic">Italic</option>
+                  <option value="underline">Underline</option>
+                </optgroup>
+                <optgroup label="Lists">
+                  <option value="ordered">Numbered list</option>
+                  <option value="unordered">Bulleted list</option>
+                </optgroup>
+                <optgroup label="Alignment">
+                  <option value="align-left">Align left</option>
+                  <option value="align-center">Center</option>
+                  <option value="align-right">Align right</option>
+                </optgroup>
+              </select>
+              <select id="ap_block_format" title="Heading style">
+                <option value="p">Paragraph</option>
+                <option value="h2">Heading</option>
+                <option value="h3">Subheading</option>
+              </select>
+              <select id="ap_fontsize" title="Font size">
+                <option value="">Font size</option>
+                <option value="14">14 px</option>
+                <option value="16">16 px</option>
+                <option value="18">18 px</option>
+                <option value="24">24 px</option>
+                <option value="32">32 px</option>
+              </select>
+              <button type="button" id="ap_insert_inline_link">Insert Link</button>
+              <button type="button" id="ap_clear_formatting">Clear Formatting</button>
+            </div>
+            <div id="ap_link_panel" class="image-panel" style="display:none;margin-top:10px">
+              <h4>Insert Link</h4>
+              <div class="muted">Provide link text (optional) and destination URL.</div>
+              <div class="row" style="flex-direction:column;align-items:stretch">
+                <input id="ap_link_text" placeholder="Link text (optional)" />
+                <input id="ap_link_url" placeholder="https://example.com" />
+              </div>
+              <div class="row" style="justify-content:flex-end">
+                <button type="button" id="ap_link_cancel">Cancel</button>
+                <button type="button" id="ap_link_add" class="primary">Insert Link</button>
+              </div>
+            </div>
+            <div class="expiry-panel">
+              <label for="ap_expiry_mode">Expiration</label>
+              <div class="expiry-row">
+                <select id="ap_expiry_mode">
+                  <option value="none">Never expire</option>
+                  <option value="5days">+5 days</option>
+                  <option value="custom">Custom…</option>
+                </select>
+                <input type="date" id="ap_expiry_date" disabled />
+                <input type="time" id="ap_expiry_time" value="09:00" disabled />
+              </div>
+              <div class="expiry-note">Expired announcements are hidden automatically.</div>
+            </div>
+            <div id="editor" contenteditable="true"></div>
+            <div class="inline-row" id="ap_inline_image_row" style="margin-top:12px">
+              <input id="ap_inline_image_url" placeholder="Paste image URL" />
+              <button type="button" class="btn" style="margin:0" id="ap_insert_inline_image">Insert Image</button>
+            </div>
+            <div id="ap_image_panel" class="image-panel">
+              <h4>Image Controls</h4>
+              <div class="muted" style="margin-bottom:4px">Adjust size, alignment, or order of the selected image.</div>
+              <div class="row">
+                <label style="flex:1 1 220px">Size
+                  <input type="range" id="ap_image_size" min="20" max="100" value="100" />
+                </label>
+                <div class="image-size-value" id="ap_image_size_value">100%</div>
+              </div>
+              <div class="row">
+                <button type="button" class="img-align" data-align="left">Align Left</button>
+                <button type="button" class="img-align" data-align="center">Center</button>
+                <button type="button" class="img-align" data-align="right">Align Right</button>
+              </div>
+              <div class="row">
+                <button type="button" id="ap_img_up">Move Up</button>
+                <button type="button" id="ap_img_down">Move Down</button>
+                <button type="button" id="ap_img_remove" style="background:#ffecec;color:#b2362d">Remove Image</button>
+              </div>
+              <div class="row" style="justify-content:flex-end">
+                <button type="button" id="ap_img_done" class="primary">Done</button>
+              </div>
+            </div>
+            <div class="dropzone" id="ap_dropzone">
+              Drag & drop PNG, JPG, WEBP, GIF, or SVG files here to upload automatically
+              <div style="margin-top:6px">
+                <label class="file-picker">
+                  Select File
+                  <input id="ap_filepicker" type="file" accept="image/*,.svg,.svgz,.webp" style="display:none" />
+                </label>
+              </div>
+            </div>
+            <div class="compose-footer">
+              <button id="ap_preview" class="btn" type="button" style="background:#eef6ff;color:var(--brand)">Preview</button>
+              <button id="ap_post" class="btn" type="button">Post Announcement</button>
+            </div>
+            <div class="status-text" id="ap_status"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const TOKEN_KEY = 'mack_token';
+      let announcementCache = [];
+      let currentEditingId = null;
+
+      const editorEl = document.getElementById('editor');
+      const dropzone = document.getElementById('ap_dropzone');
+      const filepicker = document.getElementById('ap_filepicker');
+      const inlineImageInput = document.getElementById('ap_inline_image_url');
+      const titleInput = document.getElementById('ap_title');
+      const quickActionsSelect = document.getElementById('ap_quick_actions');
+      const statusBanner = document.getElementById('ap_status');
+      const manageStatus = document.getElementById('ap_manage_status');
+      const imagePanel = document.getElementById('ap_image_panel');
+      const imageSizeInput = document.getElementById('ap_image_size');
+      const imageSizeValue = document.getElementById('ap_image_size_value');
+      const imageMoveUpBtn = document.getElementById('ap_img_up');
+      const imageMoveDownBtn = document.getElementById('ap_img_down');
+      const imageRemoveBtn = document.getElementById('ap_img_remove');
+      const imageDoneBtn = document.getElementById('ap_img_done');
+      const linkPanel = document.getElementById('ap_link_panel');
+      const linkTextInput = document.getElementById('ap_link_text');
+      const linkUrlInput = document.getElementById('ap_link_url');
+      const linkAddBtn = document.getElementById('ap_link_add');
+      const linkCancelBtn = document.getElementById('ap_link_cancel');
+      const linkToggleBtn = document.getElementById('ap_insert_inline_link');
+      const expiryModeSelect = document.getElementById('ap_expiry_mode');
+      const expiryDateInput = document.getElementById('ap_expiry_date');
+      const expiryTimeInput = document.getElementById('ap_expiry_time');
+
+      function getApiBase(){
+        if (location.protocol === 'http:' || location.protocol === 'https:') return location.origin;
+        if (location.protocol === 'file:') return 'http://localhost:3000';
+        return '';
+      }
+      function apiUrl(path){
+        const base = getApiBase();
+        if (!base) return path;
+        return base.replace(/\/$/, '') + path;
+      }
+
+      let selectedImage = null;
+      let linkPanelVisible = false;
+
+      ensureTopTextBlock();
+      ensureTopTextSpacer();
+      initTitleAutosize();
+      initializeExpirationControls();
+
+      function ensureTopTextBlock(){
+        if (!editorEl) return;
+        const hasMeaningfulContent = Array.from(editorEl.childNodes).some(node => {
+          if (node.nodeType === Node.TEXT_NODE) return node.textContent.trim().length > 0;
+          if (node.nodeType === Node.ELEMENT_NODE){
+            if (node.tagName === 'BR') return false;
+            if (node.tagName === 'P' && node.textContent.trim().length === 0 && !node.querySelector('img, video, audio')) return false;
+            return true;
+          }
+          return false;
+        });
+        if (!hasMeaningfulContent){
+          const placeholder = document.createElement('p');
+          placeholder.appendChild(document.createElement('br'));
+          editorEl.replaceChildren(placeholder);
+          focusEmptyEditor(placeholder);
+        }
+      }
+
+      function ensureTopTextSpacer(){
+        if (!editorEl) return;
+        const firstElement = editorEl.firstElementChild;
+        if (!firstElement) return;
+        const needsSpacer = firstElement.tagName && firstElement.tagName !== 'P' && firstElement.tagName !== 'DIV';
+        if (needsSpacer){
+          preserveSelection(()=>{
+            const spacer = document.createElement('p');
+            spacer.innerHTML = '<br>';
+            editorEl.insertBefore(spacer, firstElement);
+          });
+        }
+      }
+
+      function selectionInside(tagNames){
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return false;
+        let node = sel.anchorNode;
+        while (node && node !== editorEl){
+          if (node.nodeType === Node.ELEMENT_NODE && tagNames.includes(node.tagName)) return true;
+          node = node.parentNode;
+        }
+        return false;
+      }
+
+      function exitListMode(){
+        const canQueryState = typeof document.queryCommandState === 'function';
+        let handled = false;
+        if (canQueryState){
+          if (document.queryCommandState('insertUnorderedList')){
+            document.execCommand('insertUnorderedList', false, null);
+            handled = true;
+          }
+          if (document.queryCommandState('insertOrderedList')){
+            document.execCommand('insertOrderedList', false, null);
+            handled = true;
+          }
+        }
+        if (!handled){
+          if (selectionInside(['UL'])){
+            document.execCommand('insertUnorderedList', false, null);
+          }
+          if (selectionInside(['OL'])){
+            document.execCommand('insertOrderedList', false, null);
+          }
+        }
+      }
+
+      function selectionInEditor(){
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return false;
+        return editorEl && editorEl.contains(sel.anchorNode);
+      }
+
+      function preserveSelection(mutate){
+        const sel = window.getSelection();
+        const shouldPreserve = sel && sel.rangeCount > 0 && editorEl && editorEl.contains(sel.anchorNode);
+        const range = shouldPreserve ? sel.getRangeAt(0).cloneRange() : null;
+        mutate();
+        if (range && sel){
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      }
+
+      function focusEmptyEditor(placeholder){
+        if (!editorEl) return;
+        const sel = window.getSelection();
+        if (!sel) return;
+        if (!selectionInEditor() && document.activeElement !== editorEl) return;
+        const range = document.createRange();
+        range.setStart(placeholder, 0);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        editorEl.focus();
+      }
+
+      function toggleExpiryInputs(enable, preserveValues){
+        if (!expiryDateInput || !expiryTimeInput) return;
+        expiryDateInput.disabled = !enable;
+        expiryTimeInput.disabled = !enable;
+        if (!enable && !preserveValues){
+          expiryDateInput.value = '';
+          expiryTimeInput.value = '09:00';
+        } else if (enable && !expiryTimeInput.value){
+          expiryTimeInput.value = '09:00';
+        }
+      }
+
+      function initializeExpirationControls(){
+        if (!expiryModeSelect) return;
+        expiryModeSelect.addEventListener('change', ()=>{
+          toggleExpiryInputs(expiryModeSelect.value === 'custom', false);
+        });
+        if (expiryDateInput){
+          const today = new Date().toISOString().slice(0,10);
+          expiryDateInput.min = today;
+        }
+        toggleExpiryInputs(expiryModeSelect.value === 'custom', false);
+      }
+
+      function applyAnnouncementExpiry(announcement){
+        if (!expiryModeSelect) return;
+        const expiresValue = announcement && (announcement.expiresAt || announcement.expires_at);
+        if (expiresValue){
+          const parsed = parseExpiresAt(expiresValue);
+          if (parsed){
+            expiryModeSelect.value = 'custom';
+            toggleExpiryInputs(true, true);
+            expiryDateInput.value = parsed.toISOString().slice(0,10);
+            expiryTimeInput.value = parsed.toISOString().slice(11,16);
+            return;
+          }
+        }
+        expiryModeSelect.value = 'none';
+        toggleExpiryInputs(false, false);
+      }
+
+      function parseExpiresAt(value){
+        if (!value) return null;
+        const dt = new Date(value);
+        if (Number.isNaN(dt.getTime())) return null;
+        return dt;
+      }
+
+      function getExpiresAtValue(){
+        if (!expiryModeSelect) return null;
+        const mode = expiryModeSelect.value;
+        if (mode === 'none') return null;
+        if (mode === '5days'){
+          const future = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+          return future.toISOString();
+        }
+        if (mode === 'custom' && expiryDateInput){
+          if (!expiryDateInput.value) return null;
+          const timeVal = (expiryTimeInput && expiryTimeInput.value) ? expiryTimeInput.value : '09:00';
+          const normalizedTime = timeVal.length === 5 ? `${timeVal}:00` : timeVal;
+          const candidate = new Date(`${expiryDateInput.value}T${normalizedTime}`);
+          if (Number.isNaN(candidate.getTime())) return null;
+          return candidate.toISOString();
+        }
+        return null;
+      }
+
+      function isAnnouncementExpired(announcement){
+        const expiresValue = announcement && (announcement.expiresAt || announcement.expires_at);
+        const parsed = parseExpiresAt(expiresValue);
+        if (!parsed) return false;
+        return parsed.getTime() < Date.now();
+      }
+
+      function formatExpirationLabel(expiresAt){
+          const parsed = parseExpiresAt(expiresAt);
+          if (!parsed) return '';
+          return 'Expires ' + parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      }
+
+      function resizeTitleField(){
+        if (!titleInput) return;
+        titleInput.style.height = 'auto';
+        const minHeight = 44;
+        const maxHeight = 220;
+        const scrollHeight = titleInput.scrollHeight || minHeight;
+        const target = Math.max(minHeight, Math.min(maxHeight, scrollHeight));
+        titleInput.style.height = target + 'px';
+      }
+
+      function initTitleAutosize(){
+        if (!titleInput) return;
+        const handler = ()=> requestAnimationFrame(resizeTitleField);
+        ['input','change','cut','paste'].forEach(evt => titleInput.addEventListener(evt, handler));
+        resizeTitleField();
+      }
+
+      function clearImageSelection(){
+        if (selectedImage){
+          selectedImage.classList.remove('image-selected');
+        }
+        selectedImage = null;
+        if (imagePanel) imagePanel.style.display = 'none';
+      }
+
+      function hideLinkPanel(){
+        if (!linkPanel) return;
+        linkPanel.style.display = 'none';
+        if (linkTextInput) linkTextInput.value = '';
+        if (linkUrlInput) linkUrlInput.value = '';
+        linkPanelVisible = false;
+      }
+
+      function showLinkPanel(){
+        if (!linkPanel) return;
+        const selection = window.getSelection ? window.getSelection().toString().trim() : '';
+        if (linkTextInput) linkTextInput.value = selection || '';
+        if (linkUrlInput) linkUrlInput.value = '';
+        linkPanel.style.display = 'block';
+        linkPanelVisible = true;
+        setTimeout(()=>{
+          if (linkTextInput) linkTextInput.focus();
+        },0);
+      }
+
+      function updateImagePanel(){
+        if (!selectedImage || !imagePanel) return;
+        const editorWidth = editorEl.getBoundingClientRect().width || 1;
+        const imgWidth = selectedImage.getBoundingClientRect().width || editorWidth;
+        const percent = Math.max(20, Math.min(100, Math.round((imgWidth / editorWidth) * 100)));
+        imageSizeInput.value = percent;
+        imageSizeValue.textContent = percent + '%';
+        imagePanel.style.display = 'block';
+      }
+
+      function selectImage(img){
+        if (!img) return;
+        if (selectedImage === img){
+          updateImagePanel();
+          return;
+        }
+        clearImageSelection();
+        selectedImage = img;
+        selectedImage.classList.add('image-selected');
+        updateImagePanel();
+      }
+
+      function setImageAlignment(alignment){
+        if (!selectedImage) return;
+        selectedImage.style.display = 'block';
+        selectedImage.style.marginTop = '12px';
+        selectedImage.style.marginBottom = '12px';
+        selectedImage.style.float = 'none';
+        if (alignment === 'left'){
+          selectedImage.style.marginLeft = '0';
+          selectedImage.style.marginRight = 'auto';
+        } else if (alignment === 'right'){
+          selectedImage.style.marginLeft = 'auto';
+          selectedImage.style.marginRight = '0';
+        } else {
+          selectedImage.style.marginLeft = 'auto';
+          selectedImage.style.marginRight = 'auto';
+        }
+        selectedImage.dataset.align = alignment;
+      }
+
+      function findSibling(node, direction){
+        let sib = direction === 'up' ? node.previousSibling : node.nextSibling;
+        while (sib && sib.nodeType === Node.TEXT_NODE && !sib.textContent.trim()){
+          sib = direction === 'up' ? sib.previousSibling : sib.nextSibling;
+        }
+        return sib;
+      }
+
+      function moveImage(direction){
+        if (!selectedImage) return;
+        const parent = editorEl;
+        if (!parent) return;
+        if (direction === 'up'){
+          const prev = findSibling(selectedImage, 'up');
+          if (prev) parent.insertBefore(selectedImage, prev);
+          else parent.insertBefore(selectedImage, parent.firstChild);
+        } else {
+          const next = findSibling(selectedImage, 'down');
+          if (next) parent.insertBefore(selectedImage, next.nextSibling);
+          else parent.appendChild(selectedImage);
+        }
+        ensureTopTextBlock();
+        ensureTopTextSpacer();
+      }
+
+      function resetComposer(){
+        currentEditingId = null;
+        titleInput.value = '';
+        resizeTitleField();
+        inlineImageInput.value = '';
+        editorEl.innerHTML = '<p><br></p>';
+        statusBanner.textContent = '';
+        document.getElementById('ap_post').textContent = 'Post Announcement';
+        clearImageSelection();
+        hideLinkPanel();
+        applyAnnouncementExpiry(null);
+      }
+
+      function showSignin(){
+        document.getElementById('signin').style.display = 'flex';
+        document.getElementById('portal').style.display = 'none';
+        manageStatus.textContent = '';
+      }
+
+      function showPortalForUser(username){
+        document.getElementById('signin').style.display = 'none';
+        document.getElementById('portal').style.display = 'block';
+        document.getElementById('ap_user').textContent = username;
+        loadAnnouncements();
+      }
+
+      async function signIn(){
+        const u = document.getElementById('ap_username').value.trim();
+        const p = document.getElementById('ap_password').value;
+        const msg = document.getElementById('ap_msg');
+        msg.textContent = '';
+        if (!u || !p) { msg.textContent = 'username and password required'; return; }
+        try {
+          const res = await fetch(apiUrl('/api/login'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: u, password: p })
+          });
+          const data = await res.json().catch(()=>null);
+          if (!res.ok) {
+            msg.textContent = (data && (data.error || data.message)) || 'Sign in failed';
+            return;
+          }
+          localStorage.setItem(TOKEN_KEY, data.token);
+          showPortalForUser(data.user && (data.user.display_name || data.user.username || u));
+        } catch (err) {
+          msg.textContent = 'Network error: ' + err.message;
+        }
+      }
+
+      async function fetchWithAuth(path, options){
+        const token = localStorage.getItem(TOKEN_KEY);
+        const headers = Object.assign({}, options && options.headers, { Authorization: 'Bearer ' + token });
+        return await fetch(apiUrl(path), Object.assign({}, options, { headers }));
+      }
+
+      function renderAnnouncementList(){
+        const list = document.getElementById('ap_ann_list');
+        list.innerHTML = '';
+        if (!announcementCache.length){
+          list.innerHTML = '<div class="muted">No announcements yet.</div>';
+          return;
+        }
+        announcementCache.forEach(ann => {
+          const expired = isAnnouncementExpired(ann);
+          const classes = ['manage-item'];
+          if (ann.hidden) classes.push('hidden');
+          if (expired) classes.push('expired');
+          const metaParts = [];
+          if (ann.date) metaParts.push(ann.date);
+          if (ann.author) metaParts.push(ann.author);
+          const expirationLabel = (ann.expiresAt || ann.expires_at) ? formatExpirationLabel(ann.expiresAt || ann.expires_at) : '';
+          if (expirationLabel) metaParts.push(expirationLabel);
+          const statusBadges = [];
+          if (expired) statusBadges.push('<span class="status-badge expired">Expired</span>');
+          if (ann.hidden) statusBadges.push('<span class="status-badge">Hidden</span>');
+          const item = document.createElement('div');
+          item.className = classes.join(' ');
+          item.innerHTML = `
+            <h4>${ann.title || 'Untitled'}</h4>
+            <div class="item-meta">${metaParts.join(' • ')}</div>
+            ${statusBadges.length ? `<div class="badge-line">${statusBadges.join('')}</div>` : ''}
+            <div class="actions">
+              <button class="btn" data-action="preview" data-id="${ann.id}" style="margin:0;background:#eef6ff;color:var(--brand)">Preview</button>
+              <button class="btn" data-action="edit" data-id="${ann.id}" style="margin:0">Edit</button>
+              <button class="btn" data-action="toggle" data-id="${ann.id}" style="margin:0;background:#fff;color:#0a5fab;border:1px solid #d5e6ff">${ann.hidden ? 'Show' : 'Hide'}</button>
+              <button class="btn" data-action="delete" data-id="${ann.id}" style="margin:0;background:#ffe5e5;color:#a12f2f">Delete</button>
+            </div>`;
+          list.appendChild(item);
+        });
+      }
+
+      async function loadAnnouncements(){
+        try {
+          manageStatus.textContent = 'Loading announcements...';
+          const res = await fetchWithAuth('/api/announcements', {});
+          if (!res.ok) throw new Error('Failed to load');
+          announcementCache = await res.json();
+          renderAnnouncementList();
+          resizeTitleField();
+          const activeCount = announcementCache.filter(ann => !isAnnouncementExpired(ann) && !ann.hidden).length;
+          manageStatus.textContent = `${activeCount} active • ${announcementCache.length} total`;
+        } catch (err) {
+          manageStatus.textContent = 'Unable to load announcements';
+        }
+      }
+
+      function openPreviewWindow(ann){
+        const win = window.open('', '_blank');
+        if (!win) {
+          statusBanner.textContent = 'Allow pop-ups to preview announcements.';
+          return;
+        }
+        const bodyHtml = ann.body || '<p>(No content)</p>';
+        win.document.write(`<!doctype html>
+          <html>
+            <head>
+              <meta charset="utf-8" />
+              <title>${ann.title || 'Preview'}</title>
+              <style>
+                body{font-family:system-ui,-apple-system,Arial;background:#f3f7ff;padding:24px;margin:0;color:#12345a;}
+                .container{max-width:600px;margin:0 auto;background:white;border-radius:12px;box-shadow:0 16px 40px rgba(12,34,77,0.12);padding:24px;}
+                h1{margin-top:0;font-size:26px;}
+                .meta{color:#6b7a99;font-size:13px;margin-top:18px;text-align:right;}
+                .content{color:#1b243d;font-size:15px;line-height:1.55;}
+                img{max-width:100%;border-radius:10px;margin:12px 0;}
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <h1>${ann.title || 'Announcement'}</h1>
+                ${ann.image ? `<img src="${ann.image}" alt="" />` : ''}
+                <div class="content">${bodyHtml}</div>
+                <div class="meta">${ann.date || ''}${ann.author ? ' • ' + ann.author : ''}</div>
+              </div>
+            </body>
+          </html>`);
+        win.document.close();
+      }
+
+      function startEditingAnnouncement(ann){
+        currentEditingId = ann.id;
+        titleInput.value = ann.title || '';
+        resizeTitleField();
+        editorEl.innerHTML = ann.body || '<p><br></p>';
+        statusBanner.textContent = `Editing announcement #${ann.id}`;
+        document.getElementById('ap_post').textContent = 'Save Changes';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        ensureTopTextBlock();
+        ensureTopTextSpacer();
+        clearImageSelection();
+        hideLinkPanel();
+        applyAnnouncementExpiry(ann);
+      }
+
+      async function handleManageAction(target){
+        const action = target.getAttribute('data-action');
+        const id = target.getAttribute('data-id');
+        if (!action || !id) return;
+        const ann = announcementCache.find(a => String(a.id) === String(id));
+        if (!ann) return;
+        if (action === 'preview') return openPreviewWindow(ann);
+        if (action === 'edit') return startEditingAnnouncement(ann);
+        if (action === 'toggle') {
+          try {
+            await fetchWithAuth(`/api/announcements/${id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ hidden: !ann.hidden })
+            });
+            manageStatus.textContent = 'Updated visibility';
+            await loadAnnouncements();
+          } catch (err) {
+            manageStatus.textContent = 'Failed to toggle visibility';
+          }
+        }
+        if (action === 'delete') {
+          if (!confirm('Delete this announcement?')) return;
+          try {
+            await fetchWithAuth(`/api/announcements/${id}`, { method: 'DELETE' });
+            manageStatus.textContent = 'Announcement deleted';
+            if (currentEditingId && String(currentEditingId) === String(id)) resetComposer();
+            await loadAnnouncements();
+          } catch (err) {
+            manageStatus.textContent = 'Failed to delete';
+          }
+        }
+      }
+
+      document.getElementById('ap_ann_list').addEventListener('click', (ev)=>{
+        const btn = ev.target.closest('button[data-action]');
+        if (btn) handleManageAction(btn);
+      });
+
+      document.getElementById('btnScrollUp').addEventListener('click', ()=>{
+        document.getElementById('ap_ann_list').scrollBy({ top: -180, behavior: 'smooth' });
+      });
+      document.getElementById('btnScrollDown').addEventListener('click', ()=>{
+        document.getElementById('ap_ann_list').scrollBy({ top: 180, behavior: 'smooth' });
+      });
+
+      function insertHtml(html){
+        editorEl.focus();
+        document.execCommand('insertHTML', false, html);
+        setTimeout(()=>{
+          ensureTopTextBlock();
+          ensureTopTextSpacer();
+        },0);
+      }
+
+      if (quickActionsSelect){
+        quickActionsSelect.addEventListener('change', (e)=>{
+          const val = e.target.value;
+          if (!val) return;
+          const commandMap = {
+            'bold': 'bold',
+            'italic': 'italic',
+            'underline': 'underline',
+            'ordered': 'insertOrderedList',
+            'unordered': 'insertUnorderedList',
+            'align-left': 'justifyLeft',
+            'align-center': 'justifyCenter',
+            'align-right': 'justifyRight'
+          };
+          if (commandMap[val]){
+            document.execCommand(commandMap[val], false, null);
+          }
+          e.target.value = '';
+        });
+      }
+
+      editorEl.addEventListener('click', (event)=>{
+        const img = event.target.closest('img');
+        if (img) selectImage(img);
+      });
+
+      editorEl.addEventListener('input', ()=>{
+        ensureTopTextBlock();
+        ensureTopTextSpacer();
+        if (selectedImage && !editorEl.contains(selectedImage)){
+          clearImageSelection();
+        }
+      });
+
+      editorEl.addEventListener('keyup', (event)=>{
+        if (event.key === 'Escape') clearImageSelection();
+      });
+
+      document.addEventListener('click', (event)=>{
+        const clickedInsideImagePanel = imagePanel && imagePanel.contains(event.target);
+        if (!clickedInsideImagePanel && !editorEl.contains(event.target)){
+          clearImageSelection();
+        }
+        const clickedLinkControls = linkPanel && linkPanel.contains(event.target);
+        const clickedLinkToggle = linkToggleBtn && linkToggleBtn.contains(event.target);
+        if (linkPanelVisible && !clickedLinkControls && !clickedLinkToggle){
+          hideLinkPanel();
+        }
+      });
+
+      document.getElementById('ap_block_format').addEventListener('change', (e)=>{
+        const val = e.target.value;
+        editorEl.focus();
+        if (val === 'p') document.execCommand('formatBlock', false, '<p>');
+        else document.execCommand('formatBlock', false, '<' + val + '>');
+        e.target.value = 'p';
+      });
+
+      document.getElementById('ap_fontsize').addEventListener('change', (e)=>{
+        const size = e.target.value;
+        if (size) {
+          document.execCommand('fontSize', false, '7');
+          document.querySelectorAll('#editor font[size="7"]').forEach(node => {
+            node.removeAttribute('size');
+            node.style.fontSize = size + 'px';
+          });
+        }
+        e.target.value = '';
+      });
+
+      const clearBtn = document.getElementById('ap_clear_formatting');
+      if (clearBtn){
+        clearBtn.addEventListener('click', ()=>{
+          editorEl.focus();
+          exitListMode();
+          document.execCommand('removeFormat', false, null);
+          document.execCommand('formatBlock', false, '<p>');
+          ensureTopTextBlock();
+          ensureTopTextSpacer();
+        });
+      }
+
+      document.getElementById('ap_insert_inline_image').addEventListener('click', ()=>{
+        const url = inlineImageInput.value.trim();
+        if (!url) return;
+        insertHtml(`<img src="${url}" alt="" />`);
+        inlineImageInput.value = '';
+      });
+
+      if (linkToggleBtn){
+        linkToggleBtn.addEventListener('click', ()=>{
+          if (linkPanelVisible) hideLinkPanel(); else showLinkPanel();
+        });
+      }
+
+      if (linkCancelBtn) linkCancelBtn.addEventListener('click', ()=> hideLinkPanel());
+
+      if (linkAddBtn){
+        linkAddBtn.addEventListener('click', ()=>{
+          if (!linkUrlInput) return;
+          const url = linkUrlInput.value.trim();
+          if (!url){
+            linkUrlInput.focus();
+            return;
+          }
+          const text = (linkTextInput && linkTextInput.value.trim()) || url;
+          insertHtml(`<a href="${url}" target="_blank" rel="noopener">${text}</a>`);
+          hideLinkPanel();
+        });
+      }
+
+      if (imageSizeInput){
+        imageSizeInput.addEventListener('input', ()=>{
+          if (!selectedImage) return;
+          const value = Number(imageSizeInput.value) || 100;
+          selectedImage.style.width = value + '%';
+          selectedImage.style.maxWidth = value + '%';
+          imageSizeValue.textContent = value + '%';
+        });
+      }
+
+      document.querySelectorAll('.img-align').forEach(btn => {
+        btn.addEventListener('click', ()=>{
+          if (!selectedImage) return;
+          setImageAlignment(btn.getAttribute('data-align'));
+        });
+      });
+
+      if (imageMoveUpBtn) imageMoveUpBtn.addEventListener('click', ()=> moveImage('up'));
+      if (imageMoveDownBtn) imageMoveDownBtn.addEventListener('click', ()=> moveImage('down'));
+      if (imageRemoveBtn) imageRemoveBtn.addEventListener('click', ()=>{
+        if (!selectedImage) return;
+        const toRemove = selectedImage;
+        clearImageSelection();
+        toRemove.remove();
+        ensureTopTextBlock();
+        ensureTopTextSpacer();
+      });
+      if (imageDoneBtn) imageDoneBtn.addEventListener('click', ()=> clearImageSelection());
+
+      async function uploadImage(file){
+        const fd = new FormData();
+        fd.append('image', file);
+        statusBanner.textContent = 'Uploading image...';
+        const res = await fetchWithAuth('/api/announcements/upload-image', { method:'POST', body: fd });
+        const data = await res.json();
+        if (!res.ok) throw new Error((data && data.error) || 'Upload failed');
+        statusBanner.textContent = '';
+        return data.url;
+      }
+
+      async function handleFiles(files){
+        if (!files || !files.length) return;
+        try {
+          const url = await uploadImage(files[0]);
+          insertHtml(`<img src="${url}" alt="" />`);
+        } catch (err) {
+          statusBanner.textContent = err.message;
+        }
+      }
+
+      filepicker.addEventListener('change', (e)=>{
+        handleFiles(e.target.files);
+        filepicker.value = '';
+      });
+
+      dropzone.addEventListener('dragover', (e)=>{
+        e.preventDefault();
+        dropzone.classList.add('dragging');
+      });
+      dropzone.addEventListener('dragleave', ()=> dropzone.classList.remove('dragging'));
+      dropzone.addEventListener('drop', (e)=>{
+        e.preventDefault();
+        dropzone.classList.remove('dragging');
+        handleFiles(e.dataTransfer.files);
+      });
+
+      async function saveAnnouncement(){
+        clearImageSelection();
+        const title = titleInput.value.trim();
+        const body = editorEl.innerHTML.trim();
+        if (!title || !body){
+          statusBanner.textContent = 'Title and body required';
+          return;
+        }
+        if (expiryModeSelect && expiryModeSelect.value === 'custom' && expiryDateInput && !expiryDateInput.value){
+          statusBanner.textContent = 'Select an expiration date or choose Never expire';
+          return;
+        }
+        try {
+          statusBanner.textContent = currentEditingId ? 'Saving changes...' : 'Publishing...';
+          const payload = { title, body, expiresAt: getExpiresAtValue() };
+          let res;
+          if (currentEditingId) {
+            res = await fetchWithAuth(`/api/announcements/${currentEditingId}`, {
+              method:'PATCH',
+              headers:{ 'Content-Type':'application/json' },
+              body: JSON.stringify(payload)
+            });
+          } else {
+            res = await fetchWithAuth('/api/announcements', {
+              method:'POST',
+              headers:{ 'Content-Type':'application/json' },
+              body: JSON.stringify(payload)
+            });
+          }
+          const data = await res.json().catch(()=>null);
+          if (!res.ok) throw new Error((data && data.error) || 'Request failed');
+          statusBanner.textContent = currentEditingId ? 'Announcement updated' : 'Announcement published';
+          resetComposer();
+          await loadAnnouncements();
+        } catch (err) {
+          statusBanner.textContent = err.message;
+        }
+      }
+
+      document.getElementById('ap_post').addEventListener('click', saveAnnouncement);
+
+      document.getElementById('ap_preview').addEventListener('click', ()=>{
+        hideLinkPanel();
+        openPreviewWindow({
+          title: titleInput.value.trim() || 'Announcement',
+          body: editorEl.innerHTML.trim() || '<p>(No content)</p>',
+          author: document.getElementById('ap_user').textContent,
+          date: new Date().toISOString().slice(0,10)
+        });
+      });
+
+      document.getElementById('ap_btnSignIn').addEventListener('click', signIn);
+      document.getElementById('ap_signout').addEventListener('click', ()=>{
+        localStorage.removeItem(TOKEN_KEY);
+        resetComposer();
+        showSignin();
+      });
+
+      document.getElementById('ap_home').addEventListener('click', (e)=>{
+        e.preventDefault();
+        window.location.href = 'index.html';
+      });
+
+      // Auto-fill defaults for dev convenience
+      document.getElementById('ap_username').value = 'admin';
+      document.getElementById('ap_password').value = 'admin';
+
+      // Attempt auto sign-in by token
+      (async () => {
+        const tok = localStorage.getItem(TOKEN_KEY);
+        if (!tok) return;
+        try {
+          const res = await fetchWithAuth('/api/me', {});
+          if (!res.ok) throw new Error('bad token');
+          const user = await res.json();
+          showPortalForUser(user.display_name || user.username || 'admin');
+        } catch (err) {
+          localStorage.removeItem(TOKEN_KEY);
+        }
+      })();
+    </script>
+  </body>
+</html>

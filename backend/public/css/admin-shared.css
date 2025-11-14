@@ -1,0 +1,139 @@
+:root {
+  --brand: #0b74ff;
+  --muted: #6b7a99;
+}
+
+body {
+  font-family: system-ui, -apple-system, Arial;
+  margin: 0;
+  padding: 28px;
+  background: linear-gradient(180deg, #f7fbff, #ffffff);
+}
+
+.card {
+  max-width: 1100px;
+  margin: 24px auto;
+  background: white;
+  border-radius: 10px;
+  padding: 18px;
+  box-shadow: 0 8px 30px rgba(11, 27, 60, 0.06);
+}
+
+.card.wide {
+  display: flex;
+  gap: 16px;
+}
+
+input,
+select,
+textarea {
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #e6f0ff;
+}
+
+input[type="date"] {
+  padding: 6px;
+}
+
+.btn {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 0;
+  background: var(--brand);
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(11, 116, 255, 0.18);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.btn:hover {
+  background: #095ed6;
+  transform: translateY(-1px);
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.left-col {
+  width: 44%;
+}
+
+.right-col {
+  width: 56%;
+}
+
+.filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.chip {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f2f8ff;
+  color: var(--brand);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.chip.active {
+  background: var(--brand);
+  color: #fff;
+}
+
+.ticket-row {
+  padding: 8px;
+  border-bottom: 1px solid #f2f8ff;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ticket-col {
+  flex: 1;
+}
+
+.badge {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.small {
+  font-size: 12px;
+  color: #6b7a99;
+}
+
+.top-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.top-button {
+  background: var(--brand);
+  color: #fff;
+  border: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(11, 116, 255, 0.18);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.top-button:hover {
+  background: #095ed6;
+  transform: translateY(-1px);
+}
