@@ -1,0 +1,679 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Admin Sign In — Mack Technologies</title>
+    <link rel="stylesheet" href="css/admin-shared.css" />
+  </head>
+  <body>
+    <div class="card">
+      <div class="top-header">
+        <div>
+          <h2 style="margin:0">Admin Console</h2>
+          <div class="muted" style="margin-top:6px">Sign in to manage tickets and view user/PC interactions.</div>
+        </div>
+        <div>
+          <button id="btnHomeTop" class="top-button" title="Home">Home</button>
+        </div>
+      </div>
+      <div id="signin">
+        <input id="username" placeholder="Username" />
+        <input id="password" type="password" placeholder="Password" />
+        <button id="btnSignIn" class="btn">Sign In</button>
+        <div id="msg" style="margin-top:8px"></div>
+      </div>
+
+      <div id="console" style="display:none">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
+          <button id="btnSignOut" class="btn" style="background:#e6f0ff;color:var(--brand)">Sign Out</button>
+          <div style="margin-left:auto">Signed in as <strong id="adminName"></strong></div>
+        </div>
+
+        <div class="card wide">
+          <div class="left-col">
+            <div style="display:flex;gap:8px;margin-bottom:12px">
+              <button id="btnFilterOpen" class="btn status-toggle" data-status="open" style="flex:1">Open Tickets</button>
+              <button id="btnFilterClosed" class="btn status-toggle" data-status="closed" style="flex:1">Closed Tickets</button>
+            </div>
+            <h3 style="margin:6px 0 10px 0">Dashboard</h3>
+            <div id="dashboard" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
+
+            <div class="filters">
+              <div class="chip" data-filter="all">All</div>
+              <div class="chip" data-filter="open">Open</div>
+              <div class="chip" data-filter="on-hold">On Hold</div>
+              <div class="chip" data-filter="closed">Closed</div>
+              <div class="chip" data-filter="awaiting parts">Awaiting parts</div>
+              <div class="chip" data-filter="awaiting authorization">Awaiting auth</div>
+              <div class="chip" data-filter="overdue">Overdue</div>
+              <div class="chip" data-filter="software">Software</div>
+              <div class="chip" data-filter="hardware">Hardware</div>
+            </div>
+
+            <div id="onHoldSection" style="display:none;margin:12px 0;padding:10px;border:1px solid #eef6ff;border-radius:10px;background:#fff9f5"></div>
+
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+              <div style="flex:1"><input id="filterText" placeholder="Search title, requester, computer..." style="width:100%;" /></div>
+              <div><select id="filterStatus" style="padding:8px;border-radius:8px;border:1px solid #eef6ff">
+                <option value="all">All</option>
+                <option value="open">Open</option>
+                <option value="on-hold">On Hold</option>
+                <option value="closed">Closed</option>
+              </select></div>
+            </div>
+
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+              <select id="filterDay" style="flex:1;min-width:140px;padding:8px;border-radius:8px;border:1px solid #eef6ff">
+                <option value="all">Any day</option>
+                <option value="today">Today</option>
+                <option value="last7">Last 7 days</option>
+                <option value="last30">Last 30 days</option>
+              </select>
+              <select id="filterTime" style="flex:1;min-width:140px;padding:8px;border-radius:8px;border:1px solid #eef6ff">
+                <option value="all">Any time</option>
+                <option value="morning">Morning (0-12)</option>
+                <option value="afternoon">Afternoon (12-17)</option>
+                <option value="evening">Evening (17-24)</option>
+              </select>
+              <input id="filterUser" placeholder="Filter by user" style="flex:1;min-width:160px;padding:8px;border-radius:8px;border:1px solid #eef6ff" />
+              <select id="filterType" style="flex:1;min-width:140px;padding:8px;border-radius:8px;border:1px solid #eef6ff">
+                <option value="all">All types</option>
+                <option value="software">Software</option>
+                <option value="hardware">Hardware</option>
+              </select>
+            </div>
+
+            <h4 style="margin:8px 0">Tickets</h4>
+            <div id="ticketsList" style="max-height:520px;overflow:auto;border:1px solid #eef6ff;padding:4px;border-radius:8px"></div>
+          </div>
+
+          <div class="right-col" style="padding-left:12px">
+            <h4 style="margin:6px 0">Ticket Details</h4>
+            <div id="ticketDetail"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // The admin console is intentionally kept framework-free. This script is
+      // organized into small, labeled sections so junior teammates can hop to
+      // the area they need (tickets, dashboard, etc.).
+
+      // --- Session helpers & shared state ------------------------------------
+      const TOKEN_KEY = 'mack_token';
+      let usersCache = []; // list of users {id, username, display_name}
+
+      function getUserName(id){
+        if (!id) return '';
+        const u = usersCache.find(x=>Number(x.id)===Number(id));
+        return u ? (u.display_name || u.username) : id;
+      }
+
+      // Small audio cue so new tickets pop when the console is open.
+      function playBeep(){
+        try{
+          const C = window.AudioContext || window.webkitAudioContext;
+          const ctx = new C();
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.type = 'sine'; o.frequency.value = 880;
+          o.connect(g); g.connect(ctx.destination);
+          g.gain.value = 0.001;
+          o.start();
+          g.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.6);
+          setTimeout(()=>{ try{o.stop(); ctx.close();}catch(e){} }, 700);
+        }catch(e){ console.log('beep failed', e); }
+      }
+
+      // --- Data fetch helpers -------------------------------------------------
+      // Load users for assignment dropdown (admins can assign tickets).
+      async function fetchUsers(){
+        try{
+          const res = await fetch('/api/users', { headers: { Authorization: 'Bearer ' + localStorage.getItem(TOKEN_KEY) } });
+          if (!res.ok) return;
+          usersCache = await res.json();
+        }catch(e){ console.error('fetch users', e); }
+      }
+
+      // Pull every ticket, update dashboard counters, and paint the list view.
+      async function renderTickets(){
+        try{
+          const res = await fetch('/api/tickets', { headers: { Authorization: 'Bearer ' + localStorage.getItem(TOKEN_KEY) } });
+          const list = await res.json();
+          // compute dashboard stats
+          const stats = { total: 0, open: 0, closed: 0, onHold: 0, overdue: 0, holdReasons: {} };
+          const el = document.getElementById('ticketsList');
+          el.innerHTML = '';
+          const now = new Date();
+          const filterDay = document.getElementById('filterDay') ? document.getElementById('filterDay').value : 'all';
+          const filterTime = document.getElementById('filterTime') ? document.getElementById('filterTime').value : 'all';
+          const filterUser = (document.getElementById('filterUser') && document.getElementById('filterUser').value) ? document.getElementById('filterUser').value.toLowerCase() : '';
+          const filterType = document.getElementById('filterType') ? document.getElementById('filterType').value : 'all';
+          const holdBuckets = {
+            parts: { label: 'Waiting for Parts', list: [] },
+            permission: { label: 'Waiting for Permission', list: [] },
+            vendor: { label: 'Waiting for Vendor', list: [] },
+            other: { label: 'Waiting for Update', list: [] },
+          };
+          for (const t of list){
+            stats.total++;
+            if (t.status === 'closed') stats.closed++; else if (t.status === 'on-hold') stats.onHold++; else stats.open++;
+            if (t.hold_reason) {
+              stats.holdReasons[t.hold_reason] = (stats.holdReasons[t.hold_reason] || 0) + 1;
+              if (t.status === 'on-hold'){
+                const reason = (t.hold_reason || '').toLowerCase();
+                let bucket = 'other';
+                if (reason.includes('part')) bucket = 'parts';
+                else if (reason.includes('auth') || reason.includes('perm')) bucket = 'permission';
+                else if (reason.includes('vendor')) bucket = 'vendor';
+                holdBuckets[bucket].list.push(t);
+              }
+            } else if (t.status === 'on-hold'){
+              holdBuckets.other.list.push(t);
+            }
+            if (t.due_date) {
+              const d = new Date(t.due_date);
+              if (!isNaN(d) && d < now && t.status !== 'closed') stats.overdue++;
+            }
+
+            // apply basic filters
+            const filterText = (document.getElementById('filterText').value || '').toLowerCase();
+            const filterStatus = document.getElementById('filterStatus').value;
+            if (filterStatus !== 'all' && t.status !== filterStatus) continue;
+            if (filterText) {
+              const hay = (`${t.title} ${t.requester || ''} ${t.computer || ''} ${t.category || ''}`).toLowerCase();
+              if (!hay.includes(filterText)) continue;
+            }
+
+            const createdAt = t.created_at ? new Date(t.created_at) : null;
+            if (filterDay !== 'all'){
+              if (!createdAt || isNaN(createdAt)) continue;
+              const diff = now - createdAt;
+              if (filterDay === 'today' && !isSameDay(createdAt, now)) continue;
+              if (filterDay === 'last7' && diff > 7*24*60*60*1000) continue;
+              if (filterDay === 'last30' && diff > 30*24*60*60*1000) continue;
+            }
+
+            if (filterTime !== 'all'){
+              if (!createdAt || isNaN(createdAt)) continue;
+              const hour = createdAt.getHours();
+              const bucket = hour < 12 ? 'morning' : (hour < 17 ? 'afternoon' : 'evening');
+              if (bucket !== filterTime) continue;
+            }
+
+            if (filterUser){
+              const hayUser = (`${t.requester || ''} ${getUserName(t.assigned_to) || ''}`).toLowerCase();
+              if (!hayUser.includes(filterUser)) continue;
+            }
+
+            if (filterType !== 'all'){
+              const cat = (t.category || '').toLowerCase();
+              if (cat !== filterType) continue;
+            }
+
+            // track unassigned count for dashboard
+            if (!t.assigned_to) stats.unassigned = (stats.unassigned || 0) + 1;
+
+            // render ticket row with columns: date | title | requester/computer | category | status
+            const row = document.createElement('div');
+            row.className = 'ticket-row';
+            const colDate = document.createElement('div'); colDate.style.width = '88px'; colDate.className='small';
+            colDate.textContent = t.created_at ? (new Date(t.created_at)).toLocaleString() : '';
+            const colMain = document.createElement('div'); colMain.className = 'ticket-col';
+            colMain.innerHTML = `<div style="font-weight:600">#${t.id} ${t.title}</div><div class="small">${t.requester||''}${t.computer? ' • ' + t.computer : ''}${t.assigned_to? ' • Assigned: ' + getUserName(t.assigned_to) : ''}</div>`;
+            const colCat = document.createElement('div'); colCat.style.width='110px'; colCat.className='small'; colCat.textContent = t.category || '';
+            const colBadge = document.createElement('div'); colBadge.style.width='90px';
+            const badge = document.createElement('span'); badge.className='badge';
+            if (t.status === 'closed') { badge.style.background='#e6f0ff'; badge.style.color='#0b74ff'; }
+            else if (t.status === 'on-hold') { badge.style.background='#fff4e6'; badge.style.color='#c77a00'; }
+            else { badge.style.background='#e6f9ee'; badge.style.color='#0a7a3a'; }
+            badge.textContent = t.status;
+            colBadge.appendChild(badge);
+            row.appendChild(colDate); row.appendChild(colMain); row.appendChild(colCat); row.appendChild(colBadge);
+            row.addEventListener('click', ()=> showTicket(t.id));
+            el.appendChild(row);
+          }
+
+          renderDashboard(stats);
+          renderOnHold(holdBuckets);
+            // show a small visual cue when there are unassigned tickets
+            if ((stats.unassigned || 0) > 0){
+              const badge = document.querySelector('#dashboard .unassigned-badge');
+              if (badge) badge.textContent = stats.unassigned; else {
+                const elDash = document.getElementById('dashboard');
+                const u = document.createElement('div'); u.className='unassigned-badge'; u.style.minWidth='120px'; u.style.padding='10px'; u.style.borderRadius='8px'; u.style.background='#fff7f0'; u.style.color='#c75a00'; u.style.fontWeight='600'; u.innerHTML = `<div style="font-size:13px;color:#6b7a99">Unassigned</div><div style="font-size:18px;margin-top:6px">${stats.unassigned}</div>`; elDash.appendChild(u);
+              }
+            }
+        }catch(e){ console.error('list tickets', e); }
+      }
+
+      // Quick KPI cards across the top of the left column.
+      function renderDashboard(stats){
+        const d = document.getElementById('dashboard');
+        d.innerHTML = '';
+        const mk = (label, value, hint) => {
+          const el = document.createElement('div');
+          el.style.background = 'white'; el.style.padding = '10px'; el.style.borderRadius = '8px'; el.style.boxShadow = '0 4px 12px rgba(11,27,60,0.04)'; el.style.minWidth = '140px';
+          el.innerHTML = `<div style="font-size:13px;color:#6b7a99">${label}</div><div style="font-size:20px;font-weight:600;margin-top:6px">${value}</div>${hint?`<div style="font-size:12px;color:#6b7a99;margin-top:6px">${hint}</div>`:''}`;
+          return el;
+        };
+        d.appendChild(mk('Total', stats.total));
+        d.appendChild(mk('Open', stats.open));
+        d.appendChild(mk('On Hold', stats.onHold));
+        d.appendChild(mk('Closed', stats.closed));
+        d.appendChild(mk('Overdue', stats.overdue));
+        // hold reasons breakdown
+        const reasons = Object.keys(stats.holdReasons).map(k => `${k}: ${stats.holdReasons[k]}`).join(' • ');
+        if (reasons) d.appendChild(mk('Hold reasons', '', reasons));
+        // unassigned count (computed earlier)
+        if (stats.unassigned) d.appendChild(mk('Unassigned', stats.unassigned));
+      }
+
+      function renderOnHold(buckets){
+        const section = document.getElementById('onHoldSection');
+        if (!section) return;
+        const hasTickets = Object.values(buckets).some(entry => entry.list.length > 0);
+        if (!hasTickets){
+          section.style.display = 'none';
+          section.innerHTML = '';
+          return;
+        }
+        section.style.display = 'block';
+        section.innerHTML = '<h4 style="margin:0 0 8px 0">On Hold Tickets</h4>';
+        const grid = document.createElement('div');
+        grid.style.display = 'grid';
+        grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(220px, 1fr))';
+        grid.style.gap = '8px';
+        for (const key of Object.keys(buckets)){
+          const bucket = buckets[key];
+          if (!bucket.list.length) continue;
+          const card = document.createElement('div');
+          card.style.background = 'white';
+          card.style.borderRadius = '10px';
+          card.style.padding = '10px';
+          card.style.border = '1px solid #ffe0c7';
+          card.innerHTML = `<div style="font-weight:600;color:#c26a00">${bucket.label}</div><div class="small" style="color:#6b7a99">${bucket.list.length} ticket${bucket.list.length===1?'':'s'}</div>`;
+          const list = document.createElement('div');
+          list.style.marginTop = '8px';
+          for (const t of bucket.list.slice(0,5)){
+            const item = document.createElement('div');
+            item.className = 'small';
+            item.style.padding = '4px 0';
+            item.style.borderBottom = '1px solid #fff1e3';
+            item.style.cursor = 'pointer';
+            item.innerHTML = `<strong>#${t.id}</strong> ${t.title || ''}<br/><span style="color:#6b7a99">${t.requester || ''}${t.computer? ' • ' + t.computer : ''}</span>`;
+            item.addEventListener('click', ()=> showTicket(t.id));
+            list.appendChild(item);
+          }
+          if (bucket.list.length > 5){
+            const more = document.createElement('div');
+            more.className = 'small';
+            more.style.marginTop = '4px';
+            more.style.color = '#6b7a99';
+            more.textContent = `+${bucket.list.length - 5} more on hold`;
+            list.appendChild(more);
+          }
+          card.appendChild(list);
+          grid.appendChild(card);
+        }
+        section.appendChild(grid);
+      }
+
+      // quick helpers: relative time and filter chip behavior
+      function relTime(ts){
+        try{
+          const d = new Date(ts);
+          const s = Math.floor((Date.now() - d.getTime())/1000);
+          if (s < 60) return `${s}s ago`;
+          if (s < 3600) return `${Math.floor(s/60)}m ago`;
+          if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+          return `${Math.floor(s/86400)}d ago`;
+        }catch(e){return ''}
+      }
+
+      function isSameDay(a, b){
+        return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+      }
+
+      function syncStatusToggle(){
+        try{
+          const current = document.getElementById('filterStatus').value;
+          document.querySelectorAll('.status-toggle').forEach(btn=>{
+            if (btn.dataset.status === current){
+              btn.classList.add('primary');
+            } else {
+              btn.classList.remove('primary');
+            }
+          });
+        }catch(err){}
+      }
+
+      // wire filter chips
+      document.addEventListener('click', (ev)=>{
+        const chip = ev.target.closest && ev.target.closest('.chip');
+        if (!chip) return;
+        // toggle active if it's a general filter; set filterStatus otherwise
+        const f = chip.dataset.filter;
+        // mark chip active and clear others when top-level
+        document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+        chip.classList.add('active');
+        // apply filter
+        document.getElementById('filterText').value = '';
+        if (['open','on-hold','closed','all'].includes(f)){
+          document.getElementById('filterStatus').value = f;
+        } else {
+          document.getElementById('filterStatus').value = 'all';
+          document.getElementById('filterText').value = f;
+        }
+        syncStatusToggle();
+        renderTickets();
+      });
+
+      // search & status change triggers
+      document.getElementById('filterText').addEventListener('input', ()=>{ document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active')); renderTickets(); });
+      document.getElementById('filterStatus').addEventListener('change', ()=>{ document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active')); syncStatusToggle(); renderTickets(); });
+
+      document.querySelectorAll('.status-toggle').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const status = btn.dataset.status || 'all';
+          document.getElementById('filterStatus').value = status;
+          document.getElementById('filterText').value = '';
+          document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+          syncStatusToggle();
+          renderTickets();
+        });
+      });
+
+      const userFilter = document.getElementById('filterUser');
+      if (userFilter) userFilter.addEventListener('input', ()=> renderTickets());
+      ['filterDay','filterTime','filterType'].forEach(id=>{
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', ()=> renderTickets());
+      });
+
+      syncStatusToggle();
+
+      // --- Live updates via Socket.IO ----------------------------------------
+      (function(){
+        const s = document.createElement('script'); s.src = '/socket.io/socket.io.js';
+        s.onload = ()=>{
+          try{
+            const socket = io();
+            socket.on('connect', ()=> console.log('socket connected'));
+            socket.on('ticket.created', (ticket)=>{
+              // if ticket unassigned, show alert and play sound
+              if (!ticket.assigned_to){
+                try{ playBeep(); }catch(e){}
+                // quick visual flash on dashboard
+                const db = document.getElementById('dashboard');
+                if (db){ db.style.boxShadow = '0 0 16px rgba(255,120,0,0.35)'; setTimeout(()=> db.style.boxShadow='0 4px 12px rgba(11,27,60,0.04)',800); }
+              }
+              // refresh list
+              renderTickets();
+            });
+            socket.on('ticket.updated', (ticket)=>{
+              // refresh list and detail if open
+              renderTickets();
+              const detail = document.getElementById('ticketDetail');
+              if (detail && detail.innerHTML.includes(`#${ticket.id} `)) showTicket(ticket.id);
+            });
+          }catch(e){ console.error('socket load failed', e); }
+        };
+        document.head.appendChild(s);
+      })();
+
+      // --- Ticket detail drawer ---------------------------------------------
+      async function showTicket(id){
+        try{
+          const res = await fetch(`/api/tickets/${id}`, { headers: { Authorization: 'Bearer ' + localStorage.getItem(TOKEN_KEY) } });
+          if (!res.ok) return;
+          const t = await res.json();
+          const det = document.getElementById('ticketDetail');
+          det.innerHTML = `<h4>#${t.id} <input id="editTitle" value="${(t.title||'').replace(/"/g,'&quot;')}" style="font-size:16px;padding:6px;border-radius:6px;border:1px solid #eef6ff;width:100%"/></h4>
+            <div style="display:flex;gap:8px;margin-top:6px">
+              <div style="flex:1"><div style="font-size:13px;color:#334a6f">Requester: ${t.requester || ''}</div>
+              <div style="font-size:13px;color:#334a6f">Computer: ${t.computer || ''}</div>
+              <div style="font-size:13px;color:#334a6f">Location: ${t.location || ''}</div></div>
+              <div style="min-width:160px">
+                <div style="font-size:12px;color:#6b7a99">Status</div>
+                <div id="statusDisplay" style="padding:8px;border-radius:6px;border:1px solid #eef6ff;background:#fbfdff;font-weight:600"></div>
+              </div>
+            </div>
+            <div style="margin-top:8px">
+              <div style="font-size:12px;color:#6b7a99">Category</div>
+              <select id="editCategory" style="padding:8px;border-radius:6px;border:1px solid #eef6ff;width:100%">
+                <option value="">(unspecified)</option>
+                <option value="software">Software</option>
+                <option value="hardware">Hardware</option>
+                <option value="network">Network</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <div style="flex:1">
+                <div style="font-size:12px;color:#6b7a99">Due date</div>
+                <input id="editDue" type="date" style="padding:8px;border-radius:6px;border:1px solid #eef6ff;width:100%" />
+              </div>
+              <div style="min-width:160px">
+                <div style="font-size:12px;color:#6b7a99">Change Status</div>
+                <select id="statusDropdown" style="padding:8px;border-radius:6px;border:1px solid #eef6ff;width:100%">
+                  <option value="open">Open</option>
+                  <option value="on-hold">On Hold</option>
+                  <option value="closed">Closed</option>
+                </select>
+                <div class="small" style="color:#6b7a99;margin-top:6px">Updating this dropdown immediately changes the ticket status.</div>
+              </div>
+            </div>
+            <p style="margin-top:8px">Description</p>
+            <textarea id="editDesc" style="width:100%;height:120px;padding:8px;border-radius:6px;border:1px solid #eef6ff">${(t.description||'').replace(/</g,'&lt;')}</textarea>
+            <div style="margin-top:8px;display:flex;gap:8px"><button id="btnSave" class="btn">Save Changes</button></div>
+            <div style="margin-top:12px;border-top:1px solid #eef6ff;padding-top:8px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <button id="btnToggleEvents" class="btn" style="background:#f4f7ff;color:#2c4a7a">Show Events</button>
+                <div id="eventSummary" class="small" style="color:#6b7a99"></div>
+              </div>
+              <div id="events" style="margin-top:8px;display:none"></div>
+            </div>
+            <div style="margin-top:8px"><textarea id="note" placeholder="Add internal note" style="width:100%;height:80px;padding:8px;border-radius:6px;border:1px solid #eef6ff"></textarea>
+            <div style="margin-top:8px;display:flex;gap:8px"><button id="btnAddNote" class="btn primary">Add Note</button></div>
+            <div style="margin-top:12px"><button id="btnCloseTicket" class="btn" style="background:#fdecea;color:#b3261e;width:100%">Close Ticket</button></div></div>`;
+
+          // prefill fields
+          let currentStatus = t.status || 'open';
+          const statusDisplay = document.getElementById('statusDisplay');
+          if (statusDisplay) statusDisplay.textContent = currentStatus.toUpperCase();
+          const statusDropdown = document.getElementById('statusDropdown');
+          if (statusDropdown) statusDropdown.value = currentStatus;
+          if (t.category) document.getElementById('editCategory').value = t.category;
+          if (t.due_date) {
+            try{ document.getElementById('editDue').value = (new Date(t.due_date)).toISOString().slice(0,10); }catch(e){}
+          }
+
+          // populate assignee select (fetch users if needed)
+          try{
+            if (!usersCache || usersCache.length === 0) await fetchUsers();
+            let assHtml = '<div style="margin-top:10px"><div style="font-size:12px;color:#6b7a99">Assignee</div><select id="editAssignee" style="padding:8px;border-radius:6px;border:1px solid #eef6ff;width:100%"><option value="">(unassigned)</option>';
+            for (const u of usersCache){ assHtml += `<option value="${u.id}">${u.display_name || u.username}</option>`; }
+            assHtml += '</select></div>';
+            const insertBefore = document.getElementById('events');
+            insertBefore.insertAdjacentHTML('beforebegin', assHtml);
+            if (t.assigned_to) document.getElementById('editAssignee').value = t.assigned_to;
+          }catch(e){ console.error('populate assignee', e); }
+
+
+          document.getElementById('btnSave').addEventListener('click', async ()=>{
+            const assignee = (document.getElementById('editAssignee') && document.getElementById('editAssignee').value) || null;
+            const fields = {
+              title: document.getElementById('editTitle').value.trim(),
+              description: document.getElementById('editDesc').value.trim(),
+              status: (document.getElementById('statusDropdown') && document.getElementById('statusDropdown').value) || currentStatus,
+              category: document.getElementById('editCategory').value || null,
+              due_date: document.getElementById('editDue').value || null,
+              assigned_to: assignee || null,
+            };
+            // if assigning now and no previous assigned_at, set assigned_at
+            if (assignee) fields.assigned_at = new Date().toISOString(); else fields.assigned_at = null;
+            try{
+              await fetch(`/api/tickets/${t.id}`, { method: 'PUT', headers: { 'Content-Type':'application/json', Authorization: 'Bearer ' + localStorage.getItem(TOKEN_KEY) }, body: JSON.stringify(fields) });
+              await renderTickets();
+              await showTicket(id);
+            }catch(e){ alert('Save failed'); }
+          });
+
+          let eventsExpanded = false;
+          const eventsContainer = document.getElementById('events');
+          const toggleBtn = document.getElementById('btnToggleEvents');
+          if (toggleBtn && eventsContainer){
+            toggleBtn.addEventListener('click', ()=>{
+              eventsExpanded = !eventsExpanded;
+              eventsContainer.style.display = eventsExpanded ? 'block' : 'none';
+              toggleBtn.textContent = eventsExpanded ? 'Hide Events' : 'Show Events';
+            });
+          }
+
+          document.getElementById('btnAddNote').addEventListener('click', async ()=>{
+            const msg = document.getElementById('note').value.trim();
+            if (!msg) return;
+            await fetch(`/api/tickets/${t.id}/events`, { method:'POST', headers: { 'Content-Type':'application/json', Authorization: 'Bearer ' + localStorage.getItem(TOKEN_KEY) }, body: JSON.stringify({ message: msg, type: 'note' }) });
+            document.getElementById('note').value = '';
+            loadEvents(id);
+          });
+
+          if (statusDropdown){
+            statusDropdown.addEventListener('change', async ()=>{
+              const newStatus = statusDropdown.value;
+              try{
+                await fetch(`/api/tickets/${t.id}`, { method:'PUT', headers: { 'Content-Type':'application/json', Authorization: 'Bearer ' + localStorage.getItem(TOKEN_KEY) }, body: JSON.stringify({ status: newStatus }) });
+                currentStatus = newStatus;
+                if (statusDisplay) statusDisplay.textContent = newStatus.toUpperCase();
+                await renderTickets();
+              }catch(err){
+                alert('Unable to change status right now');
+                statusDropdown.value = currentStatus;
+              }
+            });
+          }
+
+          const closeBtn = document.getElementById('btnCloseTicket');
+          if (closeBtn){
+            closeBtn.addEventListener('click', async ()=>{
+              try{
+                await fetch(`/api/tickets/${t.id}`, { method:'PUT', headers: { 'Content-Type':'application/json', Authorization: 'Bearer ' + localStorage.getItem(TOKEN_KEY) }, body: JSON.stringify({ status: 'closed' }) });
+                await renderTickets();
+                await showTicket(id);
+              }catch(err){ alert('Unable to close ticket right now'); }
+            });
+          }
+
+          loadEvents(id);
+        }catch(e){ console.error('show ticket', e); }
+      }
+
+      async function loadEvents(id){
+        try{
+          const res = await fetch(`/api/tickets/${id}/events`, { headers: { Authorization: 'Bearer ' + localStorage.getItem(TOKEN_KEY) } });
+          const list = await res.json();
+          const el = document.getElementById('events');
+          if (!el) return;
+          el.innerHTML = '';
+          const summaryEl = document.getElementById('eventSummary');
+          if (summaryEl){
+            if (!list.length){
+              summaryEl.textContent = 'No events yet';
+            } else {
+              const latest = list[0];
+              const timeAgo = latest && latest.created_at ? relTime(latest.created_at) : '';
+              summaryEl.textContent = `${list.length} event${list.length===1?'':'s'}${timeAgo ? ' • Last ' + timeAgo : ''}`;
+            }
+          }
+          for (const ev of list){
+            const d = document.createElement('div');
+            d.style.padding = '6px 0';
+            let prettyMessage = ev.message || '';
+            if (prettyMessage && prettyMessage.trim().startsWith('{')){
+              try{
+                const parsed = JSON.parse(prettyMessage);
+                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)){
+                  const entries = Object.entries(parsed).map(([key, value])=>{
+                    const label = key.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+                    let rendered;
+                    if (value === null || value === undefined || value === '') rendered = '(cleared)';
+                    else if (typeof value === 'object') rendered = JSON.stringify(value);
+                    else rendered = value;
+                    return `<div><strong>${label}:</strong> ${rendered}</div>`;
+                  });
+                  prettyMessage = entries.join('');
+                }
+              }catch(err){ /* fall back to raw message */ }
+            }
+            d.innerHTML = `<div style="font-size:13px;color:#284060"><strong>${ev.type}</strong> — ${ev.actor || 'system'} <small style="color:#6b7a99">${ev.created_at}</small></div><div style="margin-top:4px">${prettyMessage}</div>`;
+            el.appendChild(d);
+          }
+        }catch(e){ console.error('load events', e); }
+      }
+
+      // --- Authentication + navigation --------------------------------------
+      document.getElementById('btnSignIn').addEventListener('click', async ()=>{
+        const u = document.getElementById('username').value.trim();
+        const p = document.getElementById('password').value;
+        if (!u || !p) return document.getElementById('msg').textContent = 'username and password required';
+        try{
+          const res = await fetch('/api/login', { method:'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ username: u, password: p }) });
+          const j = await res.json();
+          if (!res.ok) return document.getElementById('msg').textContent = j.error || 'sign in failed';
+          localStorage.setItem(TOKEN_KEY, j.token);
+          document.getElementById('msg').textContent = '';
+          document.getElementById('signin').style.display = 'none';
+          document.getElementById('console').style.display = 'block';
+          document.getElementById('adminName').textContent = j.user && j.user.display_name ? j.user.display_name : j.user.username;
+          document.getElementById('filterStatus').value = 'open';
+          if (document.getElementById('filterUser')) document.getElementById('filterUser').value = '';
+          syncStatusToggle();
+          await fetchUsers();
+          await renderTickets();
+        }catch(e){ document.getElementById('msg').textContent = 'Network error'; }
+      });
+
+      document.getElementById('btnSignOut').addEventListener('click', ()=>{
+        localStorage.removeItem(TOKEN_KEY);
+        document.getElementById('signin').style.display = 'block';
+        document.getElementById('console').style.display = 'none';
+      });
+
+      // Prefill username from query string if provided (so landing modal can forward it)
+      (function(){
+        try{
+          const q = new URLSearchParams(location.search);
+          const u = q.get('user');
+          if (u) document.getElementById('username').value = decodeURIComponent(u);
+        }catch(e){}
+      })();
+
+      // Home navigation that works for both http(s) and file:// contexts
+      function goHome(){
+        try{
+          if (location.protocol === 'file:'){
+            // Replace admin.html with index.html in the local file path
+            const p = location.pathname;
+            if (p.endsWith('admin.html')){
+              location.href = p.replace(/admin\.html$/, 'index.html');
+            } else {
+              // fallback to same directory index.html
+              const dir = p.replace(/[^/]*$/, 'index.html');
+              location.href = dir;
+            }
+          } else {
+            // Served via HTTP - go to root index
+            location.href = '/index.html';
+          }
+        }catch(e){ location.href = '/index.html'; }
+      }
+
+      document.getElementById('btnHomeTop').addEventListener('click', goHome);
+
+    </script>
+  </body>
+</html>
