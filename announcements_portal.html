@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Announcements Portal — Mack Technologies</title>
     <link rel="stylesheet" href="css/admin-shared.css" />
+    <link rel="stylesheet" href="css/unified-theme.css" />
     <style>
       :root {
         --surface: #fbfdff;
@@ -12,55 +13,62 @@
       }
 
       body {
-        padding: 32px;
-        background: linear-gradient(180deg, #eef6ff, #ffffff);
+        padding: 40px 32px;
+        background: linear-gradient(135deg, #e8f2ff 0%, #f5f9ff 50%, #ffffff 100%);
         min-height: 100vh;
       }
 
       .layout {
-        display: flex;
-        gap: 24px;
-        align-items: flex-start;
-        flex-wrap: wrap;
-        max-width: 1600px;
+        display: grid;
+        grid-template-columns: 1fr 440px;
+        gap: 28px;
+        max-width: 1680px;
         margin: 0 auto;
+        align-items: start;
       }
 
       .card-main,
       .card-manage {
-        border-radius: 14px;
-        box-shadow: 0 12px 48px rgba(12, 40, 90, 0.1);
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(12, 40, 90, 0.08), 0 2px 8px rgba(12, 40, 90, 0.04);
         background: white;
         border: 1px solid var(--border);
+        transition: box-shadow 0.3s ease, transform 0.3s ease;
+      }
+
+      .card-main:hover,
+      .card-manage:hover {
+        box-shadow: 0 12px 48px rgba(12, 40, 90, 0.12), 0 4px 12px rgba(12, 40, 90, 0.06);
+        transform: translateY(-2px);
       }
 
       .card-main {
-        flex: 1 1 720px;
-        padding: 28px;
-        min-width: 580px;
+        padding: 32px;
       }
 
       .card-manage {
-        flex: 0 0 380px;
-        padding: 24px;
-        min-height: 480px;
+        padding: 28px;
         background: linear-gradient(180deg, #fbfdff, #ffffff);
+        position: sticky;
+        top: 20px;
       }
 
-      @media (max-width: 1080px) {
-        .card-main,
-        .card-manage {
-          flex: 1 1 100%;
-          min-width: 0;
+      @media (max-width: 1200px) {
+        .layout {
+          grid-template-columns: 1fr;
+          gap: 24px;
         }
-        body { padding: 20px; }
+        .card-manage {
+          position: static;
+        }
+        body { padding: 28px 20px; }
       }
 
       @media (max-width: 600px) {
-        body { padding: 16px; }
-        .card-main { padding: 20px; min-width: 0; }
-        .card-manage { padding: 18px; }
-        .layout { gap: 16px; }
+        body { padding: 20px 16px; }
+        .card-main { padding: 24px; }
+        .card-manage { padding: 20px; }
+        .layout { gap: 20px; }
       }
 
       .manage-header {
@@ -68,7 +76,14 @@
         align-items: center;
         justify-content: space-between;
         gap: 8px;
-        margin-bottom: 10px;
+        margin-bottom: 16px;
+        padding-bottom: 14px;
+        border-bottom: 2px solid #e8f0ff;
+      }
+
+      .manage-header h3 {
+        color: #0b2a6f;
+        font-size: 20px;
       }
 
       .manage-scroll-controls {
@@ -79,52 +94,82 @@
       .manage-scroll-controls button {
         border: 1px solid var(--border);
         background: #fff;
-        border-radius: 6px;
-        padding: 4px 8px;
+        border-radius: 8px;
+        padding: 6px 12px;
         cursor: pointer;
+        font-weight: 600;
+        color: #4a6ba8;
+        transition: all 0.2s ease;
       }
 
       .manage-scroll-controls button:hover {
-        background: #f2f6ff;
+        background: #eef6ff;
+        border-color: #c5dbff;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(11, 116, 255, 0.15);
       }
 
       .manage-list {
         border: 1px solid var(--border);
-        background: white;
-        border-radius: 10px;
-        padding: 12px;
-        height: 540px;
+        background: #fafcff;
+        border-radius: 12px;
+        padding: 14px;
+        height: 620px;
         overflow-y: auto;
         scroll-behavior: smooth;
+        box-shadow: inset 0 2px 8px rgba(12, 40, 90, 0.03);
       }
 
       .manage-item {
         border: 1px solid #e8f0ff;
         border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 14px;
-        background: linear-gradient(180deg, #ffffff, #f7fbff);
+        padding: 18px;
+        margin-bottom: 12px;
+        background: white;
         display: flex;
         flex-direction: column;
         gap: 10px;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        transition: all 0.25s ease;
         cursor: pointer;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .manage-item::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        width: 4px;
+        background: linear-gradient(180deg, #0b74ff, #4a9eff);
+        opacity: 0;
+        transition: opacity 0.25s ease;
       }
 
       .manage-item:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 18px rgba(11,27,60,0.08);
+        transform: translateX(4px);
+        box-shadow: 0 8px 24px rgba(11, 116, 255, 0.12);
+        border-color: #c5dbff;
+      }
+
+      .manage-item:hover::before {
+        opacity: 1;
       }
 
       .manage-item.hidden {
-        opacity: 0.55;
+        opacity: 1;
+        border-color: #f2d6d6;
+        background: #fff9f9;
       }
 
       .manage-item h4 {
         margin: 0;
-        font-size: 19px;
+        font-size: 17px;
         color: #0b2a6f;
-        font-weight: 600;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        line-height: 1.3;
       }
 
       .manage-item .item-meta {
@@ -147,40 +192,341 @@
       .toolbar {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
-        margin-top: 8px;
+        gap: 8px;
+        margin-top: 14px;
+        padding: 12px;
+        background: linear-gradient(135deg, #f8fbff, #ffffff);
+        border-radius: 10px;
+        border: 1px solid #e8f0ff;
       }
 
       .toolbar button,
       .toolbar select {
         border-radius: 8px;
-        padding: 6px 10px;
-        border: 1px solid var(--border);
-        background: #f4f7ff;
+        padding: 8px 14px;
+        border: 1px solid rgba(11, 116, 255, 0.3);
+        background: white;
+        color: var(--brand);
+        font-weight: 600;
         cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(12, 40, 90, 0.05);
+      }
+
+      .toolbar button:hover,
+      .toolbar select:hover {
+        background: rgba(11, 116, 255, 0.08);
+        border-color: rgba(11, 116, 255, 0.5);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(11, 116, 255, 0.15);
+      }
+
+      .toolbar button:active {
+        transform: scale(0.98);
       }
 
       .toolbar select {
+        appearance: none;
+        background: rgba(11, 116, 255, 0.12);
+        color: var(--brand);
+        font-weight: 600;
+        padding-right: 32px;
+        background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%230b74ff' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: calc(100% - 10px) 50%;
+      }
+
+      .toolbar select optgroup {
+        font-weight: 700;
+        color: #12345a;
+        background: #e8f0ff;
+        padding: 4px 0;
+      }
+
+      .toolbar select optgroup option {
+        font-weight: 500;
+        color: #0f2244;
+        background: #fff;
+      }
+
+      .expiry-panel {
+        margin-top: 14px;
+        border: 1px solid rgba(11, 116, 255, 0.2);
+        border-radius: 12px;
+        padding: 14px 16px;
+        background: linear-gradient(135deg, #eef6ff, #f8fbff);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        box-shadow: 0 2px 8px rgba(11, 116, 255, 0.05);
+      }
+
+      .expiry-panel label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #50618c;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .expiry-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        flex: 1 1 auto;
+      }
+
+      .expiry-row select,
+      .expiry-row input[type="date"],
+      .expiry-row input[type="time"] {
+        border: 1px solid rgba(11, 116, 255, 0.2);
+        border-radius: 8px;
+        padding: 4px 9px;
+        font-size: 13px;
+        min-height: 32px;
+        background: #ffffff;
+      }
+
+      .expiry-note {
+        font-size: 11px;
+        color: #8894b0;
+      }
+
+      .badge-line {
+        display: flex;
+        gap: 6px;
+        margin-top: 6px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .status-badge {
+        padding: 2px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        background: #e8eefc;
+        color: #20305a;
+        border: 1px solid #d8e3fb;
+      }
+
+      .status-badge.shown {
+        background: #eaf9ef;
+        color: #1f7f3f;
+        border-color: #b9e5c8;
+      }
+
+      .status-badge.hidden {
+        background: #ffeaea;
+        color: #b13333;
+        border-color: #f2bcbc;
+      }
+
+      .status-badge.expired {
+        background: #fff3da;
+        color: #a46600;
+        border-color: #f0d6a6;
+      }
+
+      .toolbar select:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(11, 116, 255, 0.25);
+      }
+
+      #ap_title {
+        width: 100%;
+        max-width: 520px;
+        border: 2px solid #bdd0f5;
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-size: 18px;
+        font-weight: 600;
+        resize: none;
+        overflow: hidden;
+        min-height: 48px;
+        line-height: 1.4;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        text-align: center;
+        background: #ffffff;
+        box-shadow: inset 0 0 0 1px #e7efff;
+      }
+
+      #ap_title:focus {
+        outline: none;
+        border-color: rgba(11, 116, 255, 0.95);
+        box-shadow: 0 0 0 3px rgba(11, 116, 255, 0.18), 0 4px 12px rgba(11, 116, 255, 0.12);
         background: white;
+      }
+
+      #ap_title::placeholder {
+        text-align: center;
       }
 
       #editor {
         margin-top: 14px;
         min-height: 280px;
-        border: 1px solid var(--border);
+        border: 2px solid #bdd0f5;
         border-radius: 12px;
         padding: 18px;
-        background: #fff;
-        line-height: 1.5;
-        font-size: 16px;
+        background: #ffffff;
+        line-height: 1.6;
         overflow: auto;
-        box-shadow: inset 0 2px 6px rgba(11,27,60,0.03);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: inset 0 0 0 1px #e7efff;
       }
+
+      #editor:focus {
+        outline: none;
+        border-color: rgba(11, 116, 255, 0.95);
+        box-shadow: 0 0 0 3px rgba(11, 116, 255, 0.14);
+        background: white;
+      }
+
 
       #editor img {
         max-width: 100%;
-        border-radius: 10px;
+        border-radius: 12px;
         margin: 12px 0;
+        box-shadow: 0 4px 12px rgba(12, 40, 90, 0.08);
+      }
+
+      .media-insert {
+        margin-top: 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        background: #f8fbff;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .media-insert-header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .media-insert-header label {
+        font-weight: 600;
+        color: #12335a;
+      }
+
+      .media-insert select {
+        border-radius: 8px;
+        border: 1px solid rgba(11, 116, 255, 0.35);
+        padding: 6px 10px;
+        font-weight: 600;
+        color: #0b74ff;
+        min-width: 200px;
+      }
+
+      .media-input-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .media-input-row input[type="text"] {
+        flex: 1 1 240px;
+        padding: 8px;
+        border-radius: 8px;
+        border: 1px solid #d9e6ff;
+      }
+
+      .media-input-row .muted {
+        font-size: 13px;
+      }
+
+      .editor-media {
+        border: 1px solid rgba(11, 116, 255, 0.25);
+        border-radius: 12px;
+        padding: 10px;
+        margin: 12px 0;
+        background: #f7fbff;
+      }
+
+      .editor-media iframe {
+        width: 100%;
+        border: 0;
+        border-radius: 8px;
+      }
+
+      .editor-media[data-media-type="pdf"],
+      .editor-media-pdf {
+        background: #eef4ff;
+        padding: 16px;
+      }
+
+      .editor-media[data-media-type="pdf"] iframe,
+      .editor-media-pdf iframe {
+        height: clamp(520px, 70vh, 960px);
+        box-shadow: 0 10px 30px rgba(13, 60, 116, 0.15);
+      }
+
+      .editor-media .media-caption {
+        font-size: 12px;
+        color: #6c7a99;
+        margin-top: 6px;
+        text-align: right;
+      }
+
+      .image-panel {
+        margin-top: 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        background: #f8fbff;
+        display: none;
+      }
+
+      .image-panel h4 {
+        margin: 0 0 6px 0;
+        font-size: 15px;
+      }
+
+      .image-panel .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin-top: 8px;
+      }
+
+      .image-panel button,
+      .image-panel select,
+      .image-panel input[type="range"] {
+        flex: 1 1 120px;
+      }
+
+      .image-panel button {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 6px 10px;
+        cursor: pointer;
+      }
+
+      .image-panel button.primary {
+        background: #eef6ff;
+        color: var(--brand);
+      }
+
+      .image-size-value {
+        min-width: 48px;
+        font-weight: 600;
+        color: var(--brand);
+      }
+
+      .editor-media-selected {
+        outline: 2px solid var(--brand);
+        outline-offset: 4px;
       }
 
       .inline-row {
@@ -195,27 +541,37 @@
       }
 
       .dropzone {
-        margin-top: 12px;
-        padding: 14px;
-        border: 2px dashed var(--border);
-        border-radius: 10px;
-        background: var(--surface);
-        color: #64739b;
+        margin-top: 16px;
+        padding: 28px 20px;
+        border: 3px dashed #c5dbff;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #f8fbff, #ffffff);
+        color: #5a7bb8;
         text-align: center;
-        transition: border-color 0.2s ease, background 0.2s ease;
+        transition: all 0.3s ease;
+        font-weight: 500;
+      }
+
+      .dropzone:hover {
+        border-color: #8bb4ff;
+        background: #eef6ff;
       }
 
       .dropzone.dragging {
         border-color: var(--brand);
-        background: #eaf2ff;
+        background: linear-gradient(135deg, #e3f2ff, #f0f8ff);
         color: var(--brand);
+        transform: scale(1.02);
+        box-shadow: 0 8px 24px rgba(11, 116, 255, 0.15);
       }
 
       .compose-footer {
         display: flex;
         flex-wrap: wrap;
-        gap: 10px;
-        margin-top: 10px;
+        gap: 12px;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #e8f0ff;
         justify-content: flex-end;
       }
 
@@ -231,10 +587,14 @@
 
       .hero-info {
         display: flex;
-        gap: 10px;
+        gap: 12px;
         flex-wrap: wrap;
         align-items: center;
-        margin-top: 8px;
+        margin-top: 12px;
+        padding: 16px;
+        background: linear-gradient(135deg, #f0f7ff, #ffffff);
+        border-radius: 12px;
+        border: 1px solid #e3edff;
       }
 
       .hero-info .muted {
@@ -252,9 +612,20 @@
         padding: 8px 12px;
         font-weight: 600;
       }
+
+      .card-main h3 {
+        color: #0b2a6f;
+        font-size: 22px;
+        letter-spacing: -0.02em;
+      }
+
+      .card-main .muted {
+        color: #6b7a99;
+        line-height: 1.5;
+      }
     </style>
   </head>
-  <body>
+  <body class="theme-unified">
     <div class="card">
       <div class="top-header">
         <div>
@@ -281,6 +652,130 @@
         </div>
 
         <div class="layout" style="margin-top:18px">
+          <div class="card-main">
+            <h3 style="margin:0">Compose Announcement</h3>
+            <div class="muted">Use the toolbar to format rich text, drag images into the editor, or upload files. Preview before posting.</div>
+            <div style="margin-top:12px;display:flex;justify-content:center">
+              <textarea id="ap_title" placeholder="Title" rows="1"></textarea>
+            </div>
+            <div class="toolbar" aria-label="Formatting toolbar">
+              <select id="ap_quick_actions" title="Quick formatting actions">
+                <option value="">Formatting actions…</option>
+                <optgroup label="Text Emphasis">
+                  <option value="bold">Bold</option>
+                  <option value="italic">Italic</option>
+                  <option value="underline">Underline</option>
+                </optgroup>
+                <optgroup label="Lists">
+                  <option value="ordered">Numbered list</option>
+                  <option value="unordered">Bulleted list</option>
+                </optgroup>
+                <optgroup label="Alignment">
+                  <option value="align-left">Align left</option>
+                  <option value="align-center">Center</option>
+                  <option value="align-right">Align right</option>
+                </optgroup>
+              </select>
+              <select id="ap_block_format" title="Heading style">
+                <option value="p">Paragraph</option>
+                <option value="h2">Heading</option>
+                <option value="h3">Subheading</option>
+              </select>
+              <select id="ap_fontsize" title="Font size">
+                <option value="">Font size</option>
+                <option value="14">14 px</option>
+                <option value="16">16 px</option>
+                <option value="18">18 px</option>
+                <option value="24">24 px</option>
+                <option value="32">32 px</option>
+              </select>
+              <button type="button" id="ap_insert_inline_link">Insert Link</button>
+              <button type="button" id="ap_clear_formatting">Clear Formatting</button>
+            </div>
+            <div id="ap_link_panel" class="image-panel" style="display:none;margin-top:10px">
+              <h4>Insert Link</h4>
+              <div class="muted">Provide link text (optional) and destination URL.</div>
+              <div class="row" style="flex-direction:column;align-items:stretch">
+                <input id="ap_link_text" placeholder="Link text (optional)" />
+                <input id="ap_link_url" placeholder="https://example.com" />
+              </div>
+              <div class="row" style="justify-content:flex-end">
+                <button type="button" id="ap_link_cancel">Cancel</button>
+                <button type="button" id="ap_link_add" class="primary">Insert Link</button>
+              </div>
+            </div>
+            <div class="expiry-panel">
+              <label for="ap_expiry_mode">Expiration</label>
+              <div class="expiry-row">
+                <select id="ap_expiry_mode">
+                  <option value="none">Never expire</option>
+                  <option value="5days">+5 days</option>
+                  <option value="custom">Custom…</option>
+                </select>
+                <input type="date" id="ap_expiry_date" disabled />
+                <input type="time" id="ap_expiry_time" value="09:00" disabled />
+              </div>
+              <div class="expiry-note">Expired announcements are hidden automatically.</div>
+            </div>
+            <div id="editor" contenteditable="true"></div>
+            <div class="media-insert" id="ap_media_insert">
+              <div class="media-insert-header">
+                <label for="ap_media_mode">Insert media</label>
+                <select id="ap_media_mode">
+                  <option value="image-url">Image from URL</option>
+                  <option value="upload-image">Upload image</option>
+                  <option value="upload-pdf">Upload PDF</option>
+                </select>
+              </div>
+              <div class="media-input-row" id="ap_media_url_group">
+                <input id="ap_media_url" placeholder="https://example.com/image.jpg" />
+                <button type="button" class="btn" style="margin:0" id="ap_media_action_btn">Insert</button>
+              </div>
+              <div class="media-input-row" id="ap_media_upload_group" style="display:none">
+                <button type="button" class="btn" style="margin:0" id="ap_media_upload_btn">Select File</button>
+                <div class="muted" id="ap_media_upload_hint">PNG, JPG, WEBP, or PDF</div>
+              </div>
+              <input id="ap_media_file" type="file" accept="image/*,.svg,.svgz,.webp,application/pdf" style="display:none" />
+            </div>
+            <div id="ap_media_panel" class="image-panel">
+              <h4>Media Controls</h4>
+              <div class="muted" style="margin-bottom:4px">Adjust size, alignment, or order of the selected media item.</div>
+              <div class="row">
+                <label style="flex:1 1 220px">Size
+                  <input type="range" id="ap_media_size" min="20" max="100" value="100" />
+                </label>
+                <div class="image-size-value" id="ap_media_size_value">100%</div>
+              </div>
+              <div class="row">
+                <button type="button" class="media-align" data-align="left">Align Left</button>
+                <button type="button" class="media-align" data-align="center">Center</button>
+                <button type="button" class="media-align" data-align="right">Align Right</button>
+              </div>
+              <div class="row">
+                <button type="button" id="ap_media_up">Move Up</button>
+                <button type="button" id="ap_media_down">Move Down</button>
+                <button type="button" id="ap_media_remove" style="background:#ffecec;color:#b2362d">Remove Media</button>
+              </div>
+              <div class="row" style="justify-content:flex-end">
+                <button type="button" id="ap_media_done" class="primary">Done</button>
+              </div>
+            </div>
+            <div class="dropzone" id="ap_dropzone">
+              Drag & drop PNG, JPG, WEBP, GIF, SVG, or PDF files here to upload automatically
+              <div style="margin-top:6px">
+                <label class="file-picker">
+                  Select File
+                  <input id="ap_filepicker" type="file" accept="image/*,.svg,.svgz,.webp,application/pdf" style="display:none" />
+                </label>
+              </div>
+            </div>
+            <div class="compose-footer">
+              <button id="ap_preview" class="btn" type="button" style="background:#eef6ff;color:var(--brand)">Preview</button>
+              <button id="ap_post" class="btn" type="button">Post Announcement</button>
+            </div>
+            <div class="status-text" id="ap_status"></div>
+          </div>
+
           <div class="card-manage" id="manage_card">
             <div class="manage-header">
               <div>
@@ -296,67 +791,23 @@
               <div class="muted">No announcements loaded yet.</div>
             </div>
           </div>
-
-          <div class="card-main">
-            <h3 style="margin:0">Compose Announcement</h3>
-            <div class="muted">Use the toolbar to format rich text, drag images into the editor, or upload files. Preview before posting.</div>
-            <div style="margin-top:12px">
-              <input id="ap_title" placeholder="Title" />
-            </div>
-            <div class="inline-row">
-              <input id="ap_image" placeholder="Hero image URL (optional)" />
-            </div>
-            <div class="toolbar" aria-label="Formatting toolbar">
-              <button type="button" data-cmd="bold" title="Bold">Bold</button>
-              <button type="button" data-cmd="italic" title="Italic">Italic</button>
-              <button type="button" data-cmd="underline" title="Underline">Underline</button>
-              <button type="button" data-cmd="insertOrderedList" title="Numbered list">1.</button>
-              <button type="button" data-cmd="insertUnorderedList" title="Bulleted list">•</button>
-              <button type="button" data-cmd="justifyLeft" title="Align left">Left</button>
-              <button type="button" data-cmd="justifyCenter" title="Align center">Center</button>
-              <button type="button" data-cmd="justifyRight" title="Align right">Right</button>
-              <select id="ap_block_format" title="Heading style">
-                <option value="p">Paragraph</option>
-                <option value="h2">Heading</option>
-                <option value="h3">Subheading</option>
-              </select>
-              <select id="ap_fontsize" title="Font size">
-                <option value="">Font size</option>
-                <option value="14">14 px</option>
-                <option value="16">16 px</option>
-                <option value="18">18 px</option>
-                <option value="24">24 px</option>
-                <option value="32">32 px</option>
-              </select>
-              <button type="button" id="ap_clear_formatting" title="Clear formatting">Clear</button>
-            </div>
-            <div class="inline-row" id="ap_inline_image_row">
-              <input id="ap_inline_image_url" placeholder="Paste image URL" />
-              <button type="button" class="btn" style="margin:0" id="ap_insert_inline_image">Insert Image</button>
-              <button type="button" class="btn" style="margin:0;background:#eef6ff;color:var(--brand)" id="ap_insert_inline_link">Insert Link</button>
-            </div>
-            <div id="editor" contenteditable="true"></div>
-            <div class="dropzone" id="ap_dropzone">
-              Drag & drop PNG, JPG, WEBP, GIF, or SVG files here to upload automatically
-              <div style="margin-top:6px">
-                <label class="file-picker">
-                  Select File
-                  <input id="ap_filepicker" type="file" accept="image/*,.svg,.svgz,.webp" style="display:none" />
-                </label>
-              </div>
-            </div>
-            <div class="compose-footer">
-              <button id="ap_preview" class="btn" type="button" style="background:#eef6ff;color:var(--brand)">Preview</button>
-              <button id="ap_post" class="btn" type="button">Post Announcement</button>
-            </div>
-            <div class="status-text" id="ap_status"></div>
-          </div>
         </div>
 
-        <!-- Handbook Management Section -->
-        <div class="card-main" style="margin-top:24px">
-          <h3 style="margin:0">Handbook Management</h3>
-          <div class="muted" style="margin-bottom:14px">Upload or delete PDF handbook files.</div>
+        <!-- Files Management Section -->
+        <div class="card-main" style="margin-top:24px;width:100%;padding:26px 28px">
+          <h3 style="margin:0">Files Management</h3>
+          <div class="muted" style="margin-bottom:14px">Upload or delete PDF files by department.</div>
+
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:12px">
+            <div style="min-width:210px">
+              <label for="handbook_department_upload" class="muted" style="display:block;margin-bottom:4px">Upload to Department</label>
+              <select id="handbook_department_upload" style="width:100%;padding:8px;border-radius:8px;border:1px solid #d9e6ff"></select>
+            </div>
+            <div style="min-width:210px">
+              <label for="handbook_department_filter" class="muted" style="display:block;margin-bottom:4px">Filter List</label>
+              <select id="handbook_department_filter" style="width:100%;padding:8px;border-radius:8px;border:1px solid #d9e6ff"></select>
+            </div>
+          </div>
           
           <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
             <label class="btn" style="margin:0;cursor:pointer;background:var(--brand);color:white">
@@ -366,8 +817,8 @@
             <div id="handbook_status" class="muted"></div>
           </div>
 
-          <div id="handbook_list" style="border:1px solid var(--border);border-radius:10px;padding:12px;background:white;min-height:120px">
-            <div class="muted">Loading handbook files...</div>
+          <div id="handbook_list" style="border:1px solid var(--border);border-radius:10px;padding:14px;background:white;min-height:260px;max-height:520px;overflow:auto">
+            <div class="muted">Loading files...</div>
           </div>
         </div>
       </div>
@@ -377,15 +828,49 @@
       const TOKEN_KEY = 'mack_token';
       let announcementCache = [];
       let currentEditingId = null;
+      let handbookDepartmentOptions = [];
+      let handbookDepartmentDefault = 'hr';
+      let handbookFilesLoadToken = 0;
+      const ALL_DEPARTMENT_OPTIONS = [
+        { id: 'hr', label: 'HR' },
+        { id: 'it', label: 'IT' },
+        { id: 'operations', label: 'Operations' },
+        { id: 'finance', label: 'Finance' },
+        { id: 'quality', label: 'Quality' },
+        { id: 'safety', label: 'Safety' },
+      ];
 
       const editorEl = document.getElementById('editor');
       const dropzone = document.getElementById('ap_dropzone');
       const filepicker = document.getElementById('ap_filepicker');
-      const inlineImageInput = document.getElementById('ap_inline_image_url');
+      const mediaModeSelect = document.getElementById('ap_media_mode');
+      const mediaUrlInput = document.getElementById('ap_media_url');
+      const mediaActionBtn = document.getElementById('ap_media_action_btn');
+      const mediaUploadBtn = document.getElementById('ap_media_upload_btn');
+      const mediaUploadGroup = document.getElementById('ap_media_upload_group');
+      const mediaUploadHint = document.getElementById('ap_media_upload_hint');
+      const mediaUrlGroup = document.getElementById('ap_media_url_group');
+      const mediaFileInput = document.getElementById('ap_media_file');
       const titleInput = document.getElementById('ap_title');
-      const heroImageInput = document.getElementById('ap_image');
+      const quickActionsSelect = document.getElementById('ap_quick_actions');
       const statusBanner = document.getElementById('ap_status');
       const manageStatus = document.getElementById('ap_manage_status');
+      const mediaPanel = document.getElementById('ap_media_panel');
+      const mediaSizeInput = document.getElementById('ap_media_size');
+      const mediaSizeValue = document.getElementById('ap_media_size_value');
+      const mediaMoveUpBtn = document.getElementById('ap_media_up');
+      const mediaMoveDownBtn = document.getElementById('ap_media_down');
+      const mediaRemoveBtn = document.getElementById('ap_media_remove');
+      const mediaDoneBtn = document.getElementById('ap_media_done');
+      const linkPanel = document.getElementById('ap_link_panel');
+      const linkTextInput = document.getElementById('ap_link_text');
+      const linkUrlInput = document.getElementById('ap_link_url');
+      const linkAddBtn = document.getElementById('ap_link_add');
+      const linkCancelBtn = document.getElementById('ap_link_cancel');
+      const linkToggleBtn = document.getElementById('ap_insert_inline_link');
+      const expiryModeSelect = document.getElementById('ap_expiry_mode');
+      const expiryDateInput = document.getElementById('ap_expiry_date');
+      const expiryTimeInput = document.getElementById('ap_expiry_time');
 
       function getApiBase(){
         if (location.protocol === 'http:' || location.protocol === 'https:') return location.origin;
@@ -398,14 +883,334 @@
         return base.replace(/\/$/, '') + path;
       }
 
+      function escapeHtml(str){
+        if (typeof str !== 'string') return '';
+        return str.replace(/[&<>]/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[ch] || ch));
+      }
+
+      function escapeAttribute(str){
+        if (typeof str !== 'string') return '';
+        return str.replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;' }[ch] || ch));
+      }
+
+      function insertImageElement(url){
+        const safeUrl = escapeAttribute(url);
+        insertHtml(`<img src="${safeUrl}" alt="" />`);
+      }
+
+      function insertPdfBlock(url, name){
+        const safeUrl = escapeAttribute(url);
+        const safeName = escapeHtml(name || 'PDF attachment');
+        insertHtml(`
+          <div class="editor-media editor-media-pdf" data-media-type="pdf" data-src="${safeUrl}">
+            <iframe src="${safeUrl}#view=FitH" title="${safeName}"></iframe>
+            <div class="media-caption">${safeName}</div>
+          </div>
+        `);
+      }
+
+      let selectedMedia = null;
+      let pendingUploadMode = 'upload-image';
+      let linkPanelVisible = false;
+      const TEXT_CONTAINER_TAGS = ['P','DIV','H1','H2','H3','H4','H5','H6','BLOCKQUOTE','UL','OL','PRE'];
+      const MEDIA_TAGS = ['IMG','VIDEO','AUDIO','IFRAME'];
+
+      ensureLeadingParagraph();
+      initTitleAutosize();
+      initializeExpirationControls();
+
+      function ensureLeadingParagraph(){
+        if (!editorEl) return;
+        const firstElement = editorEl.firstElementChild;
+        if (!firstElement){
+          editorEl.innerHTML = '<p><br></p>';
+          return;
+        }
+        const tag = firstElement.tagName;
+        const isMediaBlock = nodeIsMediaBlock(firstElement);
+        const isTextContainer = TEXT_CONTAINER_TAGS.includes(tag) && !(firstElement.classList && firstElement.classList.contains('editor-media'));
+        const hasMediaInside = firstElement.querySelector ? firstElement.querySelector('img,video,audio,iframe,.editor-media') : null;
+        const hasVisibleText = firstElement.textContent && firstElement.textContent.trim().length > 0;
+        const needsSpacer = isMediaBlock || (isTextContainer && hasMediaInside && !hasVisibleText);
+        if (!needsSpacer) return;
+        preserveSelection(()=>{
+          const spacer = document.createElement('p');
+          spacer.innerHTML = '<br>';
+          editorEl.insertBefore(spacer, firstElement);
+        });
+      }
+
+      function nodeIsMediaBlock(node){
+        if (!node || node.nodeType !== Node.ELEMENT_NODE) return false;
+        if (node.classList && node.classList.contains('editor-media')) return true;
+        return MEDIA_TAGS.includes(node.tagName);
+      }
+
+      function syncMediaModeUI(){
+        if (!mediaModeSelect) return;
+        const mode = mediaModeSelect.value || 'image-url';
+        if (mediaUrlGroup) mediaUrlGroup.style.display = mode === 'image-url' ? 'flex' : 'none';
+        if (mediaUploadGroup) mediaUploadGroup.style.display = mode === 'image-url' ? 'none' : 'flex';
+        if (mediaUploadHint){
+          mediaUploadHint.textContent = mode === 'upload-pdf'
+            ? 'Upload PDF files (visible inline)'
+            : 'PNG, JPG, WEBP, GIF, or SVG';
+        }
+      }
+
+      function selectionInside(tagNames){
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return false;
+        let node = sel.anchorNode;
+        while (node && node !== editorEl){
+          if (node.nodeType === Node.ELEMENT_NODE && tagNames.includes(node.tagName)) return true;
+          node = node.parentNode;
+        }
+        return false;
+      }
+
+      function exitListMode(){
+        const canQueryState = typeof document.queryCommandState === 'function';
+        let handled = false;
+        if (canQueryState){
+          if (document.queryCommandState('insertUnorderedList')){
+            document.execCommand('insertUnorderedList', false, null);
+            handled = true;
+          }
+          if (document.queryCommandState('insertOrderedList')){
+            document.execCommand('insertOrderedList', false, null);
+            handled = true;
+          }
+        }
+        if (!handled){
+          if (selectionInside(['UL'])){
+            document.execCommand('insertUnorderedList', false, null);
+          }
+          if (selectionInside(['OL'])){
+            document.execCommand('insertOrderedList', false, null);
+          }
+        }
+      }
+
+      function preserveSelection(mutate){
+        const sel = window.getSelection();
+        const shouldPreserve = sel && sel.rangeCount > 0 && editorEl && editorEl.contains(sel.anchorNode);
+        const range = shouldPreserve ? sel.getRangeAt(0).cloneRange() : null;
+        mutate();
+        if (range && sel){
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      }
+
+      function toggleExpiryInputs(enable, preserveValues){
+        if (!expiryDateInput || !expiryTimeInput) return;
+        expiryDateInput.disabled = !enable;
+        expiryTimeInput.disabled = !enable;
+        if (!enable && !preserveValues){
+          expiryDateInput.value = '';
+          expiryTimeInput.value = '09:00';
+        } else if (enable && !expiryTimeInput.value){
+          expiryTimeInput.value = '09:00';
+        }
+      }
+
+      function initializeExpirationControls(){
+        if (!expiryModeSelect) return;
+        expiryModeSelect.addEventListener('change', ()=>{
+          toggleExpiryInputs(expiryModeSelect.value === 'custom', false);
+        });
+        if (expiryDateInput){
+          const today = new Date().toISOString().slice(0,10);
+          expiryDateInput.min = today;
+        }
+        toggleExpiryInputs(expiryModeSelect.value === 'custom', false);
+      }
+
+      function applyAnnouncementExpiry(announcement){
+        if (!expiryModeSelect) return;
+        const expiresValue = announcement && (announcement.expiresAt || announcement.expires_at);
+        if (expiresValue){
+          const parsed = parseExpiresAt(expiresValue);
+          if (parsed){
+            expiryModeSelect.value = 'custom';
+            toggleExpiryInputs(true, true);
+            expiryDateInput.value = parsed.toISOString().slice(0,10);
+            expiryTimeInput.value = parsed.toISOString().slice(11,16);
+            return;
+          }
+        }
+        expiryModeSelect.value = 'none';
+        toggleExpiryInputs(false, false);
+      }
+
+      function parseExpiresAt(value){
+        if (!value) return null;
+        const dt = new Date(value);
+        if (Number.isNaN(dt.getTime())) return null;
+        return dt;
+      }
+
+      function getExpiresAtValue(){
+        if (!expiryModeSelect) return null;
+        const mode = expiryModeSelect.value;
+        if (mode === 'none') return null;
+        if (mode === '5days'){
+          const future = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+          return future.toISOString();
+        }
+        if (mode === 'custom' && expiryDateInput){
+          if (!expiryDateInput.value) return null;
+          const timeVal = (expiryTimeInput && expiryTimeInput.value) ? expiryTimeInput.value : '09:00';
+          const normalizedTime = timeVal.length === 5 ? `${timeVal}:00` : timeVal;
+          const candidate = new Date(`${expiryDateInput.value}T${normalizedTime}`);
+          if (Number.isNaN(candidate.getTime())) return null;
+          return candidate.toISOString();
+        }
+        return null;
+      }
+
+      function isAnnouncementExpired(announcement){
+        const expiresValue = announcement && (announcement.expiresAt || announcement.expires_at);
+        const parsed = parseExpiresAt(expiresValue);
+        if (!parsed) return false;
+        return parsed.getTime() < Date.now();
+      }
+
+      function formatExpirationLabel(expiresAt){
+          const parsed = parseExpiresAt(expiresAt);
+          if (!parsed) return '';
+          return 'Expires ' + parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      }
+
+      function resizeTitleField(){
+        if (!titleInput) return;
+        titleInput.style.height = 'auto';
+        const minHeight = 44;
+        const maxHeight = 220;
+        const scrollHeight = titleInput.scrollHeight || minHeight;
+        const target = Math.max(minHeight, Math.min(maxHeight, scrollHeight));
+        titleInput.style.height = target + 'px';
+      }
+
+      function initTitleAutosize(){
+        if (!titleInput) return;
+        const handler = ()=> requestAnimationFrame(resizeTitleField);
+        ['input','change','cut','paste'].forEach(evt => titleInput.addEventListener(evt, handler));
+        resizeTitleField();
+      }
+
+      function clearMediaSelection(){
+        if (selectedMedia){
+          selectedMedia.classList.remove('editor-media-selected');
+        }
+        selectedMedia = null;
+        if (mediaPanel) mediaPanel.style.display = 'none';
+      }
+
+      function hideLinkPanel(){
+        if (!linkPanel) return;
+        linkPanel.style.display = 'none';
+        if (linkTextInput) linkTextInput.value = '';
+        if (linkUrlInput) linkUrlInput.value = '';
+        linkPanelVisible = false;
+      }
+
+      function showLinkPanel(){
+        if (!linkPanel) return;
+        const selection = window.getSelection ? window.getSelection().toString().trim() : '';
+        if (linkTextInput) linkTextInput.value = selection || '';
+        if (linkUrlInput) linkUrlInput.value = '';
+        linkPanel.style.display = 'block';
+        linkPanelVisible = true;
+        setTimeout(()=>{
+          if (linkTextInput) linkTextInput.focus();
+        },0);
+      }
+
+      function updateMediaPanel(){
+        if (!selectedMedia || !mediaPanel) return;
+        const editorWidth = editorEl.getBoundingClientRect().width || 1;
+        const mediaWidth = selectedMedia.getBoundingClientRect().width || editorWidth;
+        const percent = Math.max(20, Math.min(100, Math.round((mediaWidth / editorWidth) * 100)));
+        mediaSizeInput.value = percent;
+        mediaSizeValue.textContent = percent + '%';
+        mediaPanel.style.display = 'block';
+      }
+
+      function selectMedia(node){
+        if (!node) return;
+        const mediaNode = node.classList && node.classList.contains('editor-media') ? node : node.closest('.editor-media');
+        const target = mediaNode || node;
+        if (!target) return;
+        if (selectedMedia === target){
+          updateMediaPanel();
+          return;
+        }
+        clearMediaSelection();
+        selectedMedia = target;
+        selectedMedia.classList.add('editor-media-selected');
+        updateMediaPanel();
+      }
+
+      function setMediaAlignment(alignment){
+        if (!selectedMedia) return;
+        selectedMedia.style.display = 'block';
+        selectedMedia.style.marginTop = '12px';
+        selectedMedia.style.marginBottom = '12px';
+        selectedMedia.style.float = 'none';
+        if (alignment === 'left'){
+          selectedMedia.style.marginLeft = '0';
+          selectedMedia.style.marginRight = 'auto';
+        } else if (alignment === 'right'){
+          selectedMedia.style.marginLeft = 'auto';
+          selectedMedia.style.marginRight = '0';
+        } else {
+          selectedMedia.style.marginLeft = 'auto';
+          selectedMedia.style.marginRight = 'auto';
+        }
+        selectedMedia.dataset.align = alignment;
+      }
+
+      function findSibling(node, direction){
+        let sib = direction === 'up' ? node.previousSibling : node.nextSibling;
+        while (sib && sib.nodeType === Node.TEXT_NODE && !sib.textContent.trim()){
+          sib = direction === 'up' ? sib.previousSibling : sib.nextSibling;
+        }
+        return sib;
+      }
+
+      function moveMedia(direction){
+        if (!selectedMedia) return;
+        const parent = editorEl;
+        if (!parent) return;
+        if (direction === 'up'){
+          const prev = findSibling(selectedMedia, 'up');
+          if (prev) parent.insertBefore(selectedMedia, prev);
+          else parent.insertBefore(selectedMedia, parent.firstChild);
+        } else {
+          const next = findSibling(selectedMedia, 'down');
+          if (next) parent.insertBefore(selectedMedia, next.nextSibling);
+          else parent.appendChild(selectedMedia);
+        }
+        ensureLeadingParagraph();
+      }
+
       function resetComposer(){
         currentEditingId = null;
         titleInput.value = '';
-        heroImageInput.value = '';
-        inlineImageInput.value = '';
+        resizeTitleField();
+        if (mediaUrlInput) mediaUrlInput.value = '';
         editorEl.innerHTML = '<p><br></p>';
         statusBanner.textContent = '';
         document.getElementById('ap_post').textContent = 'Post Announcement';
+        clearMediaSelection();
+        hideLinkPanel();
+        applyAnnouncementExpiry(null);
+        if (mediaModeSelect){
+          mediaModeSelect.value = 'image-url';
+          syncMediaModeUI();
+        }
       }
 
       function showSignin(){
@@ -419,7 +1224,9 @@
         document.getElementById('portal').style.display = 'block';
         document.getElementById('ap_user').textContent = username;
         loadAnnouncements();
-        loadHandbookFiles();
+        loadHandbookDepartments()
+          .catch(() => null)
+          .finally(() => loadHandbookFiles());
       }
 
       async function signIn(){
@@ -448,8 +1255,24 @@
 
       async function fetchWithAuth(path, options){
         const token = localStorage.getItem(TOKEN_KEY);
-        const headers = Object.assign({}, options && options.headers, { Authorization: 'Bearer ' + token });
+        // Don't set headers if body is FormData (browser will set Content-Type with boundary)
+        let headers = options && options.headers ? Object.assign({}, options.headers) : {};
+        headers.Authorization = 'Bearer ' + token;
+        // Remove Content-Type for FormData to let browser set it
+        if (options && options.body instanceof FormData) {
+          delete headers['Content-Type'];
+        }
         return await fetch(apiUrl(path), Object.assign({}, options, { headers }));
+      }
+
+      function getSortedAnnouncementsForManageList(){
+        const shown = [];
+        const hidden = [];
+        announcementCache.forEach((ann)=>{
+          if (ann && ann.hidden) hidden.push(ann);
+          else shown.push(ann);
+        });
+        return shown.concat(hidden);
       }
 
       function renderAnnouncementList(){
@@ -459,16 +1282,35 @@
           list.innerHTML = '<div class="muted">No announcements yet.</div>';
           return;
         }
-        announcementCache.forEach(ann => {
+        const sortedAnnouncements = getSortedAnnouncementsForManageList();
+        sortedAnnouncements.forEach(ann => {
+          const expired = isAnnouncementExpired(ann);
+          const classes = ['manage-item'];
+          if (ann.hidden) classes.push('hidden');
+          if (expired) classes.push('expired');
+          const metaParts = [];
+          if (ann.date) metaParts.push(ann.date);
+          if (ann.author) metaParts.push(ann.author);
+          const expirationLabel = (ann.expiresAt || ann.expires_at) ? formatExpirationLabel(ann.expiresAt || ann.expires_at) : '';
+          if (expirationLabel) metaParts.push(expirationLabel);
+          const statusBadges = [];
+          if (ann.hidden) statusBadges.push('<span class="status-badge hidden">Hidden</span>');
+          else statusBadges.push('<span class="status-badge shown">Showing</span>');
+          if (expired) statusBadges.push('<span class="status-badge expired">Expired</span>');
+          const toggleLabel = ann.hidden ? 'Show' : 'Hide';
+          const toggleStyle = ann.hidden
+            ? 'margin:0;background:#eaf9ef;color:#1f7f3f;border:1px solid #b9e5c8'
+            : 'margin:0;background:#ffeaea;color:#b13333;border:1px solid #f2bcbc';
           const item = document.createElement('div');
-          item.className = 'manage-item' + (ann.hidden ? ' hidden' : '');
+          item.className = classes.join(' ');
           item.innerHTML = `
             <h4>${ann.title || 'Untitled'}</h4>
-            <div class="item-meta">${ann.date || ''}${ann.author ? ' • ' + ann.author : ''}</div>
+            <div class="item-meta">${metaParts.join(' • ')}</div>
+            ${statusBadges.length ? `<div class="badge-line">${statusBadges.join('')}</div>` : ''}
             <div class="actions">
               <button class="btn" data-action="preview" data-id="${ann.id}" style="margin:0;background:#eef6ff;color:var(--brand)">Preview</button>
               <button class="btn" data-action="edit" data-id="${ann.id}" style="margin:0">Edit</button>
-              <button class="btn" data-action="toggle" data-id="${ann.id}" style="margin:0;background:#fff;color:#0a5fab;border:1px solid #d5e6ff">${ann.hidden ? 'Show' : 'Hide'}</button>
+              <button class="btn" data-action="toggle" data-id="${ann.id}" style="${toggleStyle}">${toggleLabel}</button>
               <button class="btn" data-action="delete" data-id="${ann.id}" style="margin:0;background:#ffe5e5;color:#a12f2f">Delete</button>
             </div>`;
           list.appendChild(item);
@@ -482,7 +1324,9 @@
           if (!res.ok) throw new Error('Failed to load');
           announcementCache = await res.json();
           renderAnnouncementList();
-          manageStatus.textContent = `${announcementCache.length} announcement${announcementCache.length === 1 ? '' : 's'}`;
+          resizeTitleField();
+          const activeCount = announcementCache.filter(ann => !isAnnouncementExpired(ann) && !ann.hidden).length;
+          manageStatus.textContent = `${activeCount} active • ${announcementCache.length} total`;
         } catch (err) {
           manageStatus.textContent = 'Unable to load announcements';
         }
@@ -524,11 +1368,15 @@
       function startEditingAnnouncement(ann){
         currentEditingId = ann.id;
         titleInput.value = ann.title || '';
-        heroImageInput.value = ann.image || '';
+        resizeTitleField();
         editorEl.innerHTML = ann.body || '<p><br></p>';
         statusBanner.textContent = `Editing announcement #${ann.id}`;
         document.getElementById('ap_post').textContent = 'Save Changes';
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        ensureLeadingParagraph();
+        clearMediaSelection();
+        hideLinkPanel();
+        applyAnnouncementExpiry(ann);
       }
 
       async function handleManageAction(target){
@@ -541,12 +1389,13 @@
         if (action === 'edit') return startEditingAnnouncement(ann);
         if (action === 'toggle') {
           try {
+            const nextHidden = !ann.hidden;
             await fetchWithAuth(`/api/announcements/${id}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ hidden: !ann.hidden })
+              body: JSON.stringify({ hidden: nextHidden })
             });
-            manageStatus.textContent = 'Updated visibility';
+            manageStatus.textContent = nextHidden ? 'Announcement hidden' : 'Announcement shown and moved to top';
             await loadAnnouncements();
           } catch (err) {
             manageStatus.textContent = 'Failed to toggle visibility';
@@ -580,13 +1429,90 @@
       function insertHtml(html){
         editorEl.focus();
         document.execCommand('insertHTML', false, html);
+        setTimeout(()=>{
+          ensureLeadingParagraph();
+        },0);
       }
 
-      document.querySelectorAll('.toolbar button[data-cmd]').forEach(btn => {
-        btn.addEventListener('click', ()=>{
-          const cmd = btn.getAttribute('data-cmd');
-          document.execCommand(cmd, false, null);
+      if (quickActionsSelect){
+        quickActionsSelect.addEventListener('change', (e)=>{
+          const val = e.target.value;
+          if (!val) return;
+          const commandMap = {
+            'bold': 'bold',
+            'italic': 'italic',
+            'underline': 'underline',
+            'ordered': 'insertOrderedList',
+            'unordered': 'insertUnorderedList',
+            'align-left': 'justifyLeft',
+            'align-center': 'justifyCenter',
+            'align-right': 'justifyRight'
+          };
+          if (commandMap[val]){
+            document.execCommand(commandMap[val], false, null);
+          }
+          e.target.value = '';
         });
+      }
+
+      if (mediaModeSelect){
+        syncMediaModeUI();
+        mediaModeSelect.addEventListener('change', syncMediaModeUI);
+      }
+
+      if (mediaActionBtn){
+        mediaActionBtn.addEventListener('click', ()=>{
+          if (!mediaUrlInput) return;
+          const url = mediaUrlInput.value.trim();
+          if (!url) return;
+          insertImageElement(url);
+          mediaUrlInput.value = '';
+        });
+      }
+
+      if (mediaUploadBtn){
+        mediaUploadBtn.addEventListener('click', ()=>{
+          pendingUploadMode = mediaModeSelect ? mediaModeSelect.value : 'upload-image';
+          if (mediaFileInput) mediaFileInput.click();
+        });
+      }
+
+      if (mediaFileInput){
+        mediaFileInput.addEventListener('change', ()=>{
+          if (!mediaFileInput.files || !mediaFileInput.files.length) return;
+          handleFiles(mediaFileInput.files, pendingUploadMode);
+          mediaFileInput.value = '';
+        });
+      }
+
+      editorEl.addEventListener('click', (event)=>{
+        const mediaBlock = event.target.closest('.editor-media');
+        if (mediaBlock) return selectMedia(mediaBlock);
+        const img = event.target.closest('img');
+        if (img) selectMedia(img);
+      });
+
+      editorEl.addEventListener('input', ()=>{
+        ensureLeadingParagraph();
+        if (selectedMedia && !editorEl.contains(selectedMedia)){
+          clearMediaSelection();
+        }
+      });
+
+      editorEl.addEventListener('keyup', (event)=>{
+        if (event.key === 'Escape') clearMediaSelection();
+      });
+
+      document.addEventListener('click', (event)=>{
+        const clickedInsideMediaPanel = mediaPanel && mediaPanel.contains(event.target);
+        if (!clickedInsideMediaPanel && !editorEl.contains(event.target)){
+          clearMediaSelection();
+        }
+        const clickedLinkControls = linkPanel && linkPanel.contains(event.target);
+        const clickedLinkToggle = linkToggleBtn && linkToggleBtn.contains(event.target);
+        if (linkPanelVisible && !clickedLinkControls && !clickedLinkToggle){
+          hideLinkPanel();
+        }
       });
 
       document.getElementById('ap_block_format').addEventListener('change', (e)=>{
@@ -609,28 +1535,71 @@
         e.target.value = '';
       });
 
-      document.getElementById('ap_clear_formatting').addEventListener('click', ()=>{
-        document.execCommand('removeFormat', false, null);
+      const clearBtn = document.getElementById('ap_clear_formatting');
+      if (clearBtn){
+        clearBtn.addEventListener('click', ()=>{
+          editorEl.focus();
+          exitListMode();
+          document.execCommand('removeFormat', false, null);
+          document.execCommand('formatBlock', false, '<p>');
+          ensureLeadingParagraph();
+        });
+      }
+
+      if (linkToggleBtn){
+        linkToggleBtn.addEventListener('click', ()=>{
+          if (linkPanelVisible) hideLinkPanel(); else showLinkPanel();
+        });
+      }
+
+      if (linkCancelBtn) linkCancelBtn.addEventListener('click', ()=> hideLinkPanel());
+
+      if (linkAddBtn){
+        linkAddBtn.addEventListener('click', ()=>{
+          if (!linkUrlInput) return;
+          const url = linkUrlInput.value.trim();
+          if (!url){
+            linkUrlInput.focus();
+            return;
+          }
+          const text = (linkTextInput && linkTextInput.value.trim()) || url;
+          insertHtml(`<a href="${url}" target="_blank" rel="noopener">${text}</a>`);
+          hideLinkPanel();
+        });
+      }
+
+      if (mediaSizeInput){
+        mediaSizeInput.addEventListener('input', ()=>{
+          if (!selectedMedia) return;
+          const value = Number(mediaSizeInput.value) || 100;
+          selectedMedia.style.width = value + '%';
+          selectedMedia.style.maxWidth = value + '%';
+          mediaSizeValue.textContent = value + '%';
+        });
+      }
+
+      document.querySelectorAll('.media-align').forEach(btn => {
+        btn.addEventListener('click', ()=>{
+          if (!selectedMedia) return;
+          setMediaAlignment(btn.getAttribute('data-align'));
+        });
       });
 
-      document.getElementById('ap_insert_inline_image').addEventListener('click', ()=>{
-        const url = inlineImageInput.value.trim();
-        if (!url) return;
-        insertHtml(`<img src="${url}" alt="" />`);
-        inlineImageInput.value = '';
+      if (mediaMoveUpBtn) mediaMoveUpBtn.addEventListener('click', ()=> moveMedia('up'));
+      if (mediaMoveDownBtn) mediaMoveDownBtn.addEventListener('click', ()=> moveMedia('down'));
+      if (mediaRemoveBtn) mediaRemoveBtn.addEventListener('click', ()=>{
+        if (!selectedMedia) return;
+        const toRemove = selectedMedia;
+        clearMediaSelection();
+        toRemove.remove();
+        ensureLeadingParagraph();
       });
+      if (mediaDoneBtn) mediaDoneBtn.addEventListener('click', ()=> clearMediaSelection());
 
-      document.getElementById('ap_insert_inline_link').addEventListener('click', ()=>{
-        const url = prompt('Enter URL');
-        if (!url) return;
-        const label = prompt('Link text', url) || url;
-        insertHtml(`<a href="${url}" target="_blank" rel="noopener">${label}</a>`);
-      });
-
-      async function uploadImage(file){
+      async function uploadMedia(file){
         const fd = new FormData();
         fd.append('image', file);
-        statusBanner.textContent = 'Uploading image...';
+        statusBanner.textContent = 'Uploading media...';
         const res = await fetchWithAuth('/api/announcements/upload-image', { method:'POST', body: fd });
         const data = await res.json();
         if (!res.ok) throw new Error((data && data.error) || 'Upload failed');
@@ -638,11 +1607,25 @@
         return data.url;
       }
 
-      async function handleFiles(files){
+      function isPdfFile(file){
+        if (!file) return false;
+        if (file.type && file.type.toLowerCase().includes('pdf')) return true;
+        return /\.pdf$/i.test(file.name || '');
+      }
+
+      async function handleFiles(files, forcedMode){
         if (!files || !files.length) return;
+        const file = files[0];
+        const pdfPreferred = forcedMode === 'upload-pdf';
+        const imagePreferred = forcedMode === 'upload-image';
+        const treatAsPdf = pdfPreferred || (!imagePreferred && isPdfFile(file));
         try {
-          const url = await uploadImage(files[0]);
-          insertHtml(`<img src="${url}" alt="" />`);
+          const url = await uploadMedia(file);
+          if (treatAsPdf){
+            insertPdfBlock(url, file.name);
+          } else {
+            insertImageElement(url);
+          }
         } catch (err) {
           statusBanner.textContent = err.message;
         }
@@ -665,16 +1648,20 @@
       });
 
       async function saveAnnouncement(){
+        clearMediaSelection();
         const title = titleInput.value.trim();
         const body = editorEl.innerHTML.trim();
-        const hero = heroImageInput.value.trim();
         if (!title || !body){
           statusBanner.textContent = 'Title and body required';
           return;
         }
+        if (expiryModeSelect && expiryModeSelect.value === 'custom' && expiryDateInput && !expiryDateInput.value){
+          statusBanner.textContent = 'Select an expiration date or choose Never expire';
+          return;
+        }
         try {
           statusBanner.textContent = currentEditingId ? 'Saving changes...' : 'Publishing...';
-          const payload = { title, body, image: hero || undefined };
+          const payload = { title, body, expiresAt: getExpiresAtValue() };
           let res;
           if (currentEditingId) {
             res = await fetchWithAuth(`/api/announcements/${currentEditingId}`, {
@@ -702,10 +1689,10 @@
       document.getElementById('ap_post').addEventListener('click', saveAnnouncement);
 
       document.getElementById('ap_preview').addEventListener('click', ()=>{
+        hideLinkPanel();
         openPreviewWindow({
           title: titleInput.value.trim() || 'Announcement',
           body: editorEl.innerHTML.trim() || '<p>(No content)</p>',
-          image: heroImageInput.value.trim(),
           author: document.getElementById('ap_user').textContent,
           date: new Date().toISOString().slice(0,10)
         });
@@ -723,32 +1710,145 @@
         window.location.href = 'index.html';
       });
 
-      // --- Handbook Management ---
+      // --- Files Management ---
       const handbookUploadInput = document.getElementById('handbook_upload');
       const handbookStatus = document.getElementById('handbook_status');
       const handbookList = document.getElementById('handbook_list');
+      const handbookUploadDepartment = document.getElementById('handbook_department_upload');
+      const handbookFilterDepartment = document.getElementById('handbook_department_filter');
+
+      function normalizeDepartmentId(value) {
+        return String(value || '').trim().toLowerCase();
+      }
+
+      function normalizeDepartmentOptions(incoming) {
+        const merged = new Map();
+        ALL_DEPARTMENT_OPTIONS.forEach(item => merged.set(item.id, { id: item.id, label: item.label }));
+        (incoming || []).forEach(item => {
+          if (!item || typeof item.id !== 'string') return;
+          const id = item.id.trim().toLowerCase();
+          if (!id) return;
+          const existing = merged.get(id);
+          const fallbackLabel = existing ? existing.label : id.toUpperCase();
+          const label = (typeof item.label === 'string' && item.label.trim()) ? item.label.trim() : fallbackLabel;
+          merged.set(id, { id, label });
+        });
+        return Array.from(merged.values());
+      }
+
+      function getHandbookDepartmentLabel(departmentId) {
+        const found = handbookDepartmentOptions.find(item => item.id === departmentId);
+        if (found) return found.label;
+        const fallback = ALL_DEPARTMENT_OPTIONS.find(item => item.id === String(departmentId || '').toLowerCase());
+        return fallback ? fallback.label : 'Department';
+      }
+
+      function getFileDepartmentId(file) {
+        const idFromField = normalizeDepartmentId(file && file.department);
+        if (idFromField) return idFromField;
+
+        const label = String((file && file.departmentLabel) || '').trim().toLowerCase();
+        if (label) {
+          const fromLabel = handbookDepartmentOptions.find(item => item.label.toLowerCase() === label);
+          if (fromLabel) return fromLabel.id;
+        }
+
+        return handbookDepartmentDefault || 'hr';
+      }
+
+      function renderHandbookDepartmentSelects() {
+        const options = handbookDepartmentOptions.length
+          ? handbookDepartmentOptions
+          : normalizeDepartmentOptions([]);
+        handbookDepartmentOptions = options;
+
+        const prevUploadDepartment = handbookUploadDepartment
+          ? normalizeDepartmentId(handbookUploadDepartment.value)
+          : '';
+        const prevFilterDepartment = handbookFilterDepartment
+          ? normalizeDepartmentId(handbookFilterDepartment.value)
+          : '';
+
+        if (handbookUploadDepartment) {
+          handbookUploadDepartment.innerHTML = options
+            .map(item => `<option value="${item.id}">${item.label}</option>`)
+            .join('');
+          const uploadValue = options.some(item => item.id === prevUploadDepartment)
+            ? prevUploadDepartment
+            : handbookDepartmentDefault;
+          handbookUploadDepartment.value = uploadValue;
+        }
+
+        if (handbookFilterDepartment) {
+          handbookFilterDepartment.innerHTML =
+            '<option value="all">All Departments</option>' +
+            options.map(item => `<option value="${item.id}">${item.label}</option>`).join('');
+          const filterValue = prevFilterDepartment === 'all' || options.some(item => item.id === prevFilterDepartment)
+            ? (prevFilterDepartment || 'all')
+            : 'all';
+          handbookFilterDepartment.value = filterValue;
+        }
+      }
+
+      async function loadHandbookDepartments() {
+        try {
+          const res = await fetch(apiUrl('/api/handbook/departments'), { cache: 'no-store' });
+          if (!res.ok) throw new Error('Failed to load departments');
+          const data = await res.json();
+          const incoming = Array.isArray(data && data.departments) ? data.departments : [];
+          handbookDepartmentOptions = normalizeDepartmentOptions(incoming);
+          handbookDepartmentDefault = String((data && data.defaultDepartment) || 'hr').trim().toLowerCase() || 'hr';
+          if (!handbookDepartmentOptions.some(item => item.id === handbookDepartmentDefault)) {
+            handbookDepartmentDefault = 'hr';
+          }
+        } catch (err) {
+          handbookDepartmentOptions = normalizeDepartmentOptions([]);
+          handbookDepartmentDefault = 'hr';
+        }
+        renderHandbookDepartmentSelects();
+      }
 
       async function loadHandbookFiles() {
+        const requestToken = ++handbookFilesLoadToken;
         try {
           handbookStatus.textContent = 'Loading...';
-          const res = await fetch(apiUrl('/api/handbook'));
+          let selectedDepartment = handbookFilterDepartment && handbookFilterDepartment.value
+            ? normalizeDepartmentId(handbookFilterDepartment.value)
+            : 'all';
+          if (!selectedDepartment) selectedDepartment = 'all';
+
+          // Always fetch management list once, then enforce department filtering in UI.
+          const res = await fetchWithAuth('/api/handbook?all=1', {});
           if (!res.ok) throw new Error('Failed to load');
-          const files = await res.json();
+          const allFiles = await res.json();
+          if (requestToken !== handbookFilesLoadToken) return;
+          const files = selectedDepartment === 'all'
+            ? allFiles
+            : allFiles.filter(file => getFileDepartmentId(file) === selectedDepartment);
+
+          if (requestToken !== handbookFilesLoadToken) return;
           renderHandbookList(files);
-          handbookStatus.textContent = `${files.length} file${files.length === 1 ? '' : 's'}`;
+          const hiddenCount = files.filter(file => file.hidden).length;
+          const visibleCount = files.length - hiddenCount;
+          const scope = selectedDepartment !== 'all'
+            ? ` in ${getHandbookDepartmentLabel(selectedDepartment)}`
+            : '';
+          handbookStatus.textContent = `${files.length} file${files.length === 1 ? '' : 's'}${scope} (${visibleCount} shown, ${hiddenCount} hidden)`;
         } catch (err) {
+          if (requestToken !== handbookFilesLoadToken) return;
           handbookStatus.textContent = 'Error loading files';
-          handbookList.innerHTML = '<div class="muted">Unable to load handbook files</div>';
+          handbookList.innerHTML = '<div class="muted">Unable to load files</div>';
         }
       }
 
       function renderHandbookList(files) {
         if (!files || files.length === 0) {
-          handbookList.innerHTML = '<div class="muted">No handbook files uploaded yet.</div>';
+          handbookList.innerHTML = '<div class="muted">No files uploaded yet.</div>';
           return;
         }
         handbookList.innerHTML = '';
         files.forEach(file => {
+          const isHidden = !!file.hidden;
           const item = document.createElement('div');
           item.style.display = 'flex';
           item.style.justifyContent = 'space-between';
@@ -758,6 +1858,7 @@
           item.style.borderRadius = '8px';
           item.style.background = 'linear-gradient(180deg, #ffffff, #f7fbff)';
           item.style.border = '1px solid #e8f0ff';
+          if (isHidden) item.style.opacity = '0.72';
           const left = document.createElement('div');
           left.style.flex = '1';
           const name = document.createElement('div');
@@ -769,7 +1870,8 @@
           meta.style.color = '#6b7a99';
           meta.style.marginTop = '4px';
           const sizeKB = file.size ? Math.round(file.size / 1024) : 0;
-          meta.textContent = `${sizeKB} KB`;
+          const deptLabel = file.departmentLabel || getHandbookDepartmentLabel(getFileDepartmentId(file));
+          meta.textContent = `${sizeKB} KB • ${deptLabel} • ${isHidden ? 'Hidden from documents page' : 'Visible on documents page'}`;
           left.appendChild(name);
           left.appendChild(meta);
           const right = document.createElement('div');
@@ -785,6 +1887,17 @@
           viewBtn.style.background = '#eef6ff';
           viewBtn.style.color = 'var(--brand)';
           viewBtn.textContent = 'View';
+
+          const toggleBtn = document.createElement('button');
+          toggleBtn.className = 'btn';
+          toggleBtn.style.margin = '0';
+          toggleBtn.style.padding = '6px 12px';
+          toggleBtn.style.fontSize = '13px';
+          toggleBtn.style.background = isHidden ? '#eaf9ef' : '#fff4e6';
+          toggleBtn.style.color = isHidden ? '#0a7a3a' : '#b06b00';
+          toggleBtn.textContent = isHidden ? 'Show' : 'Hide';
+          toggleBtn.addEventListener('click', () => setHandbookVisibility(file.name, !isHidden));
+
           const deleteBtn = document.createElement('button');
           deleteBtn.className = 'btn';
           deleteBtn.style.margin = '0';
@@ -795,6 +1908,7 @@
           deleteBtn.textContent = 'Delete';
           deleteBtn.addEventListener('click', () => deleteHandbookFile(file.name));
           right.appendChild(viewBtn);
+          right.appendChild(toggleBtn);
           right.appendChild(deleteBtn);
           item.appendChild(left);
           item.appendChild(right);
@@ -802,18 +1916,50 @@
         });
       }
 
+      async function setHandbookVisibility(filename, hidden) {
+        try {
+          handbookStatus.textContent = hidden ? 'Hiding file...' : 'Showing file...';
+          const res = await fetchWithAuth(`/api/handbook/${encodeURIComponent(filename)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hidden })
+          });
+          const data = await res.json().catch(() => null);
+          if (!res.ok) throw new Error((data && data.error) || 'Failed to update visibility');
+          handbookStatus.textContent = hidden ? 'File hidden from documents page' : 'File shown on documents page';
+          await loadHandbookFiles();
+        } catch (err) {
+          handbookStatus.textContent = 'Visibility update failed: ' + err.message;
+        }
+      }
+
       async function uploadHandbookFile(file) {
         try {
           handbookStatus.textContent = 'Uploading...';
           const formData = new FormData();
+          const department = handbookUploadDepartment && handbookUploadDepartment.value
+            ? handbookUploadDepartment.value
+            : handbookDepartmentDefault;
           formData.append('pdf', file);
+          formData.append('department', department);
           const res = await fetchWithAuth('/api/handbook', {
             method: 'POST',
             body: formData
           });
+          if (!res.ok) {
+            const text = await res.text();
+            let errorMsg = 'Upload failed';
+            try {
+              const data = JSON.parse(text);
+              errorMsg = data.error || errorMsg;
+            } catch (e) {
+              errorMsg = `Upload failed (${res.status}): ${text.substring(0, 100)}`;
+            }
+            throw new Error(errorMsg);
+          }
           const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Upload failed');
-          handbookStatus.textContent = 'Upload successful';
+          const label = getHandbookDepartmentLabel((data && data.department) || department);
+          handbookStatus.textContent = `Upload successful (${label})`;
           await loadHandbookFiles();
         } catch (err) {
           handbookStatus.textContent = 'Upload failed: ' + err.message;
@@ -846,6 +1992,21 @@
         uploadHandbookFile(file);
         e.target.value = ''; // reset input
       });
+
+      if (handbookFilterDepartment) {
+        handbookFilterDepartment.addEventListener('change', () => {
+          loadHandbookFiles();
+        });
+      }
+
+      if (handbookUploadDepartment && handbookFilterDepartment) {
+        handbookUploadDepartment.addEventListener('change', () => {
+          const selected = normalizeDepartmentId(handbookUploadDepartment.value);
+          const hasDepartment = handbookDepartmentOptions.some(item => item.id === selected);
+          handbookFilterDepartment.value = hasDepartment ? selected : 'all';
+          loadHandbookFiles();
+        });
+      }
 
       // Auto-fill defaults for dev convenience
       document.getElementById('ap_username').value = 'admin';

@@ -4,15 +4,21 @@
   "description": "Simple self-hosted chat + ticket system",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "user:list": "node scripts/user_admin.js list",
+    "user:add": "node scripts/user_admin.js add",
+    "user:passwd": "node scripts/user_admin.js passwd"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "express": "^4.18.2",
+    "fabric": "^7.2.0",
     "jsonwebtoken": "^9.0.0",
     "ldapjs": "^2.3.3",
     "multer": "^2.0.2",
+    "pdfkit": "^0.15.2",
     "socket.io": "^4.8.1",
+    "svg-to-pdfkit": "^0.1.8",
     "sqlite3": "^5.1.6"
   }
 }

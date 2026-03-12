@@ -4,74 +4,179 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Welcome — Mack Technologies</title>
+    <link rel="stylesheet" href="css/unified-theme.css" />
     <style>
       /* Blue-focused theme for landing */
-      :root{ --brand:#0b74ff; --muted:#6b7a99 }
-      body { font-family: system-ui, -apple-system, Arial; margin:0; display:flex; align-items:center; justify-content:center; min-height:100vh; background:linear-gradient(180deg,#eaf4ff,#ffffff); padding:20px 0 }
       /* Make the landing card use most of the viewport so it feels like a full-screen panel */
       .card { width:94vw; max-width:1400px; min-height:90vh; background:white; border-radius:12px; box-shadow:0 8px 40px rgba(11,27,60,0.08); overflow:hidden; border:1px solid rgba(11,116,255,0.06); display:flex; flex-direction:column }
       .hero { position:relative; padding:64px 36px 48px 36px; display:flex; flex-direction:column; align-items:center; gap:28px; border-bottom:1px solid #f2f6ff; flex:0 0 auto }
       .hero h1 { margin:0; font-size:clamp(28px,4vw,42px); color:var(--brand); font-weight:600; letter-spacing:-0.5px }
       .hero nav { display:flex; gap:12px; align-items:center; flex-wrap:wrap }
       .hero p { margin:6px 0 0 0; color:var(--muted) }
-      .slides { display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:20px; padding:28px; flex:1 1 auto; overflow-y:auto; align-content:start; }
-      .slide { padding:24px; box-sizing:border-box; display:flex; flex-direction:column; justify-content:space-between; border-radius:14px; box-shadow:0 6px 24px rgba(11,27,60,0.08); border:1px solid #e8f0ff; background:linear-gradient(180deg,#ffffff,#fbfdff); transition:transform 0.2s ease, box-shadow 0.2s ease; cursor:pointer; min-height:280px; }
-      .slide:hover{ transform:translateY(-4px); box-shadow:0 12px 32px rgba(11,27,60,0.14); }
+      .slides { position:relative; padding:28px; flex:1 1 auto; overflow:hidden; }
+      .slides-viewport { width:100%; overflow:hidden; }
+      .slides-track {
+        display:flex;
+        width:100%;
+        transition:transform 520ms cubic-bezier(0.22, 0.61, 0.36, 1);
+        will-change:transform;
+      }
+      .slide-page {
+        flex:0 0 100%;
+        min-width:100%;
+        box-sizing:border-box;
+      }
+      .slide-arrow {
+        position:absolute;
+        top:50%;
+        transform:translateY(-50%);
+        width:42px;
+        height:42px;
+        border-radius:999px;
+        border:1px solid #d8e7ff;
+        background:rgba(255,255,255,0.95);
+        color:#0b74ff;
+        font-size:24px;
+        line-height:1;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        cursor:pointer;
+        box-shadow:0 8px 20px rgba(11,27,60,0.12);
+        z-index:5;
+        opacity:0;
+        pointer-events:none;
+        transition:transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+      }
+      .slide-arrow:hover {
+        background:#ffffff;
+        transform:translateY(-50%) scale(1.04);
+        box-shadow:0 12px 24px rgba(11,27,60,0.16);
+      }
+      .slide-arrow:disabled {
+        opacity:0.4;
+        cursor:not-allowed;
+      }
+      .slide-arrow.left { left:10px; }
+      .slide-arrow.right { right:10px; }
+      .slides:hover .slide-arrow,
+      .slides.show-arrows .slide-arrow,
+      .slides:focus-within .slide-arrow {
+        opacity:1;
+        pointer-events:auto;
+      }
+      .slide { padding:24px; box-sizing:border-box; display:none; width:100%; flex-direction:column; justify-content:space-between; border-radius:14px; box-shadow:0 6px 24px rgba(11,27,60,0.08); border:1px solid #e8f0ff; background:linear-gradient(180deg,#ffffff,#fbfdff); transition:transform 0.2s ease, box-shadow 0.2s ease; cursor:default; min-height:280px; }
+      .slide.active { display:flex; animation:slideFade 0.25s ease; }
+      .slide:hover{ transform:translateY(-2px); box-shadow:0 10px 28px rgba(11,27,60,0.12); }
       .slide.announcement-slide{ justify-content:flex-start; text-align:left; gap:12px; }
       .slide.announcement-slide > div{ width:100%; }
       .slide.announcement-slide .announcement-body{ margin:0; }
       .slide > div:first-child{ flex:1 1 auto; }
       .slide > div:last-child{ flex:0 0 auto; margin-top:auto; }
+      .slide.slide-multi { padding:0; border:0; background:transparent; box-shadow:none; min-height:auto; }
+      .slide.slide-multi.active { display:block; }
+      .slide.slide-multi:hover { transform:none; box-shadow:none; }
+      .slide.slide-multi > div:last-child { margin-top:0; }
+      .slide-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; align-items:stretch; }
+      .slide-grid.count-1 { grid-template-columns:1fr; }
+      .slide-grid.count-2 { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .slide-grid.count-3 { grid-template-columns:repeat(3,minmax(0,1fr)); }
+      .announcement-card { padding:22px; border-radius:14px; border:1px solid #e8f0ff; background:linear-gradient(180deg,#ffffff,#fbfdff); box-shadow:0 6px 24px rgba(11,27,60,0.08); cursor:pointer; display:flex; flex-direction:column; min-height:280px; transition:transform 0.2s ease, box-shadow 0.2s ease; }
+      .announcement-card:hover { transform:translateY(-4px); box-shadow:0 12px 32px rgba(11,27,60,0.14); }
+      .announcement-card .announcement-body { max-height:130px; }
       .announcement-body{ font-size:clamp(14px,1.6vw,17px); line-height:1.5; max-height:180px; overflow:hidden; margin-bottom:12px; color:#41506e; }
       .announcement-body p{ margin-top:0; margin-bottom:12px; }
       .announcement-body img{ max-width:100%; height:auto; border-radius:8px; margin:12px 0; }
-      .controls { display:flex; gap:8px; padding:12px 24px; justify-content:center; background:linear-gradient(180deg, #fbfdff, #f7fbff) }
-      .dot { width:10px; height:10px; border-radius:50%; background:#d6e7ff }
-      .dot.active { background:var(--brand) }
+      .controls { display:flex; padding:14px 24px 18px; justify-content:center; align-items:center; background:linear-gradient(180deg, #fbfdff, #f7fbff) }
+      .dot-row { display:flex; gap:10px; align-items:center; background:#fff; border:1px solid #d8e7ff; padding:8px 12px; border-radius:999px; box-shadow:0 8px 22px rgba(11,27,60,0.08) }
+      .dot { width:9px; height:9px; border-radius:50%; background:#bfd5ff; border:0; cursor:pointer; padding:0; transition:transform 0.2s ease, background 0.2s ease, width 0.2s ease }
+      .dot:hover { transform:scale(1.15); }
+      .dot.active { width:26px; border-radius:999px; background:linear-gradient(90deg,#0b74ff,#3d96ff) }
+      @keyframes slideFade {
+        from { opacity:0.2; transform:translateX(8px); }
+        to { opacity:1; transform:translateX(0); }
+      }
       .cta { display:flex; gap:8px }
       .btn { padding:11px 18px; border-radius:8px; border:0; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; font-size:15px; font-weight:500; transition:all 0.2s ease }
       .btn.primary { background:var(--brand); color:white; box-shadow:0 2px 8px rgba(11,116,255,0.15) }
       .btn.primary:hover { background:#0962e0; box-shadow:0 4px 12px rgba(11,116,255,0.25); transform:translateY(-1px) }
       .btn.ghost { background:transparent; border:1px solid rgba(11,116,255,0.12); color:var(--brand) }
+      .btn.login-cta {
+        background: linear-gradient(135deg, #0b74ff 0%, #0a98ff 100%);
+        color: #ffffff;
+        border: 1px solid rgba(255,255,255,0.35);
+        box-shadow: 0 10px 26px rgba(11,116,255,0.28), inset 0 1px 0 rgba(255,255,255,0.35);
+        padding: 10px 18px;
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+      .btn.login-cta:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 28px rgba(11,116,255,0.34), inset 0 1px 0 rgba(255,255,255,0.35);
+      }
+      .menu-dropdown { position:relative; display:inline-block }
+      .menu-dropdown > summary { list-style:none }
+      .menu-dropdown > summary::-webkit-details-marker { display:none }
+      .menu-dropdown[open] > summary { background:#0962e0 }
+      .menu-dropdown .dropdown-menu { display:none; position:absolute; top:calc(100% + 8px); left:0; min-width:160px; padding:6px; border:1px solid #dfeaff; border-radius:8px; background:#fff; box-shadow:0 10px 24px rgba(11,27,60,0.12); z-index:20 }
+      .menu-dropdown[open] .dropdown-menu { display:block }
+      .menu-dropdown .dropdown-menu a { display:block; padding:9px 12px; border-radius:6px; color:var(--brand); text-decoration:none; font-weight:500 }
+      .menu-dropdown .dropdown-menu a:hover { background:#eef5ff }
       .hero .login-links{ position:absolute; top:20px; right:20px; display:flex; gap:10px }
-      .hero .login-links .btn{ padding:6px 10px; font-size:13px }
+      .hero .login-links .btn{ min-width:120px; justify-content:center }
       /* Responsive adjustments for smaller screens */
       @media (max-width: 900px) {
-        .slides { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; padding: 20px; }
+        .slides { padding: 20px; }
+        .slide-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+        .slide-grid.count-1 { grid-template-columns:1fr; }
         .hero { padding: 40px 24px 32px 24px; }
         .hero .login-links { position: static; margin-top: 12px; }
       }
       @media (max-width: 600px) {
         body { padding: 12px 0; }
         .card { border-radius: 8px; }
-        .slides { grid-template-columns: 1fr; gap: 14px; padding: 16px; }
+        .slides { padding: 16px; }
         .slide { min-height: 240px; padding: 20px; }
+        .slide-grid { grid-template-columns: 1fr; gap: 14px; }
+        .announcement-card { min-height: 240px; padding: 20px; }
+        .slide-arrow { width:36px; height:36px; font-size:20px; }
+        .slide-arrow.left { left:6px; }
+        .slide-arrow.right { right:6px; }
         .hero nav { justify-content: center; }
       }
-      /* Modal for slide manager */
-      .modal-backdrop { position:fixed; inset:0; background:rgba(2,6,23,0.45); display:none; align-items:center; justify-content:center }
-      .modal { background:white; width:min(720px,94vw); border-radius:10px; padding:18px; box-shadow:0 8px 40px rgba(2,6,23,0.16) }
-      .modal h3{ margin:0 0 8px 0 }
-      .field { display:flex; flex-direction:column; gap:6px; margin-bottom:10px }
-      .field input, .field textarea { padding:8px; border:1px solid #e6eefc; border-radius:6px; font-size:14px }
-      .slides-list { max-height:220px; overflow:auto; border:1px dashed #e6eefc; padding:8px; border-radius:6px; margin-bottom:10px }
-      .slide-item { display:flex; justify-content:space-between; gap:8px; padding:6px; border-radius:6px; background:#fbfdff }
+      @media (hover: none), (pointer: coarse) {
+        .slide-arrow {
+          opacity:1;
+          pointer-events:auto;
+        }
+      }
       h2 { margin:0 0 6px 0 }
       p.lead { color:var(--muted) }
     </style>
   </head>
-  <body>
+  <body class="theme-unified page-index">
     <!-- Clean landing page. Links point to /app with hashes to open specific sections. -->
     <div class="card">
       <div class="hero">
         <h1>Mack Technologies</h1>
         <div class="login-links">
-          <a class="btn ghost" href="admin.html#signin" data-path="admin.html#signin">Admin Login</a>
-          <a class="btn ghost" href="announcements_portal.html#signin" data-path="announcements_portal.html#signin">Announcements Login</a>
+          <a class="btn login-cta" href="login.html" data-path="login.html">Login</a>
         </div>
         <nav style="margin-top:20px">
-          <a class="btn primary" href="app.html#handbook">Handbook</a>
+          <details class="menu-dropdown">
+            <summary class="btn primary">Departments</summary>
+            <div class="dropdown-menu">
+              <a href="app.html?department=hr#handbook">HR</a>
+              <a href="app.html?department=it#handbook">IT</a>
+              <a href="app.html?department=operations#handbook">Operations</a>
+              <a href="app.html?department=finance#handbook">Finance</a>
+              <a href="app.html?department=quality#handbook">Quality</a>
+              <a href="app.html?department=safety#handbook">Safety</a>
+            </div>
+          </details>
           <a class="btn primary" href="app.html#chat">Chat</a>
+          <a class="btn primary" href="app.html#map">Map</a>
           <a class="btn primary" href="announcements.html">Announcements</a>
           <a class="btn primary" href="#">New Ticket</a>
         </nav>
@@ -83,88 +188,40 @@
       </div>
 
       <div class="slides" id="slides">
-        <div class="slide" style="background:linear-gradient(90deg,#eef6ff,#ffffff)">
-          <div>
-            <h2>Handbook</h2>
-            <p>Company docs and onboarding material. Click to open the handbook in the app.</p>
-          </div>
-              <div><a class="btn" href="app.html#handbook">Open Handbook</a></div>
+        <div class="slides-viewport">
+          <div class="slides-track" id="slidesTrack"></div>
         </div>
-
+        <button type="button" class="slide-arrow left" id="slideLeft" aria-label="Previous announcements">‹</button>
+        <button type="button" class="slide-arrow right" id="slideRight" aria-label="Next announcements">›</button>
         <!-- Open Ticket slide removed (use 'New Ticket' or Help instead) -->
 
         <!-- Help slide removed -->
       </div>
 
-      <div class="controls" id="dots"></div>
+      <div class="controls" id="sliderControls">
+        <div class="dot-row" id="dots" aria-label="Announcement slides"></div>
+      </div>
     </div>
 
     <script>
       // Landing page script cheat-sheet:
       // 1. Manage the hero slider (built-in slides + announcements feed).
-      // 2. Let admins add lightweight custom slides saved to localStorage.
-      // 3. Wire CTA buttons so non-technical staff can relink them easily.
+      // 2. Wire CTA buttons so non-technical staff can relink them easily.
       // The logic is grouped in sections below so you can jump to the part you
       // care about without reading everything.
 
       // Slide controller: small, dependency-free.
-      const slides = document.querySelectorAll('.slide');
       const dots = document.getElementById('dots');
-      let i = 0;
       const slidesContainer = document.getElementById('slides');
-      // Slide manager modal elements (for client-side custom slides)
-      const managerTpl = `
-      <div class="modal-backdrop" id="slideManager">
-        <div class="modal" role="dialog" aria-modal="true">
-          <h3>Manage Custom Slides</h3>
-          <div class="slides-list" id="slidesList"></div>
-          <div class="field"><label>Title</label><input id="slideTitle" placeholder="Short title"></div>
-          <div class="field"><label>Body</label><textarea id="slideBody" rows="4" placeholder="Text or HTML content"></textarea></div>
-          <div class="field"><label>Image URL (optional)</label><input id="slideImage" placeholder="https://... or relative path"></div>
-          <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:6px">
-            <button id="addSlideBtn" class="btn primary">Add Slide</button>
-            <button id="closeManager" class="btn ghost">Close</button>
-          </div>
-        </div>
-      </div>`;
-      document.body.insertAdjacentHTML('beforeend', managerTpl);
-      const slideManager = document.getElementById('slideManager');
-      const slidesList = document.getElementById('slidesList');
-      const slideTitle = document.getElementById('slideTitle');
-      const slideBody = document.getElementById('slideBody');
-      const slideImage = document.getElementById('slideImage');
-      const addSlideBtn = document.getElementById('addSlideBtn');
-      const closeManager = document.getElementById('closeManager');
-      // Manage custom slides in localStorage under key 'customSlides'
-      function loadCustomSlides() {
-        try { return JSON.parse(localStorage.getItem('customSlides')||'[]'); } catch(e){ return []; }
-      }
-      function saveCustomSlides(list) { localStorage.setItem('customSlides', JSON.stringify(list)); }
-      function renderSlidesList(){
-        const items = loadCustomSlides();
-        slidesList.innerHTML = '';
-        if (items.length===0) { slidesList.textContent = 'No custom slides yet.'; return; }
-        items.forEach((s, idx)=>{
-          const el = document.createElement('div'); el.className='slide-item';
-          const left = document.createElement('div'); left.style.flex='1';
-          left.innerHTML = `<strong>${s.title||'Untitled'}</strong><div style="color:#8a98b3">${(s.body||'').slice(0,120)}</div>`;
-          const right = document.createElement('div');
-          const del = document.createElement('button'); del.className='btn ghost'; del.textContent='Delete';
-          del.addEventListener('click', ()=>{ const arr=loadCustomSlides(); arr.splice(idx,1); saveCustomSlides(arr); renderSlidesList(); loadAnnouncements(); });
-          right.appendChild(del);
-          el.appendChild(left); el.appendChild(right);
-          slidesList.appendChild(el);
-        });
-      }
-      // Open manager button: small unobtrusive control
-      const manageBtn = document.createElement('button'); manageBtn.className='btn ghost'; manageBtn.style.marginLeft='8px'; manageBtn.textContent='Manage Slides';
-      document.querySelector('.controls').appendChild(manageBtn);
-      manageBtn.addEventListener('click', ()=>{ slideManager.style.display='flex'; renderSlidesList(); });
-      closeManager.addEventListener('click', ()=>{ slideManager.style.display='none'; slideTitle.value=''; slideBody.value=''; slideImage.value=''; });
-      addSlideBtn.addEventListener('click', ()=>{
-        const arr = loadCustomSlides(); arr.push({ title: slideTitle.value.trim(), body: slideBody.value.trim(), image: slideImage.value.trim(), date: new Date().toISOString().slice(0,10) });
-        saveCustomSlides(arr); renderSlidesList(); loadAnnouncements(); slideTitle.value=''; slideBody.value=''; slideImage.value='';
-      });
+      const slidesTrack = document.getElementById('slidesTrack');
+      const sliderControls = document.getElementById('sliderControls');
+      const slideLeft = document.getElementById('slideLeft');
+      const slideRight = document.getElementById('slideRight');
+      let currentSlideIndex = 0;
+      let sliderAutoAdvance = null;
+      const AUTO_ADVANCE_MS = 8000;
+      const AUTO_SLIDE_MIN_ANNOUNCEMENTS = 3;
+      let autoSlideEnabled = false;
       // Load announcements into the slider by fetching the static JSON file.
       // If the fetch fails (e.g., opened via file://), we gracefully keep the existing slides.
       function isAnnouncementExpired(item){
@@ -176,108 +233,249 @@
         return ts < Date.now();
       }
 
+      function sanitizeAnnouncementBody(html){
+        const container = document.createElement('div');
+        container.className = 'announcement-body';
+        if (typeof html === 'string' && html.trim()){
+          container.innerHTML = html;
+        }
+        // Remove editor-only artifacts before showing on landing page.
+        container.querySelectorAll('.resize-handle').forEach(el => el.remove());
+        container.querySelectorAll('.editor-image-wrapper').forEach(wrapper => {
+          wrapper.removeAttribute('contenteditable');
+          wrapper.removeAttribute('draggable');
+          wrapper.removeAttribute('data-configured');
+          wrapper.classList.remove('selected', 'dragging');
+        });
+        return container;
+      }
+
+      function createAnnouncementCard(a, idx){
+        const card = document.createElement('article');
+        card.className = 'announcement-card';
+
+        const left = document.createElement('div');
+        const h = document.createElement('h2');
+        h.textContent = a.title || 'Announcement';
+        h.style.fontSize = 'clamp(20px,2.2vw,24px)';
+        h.style.marginBottom = '10px';
+        h.style.color = '#0b2a6f';
+        const dateText = a.date ? new Date(a.date).toLocaleDateString() : '';
+        const authorText = a.author || '';
+        const meta = document.createElement('div');
+        meta.style.color = '#8a98b3';
+        meta.style.marginBottom = '12px';
+        meta.style.fontSize = '13px';
+        const metaParts = [dateText, authorText].filter(Boolean);
+        meta.textContent = metaParts.length ? metaParts.join(' • ') : '';
+        const bodyFragment = sanitizeAnnouncementBody(a.body || a.html || '');
+        left.appendChild(h);
+        if (meta.textContent){
+          left.appendChild(meta);
+        }
+        if (bodyFragment.childNodes.length){
+          left.appendChild(bodyFragment);
+        }
+
+        const right = document.createElement('div');
+        right.style.marginTop = '12px';
+        const open = document.createElement('a');
+        open.className = 'btn primary';
+        open.href = 'announcements.html?id=' + encodeURIComponent(String((a && a.id !== undefined && a.id !== null && a.id !== '') ? a.id : idx));
+        open.textContent = 'Read More';
+        open.style.fontSize = '14px';
+        open.onclick = (e) => { e.stopPropagation(); };
+        right.appendChild(open);
+
+        card.appendChild(left);
+        card.appendChild(right);
+
+        const announcementId = (a && a.id !== undefined && a.id !== null && a.id !== '') ? a.id : idx;
+        card.addEventListener('click', ()=>{
+          const target = 'announcements.html?id=' + encodeURIComponent(String(announcementId));
+          openRelative(target);
+        });
+        return card;
+      }
+
+      function buildSlideGroups(items){
+        const groups = [];
+        let cursor = 0;
+        while (cursor < items.length){
+          const remaining = items.length - cursor;
+          // Avoid a lonely single-card page: split 4 as 2+2.
+          if (remaining === 4){
+            groups.push(items.slice(cursor, cursor + 2));
+            groups.push(items.slice(cursor + 2, cursor + 4));
+            break;
+          }
+          const groupSize = Math.min(3, remaining);
+          groups.push(items.slice(cursor, cursor + groupSize));
+          cursor += groupSize;
+        }
+        return groups;
+      }
+
+      function appendEmptySlide(){
+        const page = document.createElement('div');
+        page.className = 'slide-page';
+        const grid = document.createElement('div');
+        grid.className = 'slide-grid count-1';
+        const card = document.createElement('article');
+        card.className = 'announcement-card';
+        card.style.cursor = 'default';
+        const left = document.createElement('div');
+        const h = document.createElement('h2');
+        h.textContent = 'No Announcements Yet';
+        h.style.fontSize = 'clamp(20px,2.5vw,26px)';
+        h.style.marginBottom = '10px';
+        h.style.color = '#0b2a6f';
+        const p = document.createElement('p');
+        p.className = 'announcement-body';
+        p.textContent = 'Check back soon for updates.';
+        left.appendChild(h);
+        left.appendChild(p);
+        card.appendChild(left);
+        grid.appendChild(card);
+        page.appendChild(grid);
+        slidesTrack.appendChild(page);
+      }
+
+      function getCurrentSlides(){
+        return Array.from(slidesTrack.querySelectorAll('.slide-page'));
+      }
+
+      function updateArrowVisibility(totalSlides){
+        const show = totalSlides > 1;
+        if (slideLeft) slideLeft.style.display = show ? 'flex' : 'none';
+        if (slideRight) slideRight.style.display = show ? 'flex' : 'none';
+        if (!show){
+          slidesContainer.classList.remove('show-arrows');
+        }
+      }
+
+      function setActiveSlide(index, immediate){
+        const currentSlides = getCurrentSlides();
+        if (!currentSlides.length){
+          currentSlideIndex = 0;
+          slidesTrack.style.transform = 'translateX(0%)';
+          return;
+        }
+        const total = currentSlides.length;
+        currentSlideIndex = ((index % total) + total) % total;
+        if (immediate){
+          const previousTransition = slidesTrack.style.transition;
+          slidesTrack.style.transition = 'none';
+          slidesTrack.style.transform = `translateX(-${currentSlideIndex * 100}%)`;
+          requestAnimationFrame(()=>{
+            slidesTrack.style.transition = previousTransition || '';
+          });
+        } else {
+          slidesTrack.style.transform = `translateX(-${currentSlideIndex * 100}%)`;
+        }
+        dots.querySelectorAll('.dot').forEach((dot, dotIndex)=>{
+          dot.classList.toggle('active', dotIndex === currentSlideIndex);
+        });
+      }
+
+      function stopAutoAdvance(){
+        if (sliderAutoAdvance){
+          clearInterval(sliderAutoAdvance);
+          sliderAutoAdvance = null;
+        }
+      }
+
+      function startAutoAdvance(){
+        stopAutoAdvance();
+        if (!autoSlideEnabled) return;
+        const currentSlides = getCurrentSlides();
+        if (currentSlides.length <= 1) return;
+        sliderAutoAdvance = setInterval(()=>{
+          setActiveSlide(currentSlideIndex + 1);
+        }, AUTO_ADVANCE_MS);
+      }
+
+      function renderDots() {
+        dots.innerHTML = '';
+        const currentSlides = getCurrentSlides();
+        updateArrowVisibility(currentSlides.length);
+        if (sliderControls) sliderControls.style.display = currentSlides.length > 1 ? 'flex' : 'none';
+        currentSlides.forEach((_, idx)=>{
+          const dot = document.createElement('button');
+          dot.type = 'button';
+          dot.className = 'dot';
+          dot.setAttribute('aria-label', `Go to slide ${idx + 1}`);
+          dot.addEventListener('click', ()=>{
+            setActiveSlide(idx);
+            startAutoAdvance();
+          });
+          dots.appendChild(dot);
+        });
+        if (currentSlideIndex >= currentSlides.length) currentSlideIndex = 0;
+        setActiveSlide(currentSlideIndex, true);
+        startAutoAdvance();
+      }
+
+      if (slideLeft){
+        slideLeft.addEventListener('click', (ev)=>{
+          ev.preventDefault();
+          ev.stopPropagation();
+          setActiveSlide(currentSlideIndex - 1);
+          startAutoAdvance();
+        });
+      }
+      if (slideRight){
+        slideRight.addEventListener('click', (ev)=>{
+          ev.preventDefault();
+          ev.stopPropagation();
+          setActiveSlide(currentSlideIndex + 1);
+          startAutoAdvance();
+        });
+      }
+      slidesContainer.addEventListener('mouseenter', ()=>{
+        slidesContainer.classList.add('show-arrows');
+      });
+      slidesContainer.addEventListener('mouseleave', ()=>{
+        slidesContainer.classList.remove('show-arrows');
+      });
+
       async function loadAnnouncements() {
+        let visibleAnnouncements = [];
+        slidesTrack.innerHTML = '';
         try {
           const res = await fetch('announcements.json', { cache: 'no-store' });
           if (!res.ok) throw new Error('HTTP ' + res.status);
           const list = await res.json();
-          if (!Array.isArray(list) || list.length === 0) return;
-          const visibleAnnouncements = list.filter(item => !item.hidden && !isAnnouncementExpired(item)).slice(0, 3);
-          if (visibleAnnouncements.length === 0) return;
-          // Replace slides with announcement slides
-          slidesContainer.innerHTML = '';
-          const sanitizeAnnouncementBody = (html)=>{
-            const container = document.createElement('div');
-            container.className = 'announcement-body';
-            if (typeof html === 'string' && html.trim()){
-              container.innerHTML = html;
-            }
-            // Remove editor-only artifacts
-            container.querySelectorAll('.resize-handle').forEach(el => el.remove());
-            container.querySelectorAll('.editor-image-wrapper').forEach(wrapper => {
-              wrapper.removeAttribute('contenteditable');
-              wrapper.removeAttribute('draggable');
-              wrapper.removeAttribute('data-configured');
-              wrapper.classList.remove('selected', 'dragging');
-            });
-            return container;
-          };
-
-          visibleAnnouncements.forEach((a, idx) => {
-            const s = document.createElement('div');
-            s.className = 'slide announcement-slide';
-            const left = document.createElement('div');
-            const h = document.createElement('h2');
-            h.textContent = a.title || 'Announcement';
-            h.style.fontSize = 'clamp(20px,2.5vw,26px)';
-            h.style.marginBottom = '10px';
-            h.style.color = '#0b2a6f';
-            const dateText = a.date ? new Date(a.date).toLocaleDateString() : '';
-            const authorText = a.author || '';
-            const meta = document.createElement('div');
-            meta.style.color = '#8a98b3';
-            meta.style.marginBottom = '12px';
-            meta.style.fontSize = '13px';
-            const metaParts = [dateText, authorText].filter(Boolean);
-            meta.textContent = metaParts.length ? metaParts.join(' • ') : '';
-            const bodyFragment = sanitizeAnnouncementBody(a.body || a.html || '');
-            left.appendChild(h);
-            if (meta.textContent){
-              left.appendChild(meta);
-            }
-            if (bodyFragment.childNodes.length){
-              left.appendChild(bodyFragment);
-            }
-
-            const right = document.createElement('div');
-            right.style.marginTop = '12px';
-            const open = document.createElement('a');
-            open.className = 'btn primary';
-            open.href = 'announcements.html?id=' + encodeURIComponent(String((a && a.id !== undefined && a.id !== null && a.id !== '') ? a.id : idx));
-            open.textContent = 'Read More';
-            open.style.fontSize = '14px';
-            open.onclick = (e) => { e.stopPropagation(); };
-            right.appendChild(open);
-
-            s.appendChild(left);
-            s.appendChild(right);
-
-            const announcementId = (a && a.id !== undefined && a.id !== null && a.id !== '') ? a.id : idx;
-            s.addEventListener('click', ()=>{
-              const target = 'announcements.html?id=' + encodeURIComponent(String(announcementId));
-              openRelative(target);
-            });
-            slidesContainer.appendChild(s);
-          });
-          // append custom slides stored in localStorage
-          const custom = loadCustomSlides();
-          custom.forEach(a => {
-            const s = document.createElement('div');
-            s.className='slide'; s.style.background='linear-gradient(90deg,#ffffff,#f7fbff)';
-            const left = document.createElement('div');
-            const h = document.createElement('h2'); h.textContent = a.title || 'Slide';
-            const date = document.createElement('div'); date.style.color='#8a98b3'; date.style.marginBottom='8px'; date.textContent = a.date || '';
-            const p = document.createElement('p'); p.innerHTML = a.body || '';
-            left.appendChild(h); left.appendChild(date); left.appendChild(p);
-            const right = document.createElement('div'); if (a.image){ const img=document.createElement('img'); img.src=a.image; img.style.maxWidth='320px'; img.style.maxHeight='260px'; img.style.objectFit='cover'; img.style.borderRadius='8px'; img.style.marginLeft='16px'; right.appendChild(img);} s.appendChild(left); s.appendChild(right); slidesContainer.appendChild(s);
-          });
-          // re-query slides collection used by the controller
-          renderDots();
+          if (Array.isArray(list)){
+            visibleAnnouncements = list.filter(item => !item.hidden && !isAnnouncementExpired(item));
+          }
         } catch (err) {
           console.warn('Could not load announcements.json for index slider:', err);
         }
-      }
-      function renderDots() {
-        dots.innerHTML = '';
-        const currentSlides = document.querySelectorAll('.slide');
-        // Hide dots since we're using grid layout (all visible at once, no carousel)
-        dots.style.display = 'none';
-      }
-      function update(){
+
+        const groups = buildSlideGroups(visibleAnnouncements);
+        let announcementIndex = 0;
+        groups.forEach((group)=>{
+          const page = document.createElement('div');
+          page.className = 'slide-page';
+          const grid = document.createElement('div');
+          grid.className = `slide-grid count-${group.length}`;
+          group.forEach((announcement)=>{
+            grid.appendChild(createAnnouncementCard(announcement, announcementIndex));
+            announcementIndex += 1;
+          });
+          page.appendChild(grid);
+          slidesTrack.appendChild(page);
+        });
+
+        if (!visibleAnnouncements.length){
+          appendEmptySlide();
+        }
+        autoSlideEnabled = visibleAnnouncements.length > AUTO_SLIDE_MIN_ANNOUNCEMENTS;
         renderDots();
       }
-      // Load announcements without carousel (grid layout doesn't need it)
-      (async ()=>{ await loadAnnouncements(); renderDots(); })();
+
+      (async ()=>{ await loadAnnouncements(); })();
       // Wire the quick-create ticket button to open the ticket form
       function openRelative(path) {
         // If path is absolute (starts with /) use as-is, otherwise resolve relative to current document

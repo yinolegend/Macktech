@@ -4,9 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Announcements — Mack Technologies</title>
+    <link rel="stylesheet" href="css/unified-theme.css" />
     <style>
-      :root{ --brand:#0b74ff; --muted:#6b7a99 }
-      body{ font-family:system-ui, -apple-system, Arial; margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:22px 16px; background:linear-gradient(180deg,#eaf2ff,#ffffff) }
       .card{ width:min(96vw,1540px); max-width:1540px; min-height:90vh; margin:0 auto; background:white; border-radius:20px; padding:clamp(24px,2.6vw,38px); box-shadow:0 40px 110px rgba(9,30,68,0.18); border:1px solid rgba(11,116,255,0.08); transition:min-height 0.3s ease, padding 0.3s ease; display:flex; flex-direction:column; }
       .card.card--few{ min-height:90vh; display:flex; flex-direction:column; justify-content:center; }
       .card.card--many{ min-height:90vh; }
@@ -15,29 +14,16 @@
       .ann-list{ margin-top:22px; display:grid; gap:22px; grid-template-columns:repeat(auto-fit,minmax(420px,520px)); justify-content:center; flex:1; align-content:center; }
       .page-header{ position:relative; display:flex; align-items:center; justify-content:center; }
       .page-header .title-group{ width:100%; text-align:center; }
-      .page-header .top-button{ position:absolute; right:0; top:50%; transform:translateY(-50%); }
-      .page-header .top-button:hover{ transform:translateY(calc(-50% - 1px)); }
+      body.theme-unified.page-announcements .page-header .top-button{ position:absolute; right:0; top:50%; transform:translateY(-50%) !important; transition:background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease; }
+      body.theme-unified.page-announcements .page-header .top-button:hover,
+      body.theme-unified.page-announcements .page-header .top-button:focus-visible,
+      body.theme-unified.page-announcements .page-header .top-button:active{ transform:translateY(calc(-50% - 1px)) !important; }
       .ann-list.single-view{ display:block; }
       .ann-list.empty{ display:flex; align-items:center; justify-content:center; min-height:220px; text-align:center; }
       .ann{ border:1px solid #e6f3ff; padding:30px; border-radius:14px; background:linear-gradient(180deg,#ffffff,#fbfdff); cursor:pointer; transition:box-shadow 0.2s ease, transform 0.2s ease; }
       .ann:hover{ box-shadow:0 12px 32px rgba(11,27,60,0.18); transform:translateY(-4px); }
       .ann h3{ margin:0 0 12px 0; font-size:clamp(24px,2.6vw,34px); text-align:center; letter-spacing:-0.25px; color:#0b2a6f; }
       .ann.single h3{ text-align:center; }
-      .top-button{
-        background:var(--brand);
-        color:#fff;
-        border:0;
-        padding:8px 12px;
-        border-radius:8px;
-        cursor:pointer;
-        font-weight:600;
-        box-shadow:0 2px 8px rgba(11,116,255,0.18);
-        transition:background 0.2s ease, transform 0.2s ease;
-      }
-      .top-button:hover{
-        background:#095ed6;
-        transform:translateY(-1px);
-      }
       .actions{ display:flex; gap:8px; margin-top:12px }
       .small{ color:#6b7a99; font-size:14px }
       .ann-body-preview{ color:#41506e; font-size:clamp(16px,1.8vw,21px); line-height:1.5; max-height:220px; overflow:hidden; margin-top:8px; }
@@ -78,8 +64,10 @@
         .ann-list.ann-list--few{ grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); justify-content:stretch; }
         .ann-list.ann-list--many{ grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); justify-content:stretch; }
         .ann-list.single-view .ann.single{ max-width:100%; }
-        .page-header .top-button{ position:static; transform:none; margin-top:10px; }
-        .page-header .top-button:hover{ transform:translateY(-1px); }
+        body.theme-unified.page-announcements .page-header .top-button{ position:static; transform:none !important; margin-top:10px; }
+        body.theme-unified.page-announcements .page-header .top-button:hover,
+        body.theme-unified.page-announcements .page-header .top-button:focus-visible,
+        body.theme-unified.page-announcements .page-header .top-button:active{ transform:translateY(-1px) !important; }
       }
 
       /* Ensure the grid collapses to a single column on narrow screens
@@ -96,7 +84,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="theme-unified page-announcements">
     <!-- Card layout keeps things approachable for non-technical viewers. -->
     <div class="card">
       <div class="page-header">

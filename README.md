@@ -68,6 +68,31 @@ node create_admin.js admin password "Admin Name"
 
 Replace `admin` and `password` with your chosen credentials. Then login at the app and the token will be stored in the browser.
 
+Managing users from terminal (backend)
+
+Use the user helper script from inside `backend/`:
+
+```bash
+npm run user:list
+npm run user:add -- <username> <password> [display_name]
+npm run user:passwd -- <username> <new_password>
+```
+
+Examples:
+
+```bash
+npm run user:add -- jsmith P@ssw0rd "John Smith"
+npm run user:passwd -- jsmith NewP@ssw0rd
+```
+
+You can also run the script directly:
+
+```bash
+node scripts/user_admin.js list
+node scripts/user_admin.js add <username> <password> [display_name]
+node scripts/user_admin.js passwd <username> <new_password>
+```
+
 Handbook PDFs
 
 - Drop PDF files into `backend/public/handbook/` on the server (or mount a network share at that path). The app exposes these files at `/handbook/<filename>` and lists them in the Handbook section of the app.

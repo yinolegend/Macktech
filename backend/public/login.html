@@ -1,0 +1,156 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Login Portal - Mack Technologies</title>
+    <link rel="stylesheet" href="css/unified-theme.css" />
+    <style>
+      * { box-sizing: border-box; }
+
+      .card {
+        width: min(96vw, 560px);
+        background: #ffffff;
+        border-radius: 16px;
+        border: 1px solid rgba(11,116,255,0.1);
+        box-shadow: 0 20px 60px rgba(11,27,60,0.16);
+        padding: 28px;
+      }
+
+      h1 {
+        margin: 0;
+        color: #0b2a6f;
+        font-size: clamp(24px, 3.6vw, 34px);
+        letter-spacing: -0.02em;
+      }
+
+      p {
+        margin: 8px 0 0;
+        color: var(--muted);
+      }
+
+      .row {
+        margin-top: 18px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 6px;
+        color: #284060;
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      select {
+        width: 100%;
+        border: 1px solid #d6e6ff;
+        border-radius: 10px;
+        padding: 12px;
+        font-size: 15px;
+        background: #f8fbff;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      .btn {
+        border: 0;
+        border-radius: 10px;
+        padding: 12px 14px;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .btn.primary {
+        flex: 1;
+        background: linear-gradient(135deg, var(--brand) 0%, #0a98ff 100%);
+        color: #fff;
+        box-shadow: 0 10px 22px rgba(11,116,255,0.26);
+      }
+
+      .btn.primary:hover {
+        background: linear-gradient(135deg, var(--brand-dark) 0%, #0788e6 100%);
+      }
+
+      .btn.ghost {
+        background: #eef5ff;
+        color: var(--brand);
+      }
+    </style>
+  </head>
+  <body class="theme-unified page-login">
+    <main class="card">
+      <h1>Login Portal</h1>
+      <p>Choose where you want to sign in.</p>
+
+      <div class="row">
+        <label for="login_target">Login Type</label>
+        <select id="login_target">
+          <option value="admin">Admin Login</option>
+          <option value="announcements">Announcements Login</option>
+          <option value="mapping">Mapping Login</option>
+        </select>
+      </div>
+
+      <div class="actions">
+        <a href="index.html" class="btn ghost">Home</a>
+        <button id="btn_continue" class="btn primary" type="button">Continue to Login</button>
+      </div>
+    </main>
+
+    <script>
+      const targetSelect = document.getElementById('login_target');
+      const continueBtn = document.getElementById('btn_continue');
+
+      const TARGET_PATHS = {
+        admin: 'admin.html#signin',
+        announcements: 'announcements_portal.html#signin',
+        mapping: 'mapping_portal.html#signin',
+      };
+
+      function openRelative(path) {
+        if (!path) return;
+        if (path.startsWith('/')) {
+          window.location.href = path;
+          return;
+        }
+        try {
+          const href = window.location.href;
+          if (href.endsWith('/')) {
+            window.location.href = href + path;
+          } else {
+            const base = href.replace(/\/[^\/]*([?#].*)?$/, '/');
+            window.location.href = base + path;
+          }
+        } catch (err) {
+          window.location.href = path;
+        }
+      }
+
+      function goToSelectedLogin() {
+        const key = targetSelect.value || 'admin';
+        const path = TARGET_PATHS[key] || TARGET_PATHS.admin;
+        openRelative(path);
+      }
+
+      continueBtn.addEventListener('click', goToSelectedLogin);
+
+      targetSelect.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          goToSelectedLogin();
+        }
+      });
+    </script>
+  </body>
+</html>

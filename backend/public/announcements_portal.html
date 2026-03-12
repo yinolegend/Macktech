@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Announcements Portal — Mack Technologies</title>
     <link rel="stylesheet" href="css/admin-shared.css" />
+    <link rel="stylesheet" href="css/unified-theme.css" />
     <style>
       :root {
         --surface: #fbfdff;
@@ -15,6 +16,16 @@
         padding: 40px 32px;
         background: linear-gradient(135deg, #e8f2ff 0%, #f5f9ff 50%, #ffffff 100%);
         min-height: 100vh;
+      }
+
+      .top-header .top-button {
+        transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+      }
+
+      .top-header .top-button:hover,
+      .top-header .top-button:focus-visible,
+      .top-header .top-button:active {
+        transform: translateY(-1px);
       }
 
       .layout {
@@ -157,7 +168,9 @@
       }
 
       .manage-item.hidden {
-        opacity: 0.55;
+        opacity: 1;
+        border-color: #f2d6d6;
+        background: #fff9f9;
       }
 
       .manage-item h4 {
@@ -307,11 +320,25 @@
         letter-spacing: 0.02em;
         background: #e8eefc;
         color: #20305a;
+        border: 1px solid #d8e3fb;
+      }
+
+      .status-badge.shown {
+        background: #eaf9ef;
+        color: #1f7f3f;
+        border-color: #b9e5c8;
+      }
+
+      .status-badge.hidden {
+        background: #ffeaea;
+        color: #b13333;
+        border-color: #f2bcbc;
       }
 
       .status-badge.expired {
-        background: #ffe9e9;
-        color: #a42828;
+        background: #fff3da;
+        color: #a46600;
+        border-color: #f0d6a6;
       }
 
       .toolbar select:focus {
@@ -322,7 +349,7 @@
       #ap_title {
         width: 100%;
         max-width: 520px;
-        border: 2px solid var(--border);
+        border: 2px solid #bdd0f5;
         border-radius: 12px;
         padding: 12px 16px;
         font-size: 18px;
@@ -333,13 +360,14 @@
         line-height: 1.4;
         transition: border-color 0.2s ease, box-shadow 0.2s ease;
         text-align: center;
-        background: linear-gradient(180deg, #ffffff, #fafcff);
+        background: #ffffff;
+        box-shadow: inset 0 0 0 1px #e7efff;
       }
 
       #ap_title:focus {
         outline: none;
-        border-color: rgba(11, 116, 255, 0.8);
-        box-shadow: 0 0 0 3px rgba(11, 116, 255, 0.15), 0 4px 12px rgba(11, 116, 255, 0.1);
+        border-color: rgba(11, 116, 255, 0.95);
+        box-shadow: 0 0 0 3px rgba(11, 116, 255, 0.18), 0 4px 12px rgba(11, 116, 255, 0.12);
         background: white;
       }
 
@@ -350,19 +378,20 @@
       #editor {
         margin-top: 14px;
         min-height: 280px;
-        border: 2px solid var(--border);
+        border: 2px solid #bdd0f5;
         border-radius: 12px;
         padding: 18px;
-        background: linear-gradient(180deg, #ffffff, #fafcff);
+        background: #ffffff;
         line-height: 1.6;
         overflow: auto;
         transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: inset 0 0 0 1px #e7efff;
       }
 
       #editor:focus {
         outline: none;
-        border-color: rgba(11, 116, 255, 0.4);
-        box-shadow: 0 0 0 3px rgba(11, 116, 255, 0.08);
+        border-color: rgba(11, 116, 255, 0.95);
+        box-shadow: 0 0 0 3px rgba(11, 116, 255, 0.14);
         background: white;
       }
 
@@ -606,7 +635,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="theme-unified">
     <div class="card">
       <div class="top-header">
         <div>
@@ -774,10 +803,21 @@
           </div>
         </div>
 
-        <!-- Handbook Management Section -->
+        <!-- Files Management Section -->
         <div class="card-main" style="margin-top:24px;width:100%;padding:26px 28px">
-          <h3 style="margin:0">Handbook Management</h3>
-          <div class="muted" style="margin-bottom:14px">Upload or delete PDF handbook files.</div>
+          <h3 style="margin:0">Files Management</h3>
+          <div class="muted" style="margin-bottom:14px">Upload or delete PDF files by department.</div>
+
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:12px">
+            <div style="min-width:210px">
+              <label for="handbook_department_upload" class="muted" style="display:block;margin-bottom:4px">Upload to Department</label>
+              <select id="handbook_department_upload" style="width:100%;padding:8px;border-radius:8px;border:1px solid #d9e6ff"></select>
+            </div>
+            <div style="min-width:210px">
+              <label for="handbook_department_filter" class="muted" style="display:block;margin-bottom:4px">Filter List</label>
+              <select id="handbook_department_filter" style="width:100%;padding:8px;border-radius:8px;border:1px solid #d9e6ff"></select>
+            </div>
+          </div>
           
           <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
             <label class="btn" style="margin:0;cursor:pointer;background:var(--brand);color:white">
@@ -788,7 +828,7 @@
           </div>
 
           <div id="handbook_list" style="border:1px solid var(--border);border-radius:10px;padding:14px;background:white;min-height:260px;max-height:520px;overflow:auto">
-            <div class="muted">Loading handbook files...</div>
+            <div class="muted">Loading files...</div>
           </div>
         </div>
       </div>
@@ -798,6 +838,17 @@
       const TOKEN_KEY = 'mack_token';
       let announcementCache = [];
       let currentEditingId = null;
+      let handbookDepartmentOptions = [];
+      let handbookDepartmentDefault = 'hr';
+      let handbookFilesLoadToken = 0;
+      const ALL_DEPARTMENT_OPTIONS = [
+        { id: 'hr', label: 'HR' },
+        { id: 'it', label: 'IT' },
+        { id: 'operations', label: 'Operations' },
+        { id: 'finance', label: 'Finance' },
+        { id: 'quality', label: 'Quality' },
+        { id: 'safety', label: 'Safety' },
+      ];
 
       const editorEl = document.getElementById('editor');
       const dropzone = document.getElementById('ap_dropzone');
@@ -1183,7 +1234,9 @@
         document.getElementById('portal').style.display = 'block';
         document.getElementById('ap_user').textContent = username;
         loadAnnouncements();
-        loadHandbookFiles();
+        loadHandbookDepartments()
+          .catch(() => null)
+          .finally(() => loadHandbookFiles());
       }
 
       async function signIn(){
@@ -1222,6 +1275,16 @@
         return await fetch(apiUrl(path), Object.assign({}, options, { headers }));
       }
 
+      function getSortedAnnouncementsForManageList(){
+        const shown = [];
+        const hidden = [];
+        announcementCache.forEach((ann)=>{
+          if (ann && ann.hidden) hidden.push(ann);
+          else shown.push(ann);
+        });
+        return shown.concat(hidden);
+      }
+
       function renderAnnouncementList(){
         const list = document.getElementById('ap_ann_list');
         list.innerHTML = '';
@@ -1229,7 +1292,8 @@
           list.innerHTML = '<div class="muted">No announcements yet.</div>';
           return;
         }
-        announcementCache.forEach(ann => {
+        const sortedAnnouncements = getSortedAnnouncementsForManageList();
+        sortedAnnouncements.forEach(ann => {
           const expired = isAnnouncementExpired(ann);
           const classes = ['manage-item'];
           if (ann.hidden) classes.push('hidden');
@@ -1240,8 +1304,13 @@
           const expirationLabel = (ann.expiresAt || ann.expires_at) ? formatExpirationLabel(ann.expiresAt || ann.expires_at) : '';
           if (expirationLabel) metaParts.push(expirationLabel);
           const statusBadges = [];
+          if (ann.hidden) statusBadges.push('<span class="status-badge hidden">Hidden</span>');
+          else statusBadges.push('<span class="status-badge shown">Showing</span>');
           if (expired) statusBadges.push('<span class="status-badge expired">Expired</span>');
-          if (ann.hidden) statusBadges.push('<span class="status-badge">Hidden</span>');
+          const toggleLabel = ann.hidden ? 'Show' : 'Hide';
+          const toggleStyle = ann.hidden
+            ? 'margin:0;background:#eaf9ef;color:#1f7f3f;border:1px solid #b9e5c8'
+            : 'margin:0;background:#ffeaea;color:#b13333;border:1px solid #f2bcbc';
           const item = document.createElement('div');
           item.className = classes.join(' ');
           item.innerHTML = `
@@ -1251,7 +1320,7 @@
             <div class="actions">
               <button class="btn" data-action="preview" data-id="${ann.id}" style="margin:0;background:#eef6ff;color:var(--brand)">Preview</button>
               <button class="btn" data-action="edit" data-id="${ann.id}" style="margin:0">Edit</button>
-              <button class="btn" data-action="toggle" data-id="${ann.id}" style="margin:0;background:#fff;color:#0a5fab;border:1px solid #d5e6ff">${ann.hidden ? 'Show' : 'Hide'}</button>
+              <button class="btn" data-action="toggle" data-id="${ann.id}" style="${toggleStyle}">${toggleLabel}</button>
               <button class="btn" data-action="delete" data-id="${ann.id}" style="margin:0;background:#ffe5e5;color:#a12f2f">Delete</button>
             </div>`;
           list.appendChild(item);
@@ -1330,12 +1399,13 @@
         if (action === 'edit') return startEditingAnnouncement(ann);
         if (action === 'toggle') {
           try {
+            const nextHidden = !ann.hidden;
             await fetchWithAuth(`/api/announcements/${id}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ hidden: !ann.hidden })
+              body: JSON.stringify({ hidden: nextHidden })
             });
-            manageStatus.textContent = 'Updated visibility';
+            manageStatus.textContent = nextHidden ? 'Announcement hidden' : 'Announcement shown and moved to top';
             await loadAnnouncements();
           } catch (err) {
             manageStatus.textContent = 'Failed to toggle visibility';
@@ -1650,30 +1720,140 @@
         window.location.href = 'index.html';
       });
 
-      // --- Handbook Management ---
+      // --- Files Management ---
       const handbookUploadInput = document.getElementById('handbook_upload');
       const handbookStatus = document.getElementById('handbook_status');
       const handbookList = document.getElementById('handbook_list');
+      const handbookUploadDepartment = document.getElementById('handbook_department_upload');
+      const handbookFilterDepartment = document.getElementById('handbook_department_filter');
+
+      function normalizeDepartmentId(value) {
+        return String(value || '').trim().toLowerCase();
+      }
+
+      function normalizeDepartmentOptions(incoming) {
+        const merged = new Map();
+        ALL_DEPARTMENT_OPTIONS.forEach(item => merged.set(item.id, { id: item.id, label: item.label }));
+        (incoming || []).forEach(item => {
+          if (!item || typeof item.id !== 'string') return;
+          const id = item.id.trim().toLowerCase();
+          if (!id) return;
+          const existing = merged.get(id);
+          const fallbackLabel = existing ? existing.label : id.toUpperCase();
+          const label = (typeof item.label === 'string' && item.label.trim()) ? item.label.trim() : fallbackLabel;
+          merged.set(id, { id, label });
+        });
+        return Array.from(merged.values());
+      }
+
+      function getHandbookDepartmentLabel(departmentId) {
+        const found = handbookDepartmentOptions.find(item => item.id === departmentId);
+        if (found) return found.label;
+        const fallback = ALL_DEPARTMENT_OPTIONS.find(item => item.id === String(departmentId || '').toLowerCase());
+        return fallback ? fallback.label : 'Department';
+      }
+
+      function getFileDepartmentId(file) {
+        const idFromField = normalizeDepartmentId(file && file.department);
+        if (idFromField) return idFromField;
+
+        const label = String((file && file.departmentLabel) || '').trim().toLowerCase();
+        if (label) {
+          const fromLabel = handbookDepartmentOptions.find(item => item.label.toLowerCase() === label);
+          if (fromLabel) return fromLabel.id;
+        }
+
+        return handbookDepartmentDefault || 'hr';
+      }
+
+      function renderHandbookDepartmentSelects() {
+        const options = handbookDepartmentOptions.length
+          ? handbookDepartmentOptions
+          : normalizeDepartmentOptions([]);
+        handbookDepartmentOptions = options;
+
+        const prevUploadDepartment = handbookUploadDepartment
+          ? normalizeDepartmentId(handbookUploadDepartment.value)
+          : '';
+        const prevFilterDepartment = handbookFilterDepartment
+          ? normalizeDepartmentId(handbookFilterDepartment.value)
+          : '';
+
+        if (handbookUploadDepartment) {
+          handbookUploadDepartment.innerHTML = options
+            .map(item => `<option value="${item.id}">${item.label}</option>`)
+            .join('');
+          const uploadValue = options.some(item => item.id === prevUploadDepartment)
+            ? prevUploadDepartment
+            : handbookDepartmentDefault;
+          handbookUploadDepartment.value = uploadValue;
+        }
+
+        if (handbookFilterDepartment) {
+          handbookFilterDepartment.innerHTML =
+            '<option value="all">All Departments</option>' +
+            options.map(item => `<option value="${item.id}">${item.label}</option>`).join('');
+          const filterValue = prevFilterDepartment === 'all' || options.some(item => item.id === prevFilterDepartment)
+            ? (prevFilterDepartment || 'all')
+            : 'all';
+          handbookFilterDepartment.value = filterValue;
+        }
+      }
+
+      async function loadHandbookDepartments() {
+        try {
+          const res = await fetch(apiUrl('/api/handbook/departments'), { cache: 'no-store' });
+          if (!res.ok) throw new Error('Failed to load departments');
+          const data = await res.json();
+          const incoming = Array.isArray(data && data.departments) ? data.departments : [];
+          handbookDepartmentOptions = normalizeDepartmentOptions(incoming);
+          handbookDepartmentDefault = String((data && data.defaultDepartment) || 'hr').trim().toLowerCase() || 'hr';
+          if (!handbookDepartmentOptions.some(item => item.id === handbookDepartmentDefault)) {
+            handbookDepartmentDefault = 'hr';
+          }
+        } catch (err) {
+          handbookDepartmentOptions = normalizeDepartmentOptions([]);
+          handbookDepartmentDefault = 'hr';
+        }
+        renderHandbookDepartmentSelects();
+      }
 
       async function loadHandbookFiles() {
+        const requestToken = ++handbookFilesLoadToken;
         try {
           handbookStatus.textContent = 'Loading...';
+          let selectedDepartment = handbookFilterDepartment && handbookFilterDepartment.value
+            ? normalizeDepartmentId(handbookFilterDepartment.value)
+            : 'all';
+          if (!selectedDepartment) selectedDepartment = 'all';
+
+          // Always fetch management list once, then enforce department filtering in UI.
           const res = await fetchWithAuth('/api/handbook?all=1', {});
           if (!res.ok) throw new Error('Failed to load');
-          const files = await res.json();
+          const allFiles = await res.json();
+          if (requestToken !== handbookFilesLoadToken) return;
+          const files = selectedDepartment === 'all'
+            ? allFiles
+            : allFiles.filter(file => getFileDepartmentId(file) === selectedDepartment);
+
+          if (requestToken !== handbookFilesLoadToken) return;
           renderHandbookList(files);
           const hiddenCount = files.filter(file => file.hidden).length;
           const visibleCount = files.length - hiddenCount;
-          handbookStatus.textContent = `${files.length} file${files.length === 1 ? '' : 's'} (${visibleCount} shown, ${hiddenCount} hidden)`;
+          const scope = selectedDepartment !== 'all'
+            ? ` in ${getHandbookDepartmentLabel(selectedDepartment)}`
+            : '';
+          handbookStatus.textContent = `${files.length} file${files.length === 1 ? '' : 's'}${scope} (${visibleCount} shown, ${hiddenCount} hidden)`;
         } catch (err) {
+          if (requestToken !== handbookFilesLoadToken) return;
           handbookStatus.textContent = 'Error loading files';
-          handbookList.innerHTML = '<div class="muted">Unable to load handbook files</div>';
+          handbookList.innerHTML = '<div class="muted">Unable to load files</div>';
         }
       }
 
       function renderHandbookList(files) {
         if (!files || files.length === 0) {
-          handbookList.innerHTML = '<div class="muted">No handbook files uploaded yet.</div>';
+          handbookList.innerHTML = '<div class="muted">No files uploaded yet.</div>';
           return;
         }
         handbookList.innerHTML = '';
@@ -1700,7 +1880,8 @@
           meta.style.color = '#6b7a99';
           meta.style.marginTop = '4px';
           const sizeKB = file.size ? Math.round(file.size / 1024) : 0;
-          meta.textContent = `${sizeKB} KB • ${isHidden ? 'Hidden from handbook page' : 'Visible on handbook page'}`;
+          const deptLabel = file.departmentLabel || getHandbookDepartmentLabel(getFileDepartmentId(file));
+          meta.textContent = `${sizeKB} KB • ${deptLabel} • ${isHidden ? 'Hidden from documents page' : 'Visible on documents page'}`;
           left.appendChild(name);
           left.appendChild(meta);
           const right = document.createElement('div');
@@ -1755,7 +1936,7 @@
           });
           const data = await res.json().catch(() => null);
           if (!res.ok) throw new Error((data && data.error) || 'Failed to update visibility');
-          handbookStatus.textContent = hidden ? 'File hidden from handbook page' : 'File shown on handbook page';
+          handbookStatus.textContent = hidden ? 'File hidden from documents page' : 'File shown on documents page';
           await loadHandbookFiles();
         } catch (err) {
           handbookStatus.textContent = 'Visibility update failed: ' + err.message;
@@ -1766,7 +1947,11 @@
         try {
           handbookStatus.textContent = 'Uploading...';
           const formData = new FormData();
+          const department = handbookUploadDepartment && handbookUploadDepartment.value
+            ? handbookUploadDepartment.value
+            : handbookDepartmentDefault;
           formData.append('pdf', file);
+          formData.append('department', department);
           const res = await fetchWithAuth('/api/handbook', {
             method: 'POST',
             body: formData
@@ -1783,7 +1968,8 @@
             throw new Error(errorMsg);
           }
           const data = await res.json();
-          handbookStatus.textContent = 'Upload successful';
+          const label = getHandbookDepartmentLabel((data && data.department) || department);
+          handbookStatus.textContent = `Upload successful (${label})`;
           await loadHandbookFiles();
         } catch (err) {
           handbookStatus.textContent = 'Upload failed: ' + err.message;
@@ -1816,6 +2002,21 @@
         uploadHandbookFile(file);
         e.target.value = ''; // reset input
       });
+
+      if (handbookFilterDepartment) {
+        handbookFilterDepartment.addEventListener('change', () => {
+          loadHandbookFiles();
+        });
+      }
+
+      if (handbookUploadDepartment && handbookFilterDepartment) {
+        handbookUploadDepartment.addEventListener('change', () => {
+          const selected = normalizeDepartmentId(handbookUploadDepartment.value);
+          const hasDepartment = handbookDepartmentOptions.some(item => item.id === selected);
+          handbookFilterDepartment.value = hasDepartment ? selected : 'all';
+          loadHandbookFiles();
+        });
+      }
 
       // Auto-fill defaults for dev convenience
       document.getElementById('ap_username').value = 'admin';

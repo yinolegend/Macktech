@@ -1,0 +1,170 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Manrope:wght@400;600;700&display=swap');
+
+:root {
+  --ui-ink: #183153;
+  --ui-muted: #61738d;
+  --ui-line: #d7e7f5;
+  --ui-brand: #0077cc;
+  --ui-brand-dark: #005e9f;
+  --ui-panel: #ffffff;
+  --ui-bg-1: #f2f7ff;
+  --ui-bg-2: #fff8ef;
+}
+
+body.theme-unified {
+  --brand: var(--ui-brand);
+  --brand-dark: var(--ui-brand-dark);
+  --muted: var(--ui-muted);
+  --line: var(--ui-line);
+  font-family: 'Manrope', 'Segoe UI', sans-serif !important;
+  color: var(--ui-ink) !important;
+  background:
+    radial-gradient(1000px 520px at -10% -5%, rgba(0, 119, 204, 0.2), transparent 62%),
+    radial-gradient(900px 460px at 110% 5%, rgba(244, 138, 42, 0.2), transparent 58%),
+    linear-gradient(180deg, var(--ui-bg-1), var(--ui-bg-2)) !important;
+}
+
+body.theme-unified.page-index,
+body.theme-unified.page-login,
+body.theme-unified.page-app,
+body.theme-unified.page-announcements,
+body.theme-unified.page-ticket,
+body.theme-unified.page-ticket-form {
+  margin: 0;
+  min-height: 100vh;
+}
+
+body.theme-unified.page-index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0;
+}
+
+body.theme-unified.page-login {
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+body.theme-unified.page-app {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  overflow-x: hidden;
+}
+
+body.theme-unified.page-announcements {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px 16px;
+}
+
+body.theme-unified.page-ticket {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+}
+
+body.theme-unified.page-ticket-form {
+  padding: 28px 16px;
+}
+
+body.theme-unified h1,
+body.theme-unified h2,
+body.theme-unified h3 {
+  font-family: 'Space Grotesk', 'Manrope', sans-serif;
+  letter-spacing: -0.02em;
+  color: #0e3763;
+}
+
+body.theme-unified p,
+body.theme-unified .muted,
+body.theme-unified .small {
+  color: var(--ui-muted);
+}
+
+body.theme-unified .card,
+body.theme-unified .app-shell,
+body.theme-unified .card-main,
+body.theme-unified .card-manage,
+body.theme-unified .section-card,
+body.theme-unified .ann,
+body.theme-unified .announcement-card,
+body.theme-unified .manage-item,
+body.theme-unified .signin-card,
+body.theme-unified .panel,
+body.theme-unified .ticket,
+body.theme-unified .editor-shell,
+body.theme-unified .message {
+  background: var(--ui-panel);
+  border: 1px solid rgba(0, 119, 204, 0.18) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 16px 40px rgba(8, 33, 67, 0.1);
+}
+
+body.theme-unified .btn,
+body.theme-unified .top-button,
+body.theme-unified form button[type='submit'] {
+  border-radius: 10px !important;
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
+  font-weight: 700 !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+body.theme-unified .btn.primary,
+body.theme-unified .top-button,
+body.theme-unified form button[type='submit'] {
+  background: linear-gradient(130deg, #0077cc, #00a2d3) !important;
+  color: #fff !important;
+  border: 1px solid transparent !important;
+  box-shadow: 0 10px 24px rgba(0, 119, 204, 0.25);
+}
+
+body.theme-unified .top-button {
+  padding: 8px 12px;
+  border: 0;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+body.theme-unified .btn.primary:hover,
+body.theme-unified .top-button:hover,
+body.theme-unified form button[type='submit']:hover {
+  background: linear-gradient(130deg, #0066ad, #0090bf) !important;
+  transform: translateY(-1px);
+}
+
+body.theme-unified .btn.ghost,
+body.theme-unified button.btn.ghost,
+body.theme-unified .manage-scroll-controls button,
+body.theme-unified .toolbar button,
+body.theme-unified .toolbar select {
+  background: #edf6ff !important;
+  color: #0a5a95 !important;
+  border: 1px solid #cfe5ff !important;
+}
+
+body.theme-unified input,
+body.theme-unified select,
+body.theme-unified textarea,
+body.theme-unified .combo-input {
+  border: 1px solid var(--ui-line) !important;
+  border-radius: 10px !important;
+  background: #fdfefe;
+  color: var(--ui-ink);
+}
+
+body.theme-unified .editor-toolbar,
+body.theme-unified .toolbar,
+body.theme-unified .messages,
+body.theme-unified .manage-list,
+body.theme-unified .slides,
+body.theme-unified .controls {
+  border: 1px solid rgba(0, 119, 204, 0.15);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fbfdff, #f5fbff);
+}
