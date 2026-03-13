@@ -26,7 +26,7 @@ bcrypt.hash(password, 10, (err, hash) => {
     }
     if (this.changes === 0) {
       const created_at = new Date().toISOString().replace('T', ' ').replace('Z', '');
-      db.run('INSERT INTO users (username, password_hash, display_name, created_at) VALUES (?, ?, ?, ?)', ['admin', hash, 'Administrator', created_at], function (err2) {
+      db.run('INSERT INTO users (username, password_hash, display_name, role, created_at) VALUES (?, ?, ?, ?, ?)', ['admin', hash, 'Administrator', 'Admin', created_at], function (err2) {
         if (err2) {
           console.error('Insert failed', err2);
           process.exit(1);

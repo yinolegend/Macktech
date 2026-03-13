@@ -11,7 +11,7 @@ async function main(){
   }
   const hash = await bcrypt.hash(password, 10);
   try{
-    const id = await db.createUser({ username, password_hash: hash, display_name: display_name || username });
+    const id = await db.createUser({ username, password_hash: hash, display_name: display_name || username, role: 'Admin' });
     console.log('Created user id', id);
     process.exit(0);
   }catch(err){

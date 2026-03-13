@@ -1,155 +1,105 @@
-## Mack — Self-hosted Chat & Ticket System (Overview)
+## Macktech Offline Portal
 
-This repository contains a minimal, self-hostable web application that provides:
+Macktech is a self-hosted portal that runs fully offline on a local Express API. The system serves a local HTML frontend, stores its operational data on disk, and keeps its client-side libraries and icon assets in the repository.
 
-- A realtime chat powered by Socket.IO (no persistence in this minimal version)
-- A simple ticket system persisted to SQLite (`data/app.db`)
-- A small static frontend (no build step) located at `backend/public/`
+### Quick start
 
-The project is intentionally lightweight so you can self-host it on a small VPS, a Docker host, or run locally for testing.
-
-Quick start (local development)
-
-1. Install dependencies and start the server:
+1. Install backend dependencies once.
 
 ```bash
-cd "Mack Project"/backend
-npm install
-npm start
+npm install --prefix backend
 ```
 
-2. Open the app in your browser:
+Windows PowerShell note: if `npm` is blocked by execution policy, use `npm.cmd install --prefix backend` instead.
 
+2. Start the full system from the project root.
+
+```bash
+node server.js
 ```
+
+3. Open the local portal.
+
+```text
 http://localhost:3000
 ```
 
-Run with Docker (recommended for simple self-hosting)
+### Project structure
+
+- `frontend/pages` contains the HTML entry points.
+- `frontend/components` is reserved for shared frontend fragments.
+- `frontend/scripts` contains browser-side JavaScript.
+- `frontend/styles` contains shared CSS.
+- `frontend/assets` contains local vendor files and static frontend assets.
+- `frontend/icons` contains the local SVG icon library.
+- `api/routes` registers HTTP endpoints.
+- `api/controllers` contains route handlers.
+- `api/middleware` contains reusable API middleware factories.
+- `backend/services` contains business logic for maps, handbook files, announcements, and uploads.
+- `backend/database` exposes the SQLite access layer.
+- `backend/auth` contains directory and socket authentication helpers.
+- `backend/utils` contains startup and bootstrap utilities.
+- `data` stores SQLite, JSON state, uploaded handbook PDFs, announcement files, and map assets.
+- `config` contains resolved paths and runtime configuration.
+- `backups` is reserved for local backup snapshots.
+- `docs` contains architecture notes.
+
+### Offline behavior
+
+- Frontend pages call only the local API under `/api/`.
+- Fabric.js is served locally from `frontend/assets/vendor`.
+- SVG icons are served locally from `frontend/icons`.
+- Handbook PDFs, announcement uploads, and map assets are served from the local filesystem under `data/`.
+- The active shared theme no longer depends on Google Fonts or any CDN-hosted resource.
+
+### Local data
+
+The application persists data in these locations:
+
+- `data/app.db` for tickets and users.
+- `data/hazmat.db` for hazardous material inventory and usage history.
+- `data/gages.db` for gage/calibration assets and gage-side audit logs.
+- `data/facility_maps.json` and `data/facility_map.json` for facility maps.
+- `data/announcements.json` for announcements.
+- `data/handbook` for local handbook PDFs.
+- `data/announcements_files` for uploaded announcement media.
+- `data/map_assets` for uploaded map backgrounds.
+
+### Core API surface
+
+- `POST /api/register`, `POST /api/login`, `GET /api/me`
+- `GET /api/tickets`, `POST /api/tickets`, `PUT /api/tickets/:id`
+- `GET /api/handbook`, `POST /api/handbook`, `PATCH /api/handbook/:filename`
+- `GET /api/maps`, `GET /api/map`, `PUT /api/map`
+- `GET /api/maps/:mapId/export.svg`, `GET /api/maps/:mapId/export.pdf`
+- `POST /api/announcements`, `GET /api/announcements`, `PATCH /api/announcements/:id`
+
+### Admin utilities
+
+Create an admin user manually if needed:
+
+```bash
+node backend/create_admin.js admin password "Admin Name"
+```
+
+Manage users from the terminal:
+
+```bash
+npm --prefix backend run user:list
+npm --prefix backend run user:add -- <username> <password> [display_name]
+npm --prefix backend run user:passwd -- <username> <new_password>
+```
+
+### Docker
+
+Run the offline stack with Docker:
 
 ```bash
 docker compose up --build
 ```
 
-The compose file mounts `./data` into the container so the SQLite DB (`app.db`) persists between restarts. Port `3000` is exposed on the host.
+The container exposes port `3000` and persists operational data through the `data/` volume.
 
-Project layout and responsibilities
+### Deployment note
 
-- `backend/server.js` — Express server, static file serving, Socket.IO chat, and REST API for tickets. This file wires everything together and documents the available endpoints.
-- `backend/db.js` — Lightweight SQLite helpers and the `tickets` schema. Contains functions used by the REST API to create/list/get/update tickets.
-- `backend/public/` — Static frontend: `index.html` and `app.js`.
-- `Dockerfile`, `docker-compose.yml` — Quick container setup for self-hosting.
-
-API details
-
-- GET `/api/tickets` — returns JSON list of tickets (newest first)
-- GET `/api/tickets/:id` — returns JSON for a single ticket
-- POST `/api/tickets` — create a ticket; JSON body: `{ title, description?, requester? }` (requires authentication)
-- PUT `/api/tickets/:id` — update ticket fields; JSON body can include: `title`, `description`, `requester`, `status` (requires authentication)
-
-Authentication
-
-- This scaffold now includes basic JWT authentication endpoints:
-	- POST `/api/register` — create a local user: `{ username, password, display_name? }`
-	- POST `/api/login` — sign in and receive a JWT: `{ username, password }` -> `{ token, user }`
-	- GET `/api/me` — returns current user based on Bearer token in `Authorization` header
-
-The client stores the JWT in `localStorage` and sends it with API requests and Socket.IO connections. For intranet/AD integration you can either:
-- Use an LDAP/AD verifier (e.g. `passport-ldapauth` or `ldapjs`) on the server and issue JWTs for AD-authenticated users, or
-- Sync AD users into the local `users` table and authenticate them against AD when logging in.
-
-Creating an admin user
-
-You can create an initial admin user locally with the helper script:
-
-```bash
-cd "Mack Project"/backend
-node create_admin.js admin password "Admin Name"
-```
-
-Replace `admin` and `password` with your chosen credentials. Then login at the app and the token will be stored in the browser.
-
-Managing users from terminal (backend)
-
-Use the user helper script from inside `backend/`:
-
-```bash
-npm run user:list
-npm run user:add -- <username> <password> [display_name]
-npm run user:passwd -- <username> <new_password>
-```
-
-Examples:
-
-```bash
-npm run user:add -- jsmith P@ssw0rd "John Smith"
-npm run user:passwd -- jsmith NewP@ssw0rd
-```
-
-You can also run the script directly:
-
-```bash
-node scripts/user_admin.js list
-node scripts/user_admin.js add <username> <password> [display_name]
-node scripts/user_admin.js passwd <username> <new_password>
-```
-
-Handbook PDFs
-
-- Drop PDF files into `backend/public/handbook/` on the server (or mount a network share at that path). The app exposes these files at `/handbook/<filename>` and lists them in the Handbook section of the app.
- - Drop PDF files into `backend/public/PDF handbook/` on the server (or mount a network share at that path). The app exposes these files at `/pdf-handbook/<filename>` and lists them in the Handbook section of the app. Files opened from the app will render inside the app using an embedded PDF viewer.
-
-Socket / Realtime events
-
-- The server emits and listens for `chat message` events over Socket.IO.
-- Client -> Server: `socket.emit('chat message', { text, user })`
-- Server -> Clients: `io.emit('chat message', message)` where `message` includes `{ id, text, user, ts }`.
-
-Database schema (tickets table)
-
-Columns:
-- `id` (INTEGER PRIMARY KEY AUTOINCREMENT)
-- `title` (TEXT, required)
-- `description` (TEXT)
-- `requester` (TEXT)
-- `status` (TEXT, default: 'open')
-- `created_at` (TEXT)
-- `updated_at` (TEXT)
-
-Security and deployment notes
-
-- This scaffold is intentionally simple and does not include authentication, authorization, or input rate-limiting. For production usage, add authentication (OAuth, session-based, or JWT), CSRF protections if needed, and input validation.
-- When exposing to the internet, run the app behind a reverse proxy (nginx, Traefik) and use TLS certificates (Let's Encrypt).
-- Consider migrating chat message persistence to the DB if you need message history.
-
-Extending the project (suggested next steps)
-
-- Add user authentication and role-based access for ticket management.
-- Add ticket comments, attachments, and assignment to agents.
-- Add server-side validation and sanitize all inputs.
-- Replace the static UI with a SPA (React/Vue) for a better UX.
-
-Support and troubleshooting
-
-- Logs: run `npm start` and watch stdout for errors. In Docker, use `docker compose logs -f`.
-- If the DB file is missing, the server will create `data/app.db` automatically.
-
-If you want, I can now:
-- Run a local smoke test (install dependencies and start the server here).
-- Convert the frontend to a React + Vite app and add basic auth.
-- Add server-side persistence for chat messages.
-
-## Deploying from GitHub (Render)
-
-This repo includes a `render.yaml` blueprint so you can launch the site directly from GitHub without tunnels. Steps:
-
-1. Push your latest changes to GitHub (already done if you're reading this there).
-2. In Render, click **New** → **Blueprint** and connect the `yinolegend/Macktech` repository.
-3. Accept the defaults from `render.yaml`:
-	- Web service rooted at `backend/`
-	- `npm install` build command
-	- `npm start` start command
-	- 1 GB persistent disk mounted at `/app/data` for SQLite persistence
-4. Click **Apply** and wait for the build to finish. Render will output a public URL you can share for testing.
-5. Future `git push` events to `main` will trigger automatic redeploys (you can toggle auto-deploy in Render if needed).
-
-Need environment secrets (e.g., `JWT_SECRET`)? Add them in Render → **Environment** before deploying.
+The repository still includes `render.yaml`, but the application is now documented and wired primarily for local or private-network execution with a root startup command of `node server.js`.

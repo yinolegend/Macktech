@@ -7,18 +7,23 @@
     "start": "node server.js",
     "user:list": "node scripts/user_admin.js list",
     "user:add": "node scripts/user_admin.js add",
-    "user:passwd": "node scripts/user_admin.js passwd"
+    "user:passwd": "node scripts/user_admin.js passwd",
+    "user:role": "node scripts/user_admin.js role"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "express": "^4.18.2",
+    "chart.js": "^4.4.7",
+    "express": "^4.22.1",
+    "express-session": "^1.19.0",
     "fabric": "^7.2.0",
     "jsonwebtoken": "^9.0.0",
     "ldapjs": "^2.3.3",
     "multer": "^2.0.2",
     "pdfkit": "^0.15.2",
+    "qrcode": "^1.5.4",
+    "sequelize": "^6.37.8",
     "socket.io": "^4.8.1",
-    "svg-to-pdfkit": "^0.1.8",
-    "sqlite3": "^5.1.6"
+    "sqlite3": "^5.1.7",
+    "svg-to-pdfkit": "^0.1.8"
   }
 }

@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Command Center</title>
+    <link rel="stylesheet" href="/public/css/tabulator.min.css" />
+    <link rel="stylesheet" href="/public/css/command-center.css" />
+  </head>
+  <body>
+    <div class="cc-shell" data-mode="inventory">
+      <header class="cc-topbar">
+        <div class="brand-wrap">
+          <div class="brand-mark" aria-hidden="true"></div>
+          <div>
+            <p class="eyebrow">Midnight Defense Workspace</p>
+            <h1>Command Center</h1>
+            <p class="subcopy">Hazardous materials and calibration control in one offline operating picture.</p>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <div class="user-chip">
+            <span data-lucide="shield-check"></span>
+            <strong id="session-user">Authenticated</strong>
+          </div>
+          <button id="refresh-button" class="action-button ghost" type="button">
+            <span data-lucide="refresh-cw"></span>
+            Refresh
+          </button>
+          <button id="export-audit-button" class="action-button" type="button">
+            <span data-lucide="file-spreadsheet"></span>
+            Export Audit Report
+          </button>
+          <button id="logout-button" class="action-button ghost" type="button">
+            <span data-lucide="log-out"></span>
+            Sign Out
+          </button>
+        </div>
+      </header>
+
+      <div id="asset-warning" class="asset-warning hidden"></div>
+      <div id="status-banner" class="status-banner hidden"></div>
+
+      <section class="mode-dock" aria-label="Portal Modes">
+        <div class="mode-dock-copy">
+          <p class="eyebrow">Portal Modes</p>
+          <h2>Hazard and Calibration</h2>
+        </div>
+        <div class="nav-tabs nav-tabs-compact" role="tablist" aria-label="Command Center views">
+          <button class="nav-tab active" type="button" data-view="inventory">
+            <span class="nav-label">
+              <span data-lucide="flask-conical"></span>
+              Hazard
+            </span>
+            <strong id="inventory-nav-count">0</strong>
+          </button>
+          <button class="nav-tab" type="button" data-view="calibration">
+            <span class="nav-label">
+              <span data-lucide="ruler"></span>
+              Calibration
+            </span>
+            <strong id="calibration-nav-count">0</strong>
+          </button>
+        </div>
+      </section>
+
+      <div class="cc-layout">
+        <aside class="cc-sidebar">
+          <section class="sidebar-card action-menu-card">
+            <p class="eyebrow">Floating Menu</p>
+            <h2>Operations</h2>
+            <p class="menu-copy">The active workflow stays pinned on the left so your main controls are always in reach.</p>
+
+            <div class="floating-menu-group active" data-menu-view="inventory" aria-hidden="false">
+              <span class="menu-mode-label">Hazard Workflow</span>
+              <label class="action-button ghost upload-button menu-action-button">
+                <span data-lucide="file-up"></span>
+                Import Hazard Excel
+                <input id="inventory-import-input" type="file" accept=".xlsx,.xls,.csv" />
+              </label>
+              <button id="add-material-button" class="action-button menu-action-button" type="button">
+                <span data-lucide="plus"></span>
+                Add Material
+              </button>
+            </div>
+
+            <div class="floating-menu-group" data-menu-view="calibration" aria-hidden="true">
+              <span class="menu-mode-label">Calibration Workflow</span>
+              <label class="action-button ghost upload-button menu-action-button">
+                <span data-lucide="file-up"></span>
+                Import Calibration Excel
+                <input id="calibration-import-input" type="file" accept=".xlsx,.xls,.csv" />
+              </label>
+              <button id="add-calibration-button" class="action-button menu-action-button" type="button">
+                <span data-lucide="plus"></span>
+                Add Asset
+              </button>
+              <button id="add-template-button" class="action-button ghost menu-action-button" type="button">
+                <span data-lucide="layers-3"></span>
+                Add Template
+              </button>
+            </div>
+          </section>
+
+          <section class="sidebar-card">
+            <p class="eyebrow">Local Repositories</p>
+            <h2>Offline Vaults</h2>
+            <div class="vault-links">
+              <a class="vault-link" href="/public/sds/" target="_blank" rel="noreferrer">
+                <span data-lucide="book-open"></span>
+                SDS Repository
+              </a>
+              <a class="vault-link" href="/public/certs/" target="_blank" rel="noreferrer">
+                <span data-lucide="file-badge"></span>
+                Certificate Vault
+              </a>
+            </div>
+          </section>
+
+          <section class="sidebar-card">
+            <p class="eyebrow">Import Rules</p>
+            <h2>Excel Hub</h2>
+            <ul class="note-list">
+              <li>Hazard imports map common headings like name, batch, hazard, expiration, stock, and threshold.</li>
+              <li>Calibration imports map template, tool, serial, last calibration, interval, alert lead, grace, and department columns.</li>
+              <li>Audit export writes inventory, calibration, and log sheets into a single workbook.</li>
+            </ul>
+          </section>
+        </aside>
+
+        <main class="cc-main">
+          <section class="dashboard-grid">
+            <article class="dashboard-card danger">
+              <div class="card-icon" data-lucide="triangle-alert"></div>
+              <div>
+                <p>Total Expired Items</p>
+                <strong id="expired-count">0</strong>
+                <small>Rows are flagged red when shelf life has elapsed.</small>
+              </div>
+            </article>
+            <article class="dashboard-card warning">
+              <div class="card-icon" data-lucide="package-search"></div>
+              <div>
+                <p>Low Stock Exposure</p>
+                <strong id="low-stock-count">0</strong>
+                <small>Items at or below minimum threshold.</small>
+              </div>
+            </article>
+            <article class="dashboard-card info">
+              <div class="card-icon" data-lucide="calendar-clock"></div>
+              <div>
+                <p>Calibration Warning Window</p>
+                <strong id="warning-count">0</strong>
+                <small>Assets inside the alert lead window before expiry.</small>
+              </div>
+            </article>
+            <article class="dashboard-card accent">
+              <div class="card-icon" data-lucide="shield-off"></div>
+              <div>
+                <p>Hard Locked Assets</p>
+                <strong id="locked-count">0</strong>
+                <small>Assets beyond grace are blocked from check-out.</small>
+              </div>
+            </article>
+          </section>
+
+          <section class="command-panel active" data-panel="inventory">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Inventory Command</p>
+                <h2>Hazardous Materials</h2>
+              </div>
+            </div>
+            <div class="toolbar toolbar-surface">
+              <label class="search-field">
+                <span data-lucide="search"></span>
+                <input id="inventory-search" type="search" placeholder="Search by name, batch, or symbol" />
+              </label>
+            </div>
+            <div id="inventory-table" class="table-frame"></div>
+          </section>
+
+          <section class="command-panel" data-panel="calibration">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Calibration Command</p>
+                <h2>Asset Calibration</h2>
+              </div>
+            </div>
+            <div class="template-hub">
+              <div class="panel-header compact">
+                <div>
+                  <p class="eyebrow">Template Engine</p>
+                  <h2>Calibration Templates</h2>
+                </div>
+                <div class="panel-actions">
+                  <label class="search-field">
+                    <span data-lucide="search"></span>
+                    <input id="template-search" type="search" placeholder="Search templates" />
+                  </label>
+                </div>
+              </div>
+              <div id="template-table" class="table-frame template-frame"></div>
+            </div>
+            <div class="toolbar toolbar-surface">
+              <label class="search-field">
+                <span data-lucide="search"></span>
+                <input id="calibration-search" type="search" placeholder="Search by tool, serial, or status" />
+              </label>
+            </div>
+            <div id="calibration-table" class="table-frame"></div>
+          </section>
+
+          <section class="log-panel">
+            <div class="panel-header compact">
+              <div>
+                <p class="eyebrow">Transaction Feed</p>
+                <h2>Recent Logs</h2>
+              </div>
+            </div>
+            <div id="recent-log-list" class="log-list"></div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <div id="material-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 id="material-modal-title">Add Material</h2>
+          <button class="icon-button" type="button" data-close-modal="material-modal">
+            <span data-lucide="x"></span>
+          </button>
+        </div>
+        <form id="material-form" class="modal-form">
+          <label>
+            Material Name
+            <input name="name" type="text" required />
+          </label>
+          <label>
+            Batch ID
+            <input name="batch_id" type="text" required />
+          </label>
+          <label>
+            Expiration Date
+            <input name="expiration_date" type="date" />
+          </label>
+          <div class="field-grid">
+            <label>
+              Stock Level
+              <input name="stock_level" type="number" min="0" step="0.01" required />
+            </label>
+            <label>
+              Minimum Threshold
+              <input name="min_threshold" type="number" min="0" step="0.01" required />
+            </label>
+          </div>
+          <div>
+            <span class="field-label">GHS Symbols</span>
+            <div id="ghs-selector" class="ghs-selector"></div>
+          </div>
+          <div class="modal-actions">
+            <button class="action-button ghost" type="button" data-close-modal="material-modal">Cancel</button>
+            <button class="action-button" type="submit">Save Material</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="usage-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-card small">
+        <div class="modal-header">
+          <h2 id="usage-modal-title">Record Usage</h2>
+          <button class="icon-button" type="button" data-close-modal="usage-modal">
+            <span data-lucide="x"></span>
+          </button>
+        </div>
+        <form id="usage-form" class="modal-form">
+          <label>
+            Quantity Used
+            <input name="quantity" type="number" min="0.01" step="0.01" required />
+          </label>
+          <label>
+            Reason
+            <input name="reason" type="text" placeholder="Issue, consume, or transfer" />
+          </label>
+          <div class="modal-actions">
+            <button class="action-button ghost" type="button" data-close-modal="usage-modal">Cancel</button>
+            <button class="action-button warn" type="submit">Commit Usage</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="calibration-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 id="calibration-modal-title">Add Calibration Asset</h2>
+          <button class="icon-button" type="button" data-close-modal="calibration-modal">
+            <span data-lucide="x"></span>
+          </button>
+        </div>
+        <form id="calibration-form" class="modal-form">
+          <label>
+            Calibration Template
+            <div class="template-picker">
+              <select name="template_id" required></select>
+              <button id="manage-template-button" class="table-button" type="button">New Template</button>
+            </div>
+          </label>
+          <div id="calibration-template-summary" class="form-note">Select a calibration template to inherit category, interval, alert lead, grace period, unit, and department.</div>
+          <div class="field-grid">
+            <label>
+              Asset / Tool Name
+              <input name="tool_name" type="text" required />
+            </label>
+            <label>
+              Serial Number
+              <input name="serial_number" type="text" required />
+            </label>
+          </div>
+          <label>
+            Last Calibration Date
+            <input name="last_cal" type="date" />
+          </label>
+          <div class="modal-actions">
+            <button class="action-button ghost" type="button" data-close-modal="calibration-modal">Cancel</button>
+            <button class="action-button" type="submit">Save Asset</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="template-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 id="template-modal-title">Add Calibration Template</h2>
+          <button class="icon-button" type="button" data-close-modal="template-modal">
+            <span data-lucide="x"></span>
+          </button>
+        </div>
+        <form id="template-form" class="modal-form">
+          <div class="field-grid">
+            <label>
+              Template Name
+              <input name="template_name" type="text" required />
+            </label>
+            <label>
+              Category
+              <select name="category">
+                <option value="Mechanical">Mechanical</option>
+                <option value="Electrical">Electrical</option>
+                <option value="Pressure">Pressure</option>
+              </select>
+            </label>
+          </div>
+          <div class="field-grid">
+            <label>
+              Calibration Interval (days)
+              <input name="cal_interval_days" type="number" min="1" step="1" required />
+            </label>
+            <label>
+              Alert Lead (days)
+              <input name="alert_lead_days" type="number" min="0" step="1" required />
+            </label>
+          </div>
+          <div class="field-grid">
+            <label>
+              Grace Period (days)
+              <input name="grace_period_days" type="number" min="0" step="1" required />
+            </label>
+            <label>
+              Unit of Measure
+              <input name="unit_of_measure" type="text" value="days" required />
+            </label>
+          </div>
+          <label>
+            Assigned Department
+            <input name="assigned_department" type="text" value="Unassigned" required />
+          </label>
+          <div class="modal-actions">
+            <button class="action-button ghost" type="button" data-close-modal="template-modal">Cancel</button>
+            <button class="action-button" type="submit">Save Template</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="checkout-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-card small">
+        <div class="modal-header">
+          <h2 id="checkout-modal-title">Check Out Asset</h2>
+          <button class="icon-button" type="button" data-close-modal="checkout-modal">
+            <span data-lucide="x"></span>
+          </button>
+        </div>
+        <form id="checkout-form" class="modal-form">
+          <label>
+            Reason / Assignment
+            <input name="reason" type="text" placeholder="Production line, quality audit, or service call" />
+          </label>
+          <div class="modal-actions">
+            <button class="action-button ghost" type="button" data-close-modal="checkout-modal">Cancel</button>
+            <button class="action-button" type="submit">Authorize Check-Out</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="certificate-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-card small">
+        <div class="modal-header">
+          <h2 id="certificate-modal-title">Generate Certificate</h2>
+          <button class="icon-button" type="button" data-close-modal="certificate-modal">
+            <span data-lucide="x"></span>
+          </button>
+        </div>
+        <form id="certificate-form" class="modal-form">
+          <label>
+            Technician Name
+            <input name="technician" type="text" required />
+          </label>
+          <div class="modal-actions">
+            <button class="action-button ghost" type="button" data-close-modal="certificate-modal">Cancel</button>
+            <button class="action-button accent" type="submit">Generate PDF</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="/public/js/luxon.min.js"></script>
+    <script src="/public/js/tabulator.min.js"></script>
+    <script src="/public/js/xlsx.full.min.js"></script>
+    <script src="/public/js/jspdf.min.js"></script>
+    <script src="/public/js/jspdf.plugin.autotable.js"></script>
+    <script src="/public/js/lucide.min.js"></script>
+    <script src="/public/js/command-center.js"></script>
+  </body>
+  </html>

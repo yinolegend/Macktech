@@ -1,0 +1,1812 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hazardous Material Tracking Portal</title>
+    <link rel="stylesheet" href="/public/css/tabulator_midnight.min.css" />
+    <style>
+      :root {
+        --navy-950: #08101d;
+        --navy-900: #0b172a;
+        --navy-860: #102038;
+        --slate-700: #51607b;
+        --slate-500: #8593ab;
+        --slate-400: #aab6c7;
+        --line: rgba(143, 164, 194, 0.18);
+        --panel: rgba(12, 25, 45, 0.92);
+        --panel-strong: rgba(10, 20, 36, 0.98);
+        --panel-soft: rgba(18, 32, 56, 0.88);
+        --text: #edf3fb;
+        --text-dim: #aebad0;
+        --orange: #ff8b2b;
+        --orange-strong: #ff7410;
+        --ok: #57d29a;
+        --warn: #ffb347;
+        --danger: #ff5d5d;
+        --shadow: 0 24px 60px rgba(0, 0, 0, 0.34);
+        --radius: 18px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: 'Trebuchet MS', 'Segoe UI', Tahoma, sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 0% 0%, rgba(255, 139, 43, 0.14), transparent 28%),
+          radial-gradient(circle at 100% 0%, rgba(52, 86, 138, 0.2), transparent 34%),
+          linear-gradient(180deg, #060b14, var(--navy-950) 18%, var(--navy-900) 100%);
+      }
+
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
+
+      .app-shell {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--line);
+        background: linear-gradient(180deg, rgba(4, 8, 14, 0.95), rgba(9, 17, 31, 0.88));
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        backdrop-filter: blur(10px);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        min-width: 0;
+      }
+
+      .brand-mark {
+        width: 52px;
+        height: 52px;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 139, 43, 0.4);
+        background:
+          linear-gradient(135deg, rgba(255, 139, 43, 0.34), rgba(255, 139, 43, 0.06)),
+          linear-gradient(180deg, rgba(31, 53, 87, 0.9), rgba(11, 23, 42, 1));
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05), 0 10px 28px rgba(0, 0, 0, 0.32);
+        position: relative;
+      }
+
+      .brand-mark::before,
+      .brand-mark::after {
+        content: '';
+        position: absolute;
+        inset: 12px;
+        border: 2px solid rgba(255, 255, 255, 0.16);
+        transform: rotate(45deg);
+      }
+
+      .brand-mark::after {
+        inset: 18px;
+        border-color: rgba(255, 139, 43, 0.8);
+      }
+
+      .eyebrow {
+        margin: 0 0 4px;
+        font-size: 12px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--orange);
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: clamp(24px, 2.4vw, 34px);
+        letter-spacing: -0.03em;
+      }
+
+      .brand p:last-child {
+        margin: 5px 0 0;
+        color: var(--text-dim);
+        font-size: 14px;
+      }
+
+      .topbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .user-chip,
+      .inline-pill,
+      .legend-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(142, 163, 194, 0.18);
+        background: rgba(18, 31, 52, 0.72);
+        color: var(--text-dim);
+        font-size: 13px;
+      }
+
+      .user-chip strong,
+      .inline-pill strong {
+        color: var(--text);
+      }
+
+      .action-button,
+      .ghost-button,
+      .filter-button,
+      .mini-button,
+      .ghs-token {
+        border: 1px solid transparent;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+      }
+
+      .action-button,
+      .ghost-button {
+        min-height: 42px;
+        padding: 10px 14px;
+        font-weight: 700;
+      }
+
+      .action-button {
+        background: linear-gradient(135deg, var(--orange), var(--orange-strong));
+        color: #fff;
+        box-shadow: 0 14px 28px rgba(255, 116, 16, 0.26);
+      }
+
+      .action-button.secondary {
+        background: rgba(20, 35, 58, 0.92);
+        color: var(--text);
+        border-color: rgba(140, 161, 191, 0.2);
+        box-shadow: none;
+      }
+
+      .action-button.warn {
+        background: linear-gradient(135deg, #ff9639, #ff7a12);
+      }
+
+      .action-button.ghost,
+      .ghost-button {
+        background: rgba(11, 22, 39, 0.84);
+        color: var(--text-dim);
+        border-color: rgba(142, 163, 194, 0.18);
+        box-shadow: none;
+      }
+
+      .action-button:hover,
+      .ghost-button:hover,
+      .filter-button:hover,
+      .mini-button:hover,
+      .ghs-token:hover {
+        transform: translateY(-1px);
+      }
+
+      .upload-button {
+        position: relative;
+        overflow: hidden;
+      }
+
+      .upload-button input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+
+      .asset-warning {
+        margin: 18px 24px 0;
+        padding: 14px 16px;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 139, 43, 0.3);
+        background: rgba(60, 32, 10, 0.7);
+        color: #ffd7b5;
+      }
+
+      .asset-warning.hidden,
+      .modal.hidden,
+      .visually-hidden {
+        display: none !important;
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: 340px minmax(0, 1fr);
+        gap: 20px;
+        padding: 24px;
+        min-height: 0;
+        flex: 1;
+      }
+
+      .sidebar,
+      .main-panel {
+        min-height: 0;
+      }
+
+      .sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .sidebar-card,
+      .panel,
+      .metric-card,
+      .modal-card {
+        background: linear-gradient(180deg, var(--panel), var(--panel-strong));
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+      }
+
+      .sidebar-card,
+      .panel {
+        padding: 18px;
+      }
+
+      .sidebar-card h2,
+      .panel h2,
+      .modal-card h2 {
+        margin: 0 0 8px;
+        font-size: 17px;
+        letter-spacing: -0.02em;
+      }
+
+      .sidebar-card p,
+      .panel p,
+      .muted {
+        margin: 0;
+        color: var(--text-dim);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .filter-stack {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .filter-button {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        width: 100%;
+        padding: 12px 14px;
+        background: rgba(14, 27, 47, 0.82);
+        color: var(--text);
+        border-color: rgba(142, 163, 194, 0.12);
+      }
+
+      .filter-button.active {
+        border-color: rgba(255, 139, 43, 0.4);
+        background: rgba(255, 139, 43, 0.1);
+        box-shadow: inset 0 0 0 1px rgba(255, 139, 43, 0.12);
+      }
+
+      .filter-button small {
+        color: var(--text-dim);
+      }
+
+      .search-input,
+      .field,
+      .field textarea {
+        width: 100%;
+      }
+
+      .search-input,
+      .field input,
+      .field select,
+      .field textarea,
+      .checkout-input {
+        border-radius: 12px;
+        border: 1px solid rgba(140, 161, 191, 0.16);
+        background: rgba(9, 18, 32, 0.82);
+        color: var(--text);
+        padding: 12px 13px;
+      }
+
+      .search-input {
+        margin-top: 14px;
+      }
+
+      .legend-list {
+        display: grid;
+        gap: 10px;
+        margin: 14px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        color: var(--text-dim);
+        font-size: 13px;
+      }
+
+      .legend-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        margin-top: 4px;
+        flex: 0 0 auto;
+      }
+
+      .legend-dot.danger { background: var(--danger); }
+      .legend-dot.warn { background: var(--warn); }
+      .legend-dot.ok { background: var(--ok); }
+      .legend-dot.orange { background: var(--orange); }
+
+      .form-grid {
+        display: grid;
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      .field label {
+        display: block;
+        margin-bottom: 7px;
+        color: var(--text-dim);
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .field-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .ghs-picker {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .ghs-token {
+        min-height: 88px;
+        padding: 8px;
+        background: rgba(12, 23, 40, 0.88);
+        color: var(--text);
+        border-color: rgba(142, 163, 194, 0.14);
+        display: grid;
+        justify-items: center;
+        gap: 6px;
+      }
+
+      .ghs-token.active {
+        border-color: rgba(255, 139, 43, 0.52);
+        background: rgba(255, 139, 43, 0.12);
+        box-shadow: inset 0 0 0 1px rgba(255, 139, 43, 0.2);
+      }
+
+      .ghs-token span {
+        text-align: center;
+        font-size: 11px;
+        line-height: 1.25;
+      }
+
+      .ghs-svg {
+        width: 34px;
+        height: 34px;
+        display: inline-block;
+      }
+
+      .form-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .status-message {
+        min-height: 20px;
+        color: var(--text-dim);
+        font-size: 13px;
+      }
+
+      .status-message.warn {
+        color: var(--warn);
+      }
+
+      .status-message.error {
+        color: var(--danger);
+      }
+
+      .status-message.ok {
+        color: var(--ok);
+      }
+
+      .main-panel {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) 260px;
+        gap: 18px;
+      }
+
+      .kpi-strip {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .metric-card {
+        padding: 16px 18px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .metric-card::after {
+        content: '';
+        position: absolute;
+        inset: auto -28px -40px auto;
+        width: 110px;
+        height: 110px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 139, 43, 0.16), transparent 68%);
+      }
+
+      .metric-card h3 {
+        margin: 0;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--text-dim);
+      }
+
+      .metric-value {
+        display: block;
+        margin-top: 8px;
+        font-size: 34px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+      }
+
+      .metric-detail {
+        margin-top: 8px;
+        color: var(--text-dim);
+        font-size: 13px;
+      }
+
+      .panel-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .panel-header p {
+        margin-top: 6px;
+      }
+
+      .header-pills {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .table-panel,
+      .activity-panel {
+        min-height: 0;
+      }
+
+      .tabulator-host {
+        min-height: 440px;
+      }
+
+      .tabulator {
+        border: 1px solid rgba(132, 154, 184, 0.14);
+        border-radius: 14px;
+        overflow: hidden;
+        background: rgba(8, 16, 28, 0.82);
+      }
+
+      .tabulator .tabulator-header,
+      .tabulator .tabulator-footer {
+        background: rgba(18, 31, 52, 0.96);
+        border-bottom-color: rgba(132, 154, 184, 0.14);
+      }
+
+      .tabulator .tabulator-row {
+        background: rgba(8, 15, 26, 0.78);
+        border-bottom: 1px solid rgba(132, 154, 184, 0.08);
+      }
+
+      .tabulator .tabulator-row.tabulator-selectable:hover,
+      .tabulator .tabulator-row:hover {
+        background: rgba(18, 31, 52, 0.92);
+      }
+
+      .tabulator-row.row-expired {
+        background: rgba(90, 20, 25, 0.56) !important;
+      }
+
+      .tabulator-row.row-expiring {
+        background: rgba(98, 63, 10, 0.42) !important;
+      }
+
+      .tabulator-row.row-low-stock {
+        box-shadow: inset 3px 0 0 rgba(255, 139, 43, 0.84);
+      }
+
+      .status-stack,
+      .hazard-stack,
+      .table-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .legend-pill.expired,
+      .inline-pill.expired {
+        color: #ffd5d5;
+        border-color: rgba(255, 93, 93, 0.22);
+        background: rgba(117, 23, 23, 0.4);
+      }
+
+      .legend-pill.expiring,
+      .inline-pill.expiring {
+        color: #ffe0b7;
+        border-color: rgba(255, 179, 71, 0.2);
+        background: rgba(128, 80, 16, 0.32);
+      }
+
+      .legend-pill.low,
+      .inline-pill.low {
+        color: #ffd8b5;
+        border-color: rgba(255, 139, 43, 0.24);
+        background: rgba(130, 61, 8, 0.28);
+      }
+
+      .legend-pill.ok,
+      .inline-pill.ok {
+        color: #cef4df;
+        border-color: rgba(87, 210, 154, 0.22);
+        background: rgba(20, 70, 53, 0.34);
+      }
+
+      .mini-button {
+        min-height: 32px;
+        padding: 6px 10px;
+        background: rgba(18, 31, 52, 0.88);
+        border-color: rgba(142, 163, 194, 0.14);
+        color: var(--text);
+      }
+
+      .mini-button.warn {
+        background: rgba(255, 139, 43, 0.18);
+        border-color: rgba(255, 139, 43, 0.28);
+      }
+
+      .mini-button.danger {
+        background: rgba(255, 93, 93, 0.18);
+        border-color: rgba(255, 93, 93, 0.28);
+      }
+
+      .activity-feed {
+        display: grid;
+        gap: 12px;
+        max-height: 100%;
+        overflow: auto;
+      }
+
+      .activity-item {
+        display: grid;
+        gap: 4px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        border: 1px solid rgba(132, 154, 184, 0.12);
+        background: rgba(11, 20, 36, 0.76);
+      }
+
+      .activity-item strong {
+        color: var(--text);
+      }
+
+      .activity-delta.negative {
+        color: #ffcfad;
+      }
+
+      .activity-delta.positive {
+        color: #c6f0d8;
+      }
+
+      .empty-state {
+        padding: 20px;
+        border-radius: 14px;
+        border: 1px dashed rgba(142, 163, 194, 0.16);
+        color: var(--text-dim);
+        text-align: center;
+      }
+
+      .modal {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+      }
+
+      .modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(2, 5, 10, 0.7);
+        backdrop-filter: blur(6px);
+      }
+
+      .modal-card {
+        position: relative;
+        width: min(520px, calc(100vw - 32px));
+        margin: min(10vh, 80px) auto 0;
+        padding: 18px;
+        z-index: 1;
+      }
+
+      .modal-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .checkout-grid {
+        display: grid;
+        gap: 12px;
+      }
+
+      .checkout-grid textarea {
+        min-height: 92px;
+        resize: vertical;
+      }
+
+      .modal-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        margin-top: 14px;
+      }
+
+      @media (max-width: 1200px) {
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+
+        .main-panel {
+          grid-template-rows: auto minmax(520px, 1fr) 260px;
+        }
+      }
+
+      @media (max-width: 900px) {
+        .kpi-strip {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .field-grid,
+        .ghs-picker {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .topbar,
+        .workspace {
+          padding: 16px;
+        }
+
+        .topbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .topbar-actions,
+        .header-pills,
+        .form-actions,
+        .modal-actions {
+          width: 100%;
+          justify-content: stretch;
+        }
+
+        .topbar-actions > *,
+        .form-actions > *,
+        .modal-actions > * {
+          flex: 1 1 100%;
+        }
+
+        .kpi-strip {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true"></div>
+          <div>
+            <p class="eyebrow">Department: HAZMAT</p>
+            <h1>Hazardous Material Tracking Portal</h1>
+            <p>Offline warehouse control surface for stock, expiration, and GHS hazard visibility.</p>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <div class="user-chip">Operator <strong id="sessionUser">Loading...</strong></div>
+          <button id="btnRefresh" class="action-button secondary" type="button">Refresh</button>
+          <label class="action-button secondary upload-button">Import Excel
+            <input id="importFile" type="file" accept=".xlsx,.xlsm,.xls" />
+          </label>
+          <button id="btnExport" class="action-button" type="button">Export Report</button>
+          <button id="btnOpenCreate" class="action-button warn" type="button">New Material</button>
+          <button id="btnSignOut" class="action-button ghost" type="button">Sign out</button>
+        </div>
+      </header>
+
+      <div id="assetWarning" class="asset-warning hidden"></div>
+
+      <div class="workspace">
+        <aside class="sidebar">
+          <section class="sidebar-card">
+            <h2>Quick Filters</h2>
+            <p>Prioritize time-sensitive inventory and isolate dangerous stock without leaving the main board.</p>
+
+            <div id="filterButtons" class="filter-stack">
+              <button class="filter-button active" type="button" data-filter="all"><span>All Materials</span><small>Full register</small></button>
+              <button class="filter-button" type="button" data-filter="expired"><span>Expired</span><small>Immediate action</small></button>
+              <button class="filter-button" type="button" data-filter="expiring"><span>Expiring in 30 Days</span><small>Amber window</small></button>
+              <button class="filter-button" type="button" data-filter="low"><span>Low Stock</span><small>Below threshold</small></button>
+              <button class="filter-button" type="button" data-filter="high"><span>High Hazard</span><small>Priority controls</small></button>
+            </div>
+
+            <input id="searchBox" class="search-input" type="search" placeholder="Search material, batch, or hazard..." />
+          </section>
+
+          <section class="sidebar-card">
+            <h2>Status Rules</h2>
+            <p>The expiration engine compares the stored expiration date against the local system clock on every refresh.</p>
+            <ul class="legend-list">
+              <li class="legend-item"><span class="legend-dot danger"></span><span><strong>Expired</strong><br />Material cannot be issued.</span></li>
+              <li class="legend-item"><span class="legend-dot warn"></span><span><strong>Amber Window</strong><br />Expires in fewer than 30 days.</span></li>
+              <li class="legend-item"><span class="legend-dot orange"></span><span><strong>Low Stock</strong><br />Current stock is at or below the minimum threshold.</span></li>
+              <li class="legend-item"><span class="legend-dot ok"></span><span><strong>Nominal</strong><br />No active expiry or stock alert.</span></li>
+            </ul>
+          </section>
+
+          <section class="sidebar-card">
+            <h2>Material Editor</h2>
+            <p>Create or revise an inventory item. Batch IDs are unique and used for bulk import updates.</p>
+
+            <form id="materialForm" class="form-grid">
+              <input id="materialId" type="hidden" />
+
+              <div class="field">
+                <label for="materialName">Material Name</label>
+                <input id="materialName" type="text" required />
+              </div>
+
+              <div class="field">
+                <label for="batchId">Batch ID</label>
+                <input id="batchId" type="text" required />
+              </div>
+
+              <div class="field-grid">
+                <div class="field">
+                  <label for="receivedDate">Received Date</label>
+                  <input id="receivedDate" type="date" />
+                </div>
+
+                <div class="field">
+                  <label for="expirationDate">Expiration Date</label>
+                  <input id="expirationDate" type="date" />
+                </div>
+              </div>
+
+              <div class="field-grid">
+                <div class="field">
+                  <label for="currentStock">Current Stock</label>
+                  <input id="currentStock" type="number" min="0" step="0.01" required />
+                </div>
+
+                <div class="field">
+                  <label for="minThreshold">Minimum Threshold</label>
+                  <input id="minThreshold" type="number" min="0" step="0.01" required />
+                </div>
+              </div>
+
+              <div class="field">
+                <label>GHS Hazards</label>
+                <div id="ghsPicker" class="ghs-picker"></div>
+              </div>
+
+              <div class="form-actions">
+                <button class="action-button" type="submit">Save Material</button>
+                <button id="btnResetForm" class="ghost-button" type="button">Clear Form</button>
+              </div>
+
+              <div id="formMessage" class="status-message"></div>
+            </form>
+          </section>
+        </aside>
+
+        <main class="main-panel">
+          <section class="kpi-strip">
+            <article class="metric-card">
+              <h3>Total Materials</h3>
+              <span id="metricTotal" class="metric-value">0</span>
+              <div class="metric-detail">Tracked hazardous line items in the department register.</div>
+            </article>
+
+            <article class="metric-card">
+              <h3>Expired</h3>
+              <span id="metricExpired" class="metric-value">0</span>
+              <div class="metric-detail">Rows marked red by the local expiration engine.</div>
+            </article>
+
+            <article class="metric-card">
+              <h3>Expiring Soon</h3>
+              <span id="metricExpiring" class="metric-value">0</span>
+              <div class="metric-detail">Rows due to expire in fewer than 30 days.</div>
+            </article>
+
+            <article class="metric-card">
+              <h3>Low Stock</h3>
+              <span id="metricLow" class="metric-value">0</span>
+              <div class="metric-detail">Materials at or below their minimum threshold.</div>
+            </article>
+          </section>
+
+          <section class="panel table-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Inventory Board</h2>
+                <p>Tabulator-powered operational grid with expiration color coding, stock alerts, and inline hazard visuals.</p>
+              </div>
+
+              <div class="header-pills">
+                <span id="currentFilterLabel" class="inline-pill"><strong>All Materials</strong></span>
+                <span id="syncStamp" class="inline-pill">Last sync pending</span>
+              </div>
+            </div>
+
+            <div id="materialsTable" class="tabulator-host"></div>
+          </section>
+
+          <section class="panel activity-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Recent Usage Activity</h2>
+                <p>Quick checkout entries and inventory adjustments are logged here in descending time order.</p>
+              </div>
+            </div>
+
+            <div id="activityFeed" class="activity-feed"></div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <div id="checkoutModal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" data-close="modal"></div>
+
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="checkoutTitle">
+        <div class="modal-header">
+          <div>
+            <h2 id="checkoutTitle">Quick Checkout</h2>
+            <p class="muted">Log immediate material usage and reduce on-hand stock in one action.</p>
+          </div>
+
+          <button id="btnCloseCheckout" class="ghost-button" type="button">Close</button>
+        </div>
+
+        <form id="checkoutForm" class="checkout-grid">
+          <input id="checkoutMaterialId" type="hidden" />
+
+          <div class="field">
+            <label for="checkoutMaterialName">Material</label>
+            <input id="checkoutMaterialName" class="checkout-input" type="text" readonly />
+          </div>
+
+          <div class="field-grid">
+            <div class="field">
+              <label for="checkoutQuantity">Quantity Issued</label>
+              <input id="checkoutQuantity" class="checkout-input" type="number" min="0.01" step="0.01" required />
+            </div>
+
+            <div class="field">
+              <label for="checkoutReason">Reason</label>
+              <select id="checkoutReason" class="checkout-input">
+                <option value="Issued to operation">Issued to operation</option>
+                <option value="Routine replenishment">Routine replenishment</option>
+                <option value="Controlled disposal">Controlled disposal</option>
+                <option value="Damaged container adjustment">Damaged container adjustment</option>
+                <option value="Training allocation">Training allocation</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="checkoutNote">Additional Note</label>
+            <textarea id="checkoutNote" class="checkout-input" placeholder="Optional handling or issuance note..."></textarea>
+          </div>
+
+          <div id="checkoutMessage" class="status-message"></div>
+
+          <div class="modal-actions">
+            <button class="ghost-button" type="button" id="btnCancelCheckout">Cancel</button>
+            <button class="action-button" type="submit">Record Checkout</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="/public/js/luxon.min.js"></script>
+    <script src="/public/js/xlsx.full.min.js"></script>
+    <script src="/public/js/tabulator.min.js"></script>
+    <script>
+      (() => {
+        const TOKEN_KEY = 'mack_token';
+        const { DateTime } = window.luxon || {};
+
+        function buildDiamond(innerMarkup) {
+          return '<svg class="ghs-svg" viewBox="0 0 100 100" aria-hidden="true">'
+            + '<path d="M50 6 L94 50 L50 94 L6 50 Z" fill="#ffffff" stroke="#d32020" stroke-width="7" />'
+            + innerMarkup
+            + '</svg>';
+        }
+
+        const GHS_CATALOG = [
+          {
+            key: 'flammable',
+            label: 'Flammable',
+            severity: 'high',
+            svg: buildDiamond('<path d="M52 25 C44 35 58 40 50 53 C45 48 39 44 39 35 C27 43 27 56 32 65 C38 77 55 80 65 71 C76 61 74 43 63 33 C60 41 57 45 52 49 C54 40 48 34 52 25 Z" fill="#111111" />'),
+          },
+          {
+            key: 'oxidizing',
+            label: 'Oxidizing',
+            severity: 'high',
+            svg: buildDiamond('<path d="M50 32 C40 32 32 40 32 50 C32 60 40 68 50 68 C60 68 68 60 68 50 C68 40 60 32 50 32 Z" fill="none" stroke="#111111" stroke-width="6" /><path d="M50 16 C44 24 54 29 48 38 C45 34 40 31 40 24 C31 30 31 40 35 46 C39 53 50 56 58 51 C66 46 68 35 61 27 C58 33 55 35 51 38 C52 31 47 26 50 16 Z" fill="#111111" />'),
+          },
+          {
+            key: 'gas_under_pressure',
+            label: 'Gas Under Pressure',
+            severity: 'medium',
+            svg: buildDiamond('<path d="M25 56 C25 49 30 44 37 44 H61 C68 44 74 49 74 56 C74 63 68 68 61 68 H37 C30 68 25 63 25 56 Z" fill="#111111" /><path d="M61 40 H69 V44 H61 Z" fill="#111111" /><path d="M32 54 H66" stroke="#ffffff" stroke-width="4" stroke-linecap="round" />'),
+          },
+          {
+            key: 'corrosive',
+            label: 'Corrosive',
+            severity: 'high',
+            svg: buildDiamond('<path d="M30 28 H56 L61 38 H35 Z" fill="#111111" transform="rotate(-18 46 33)" /><path d="M52 22 H76 L81 32 H57 Z" fill="#111111" transform="rotate(18 66 27)" /><path d="M29 63 H73" stroke="#111111" stroke-width="6" stroke-linecap="round" /><path d="M27 71 H53" stroke="#111111" stroke-width="6" stroke-linecap="round" /><path d="M41 43 C39 48 38 50 36 54" stroke="#111111" stroke-width="5" stroke-linecap="round" /><path d="M60 38 C57 44 55 46 53 50" stroke="#111111" stroke-width="5" stroke-linecap="round" /><path d="M52 68 C52 60 59 58 62 63 C66 58 72 61 71 68" stroke="#111111" stroke-width="5" fill="none" stroke-linecap="round" />'),
+          },
+          {
+            key: 'explosive',
+            label: 'Explosive',
+            severity: 'high',
+            svg: buildDiamond('<path d="M45 20 L53 32 L64 25 L59 38 L74 40 L62 48 L75 58 L58 58 L63 74 L50 63 L41 78 L39 61 L26 68 L33 54 L20 50 L34 42 L25 28 L39 34 Z" fill="#111111" /><path d="M48 39 C42 43 38 50 39 58" stroke="#ffffff" stroke-width="4" fill="none" stroke-linecap="round" />'),
+          },
+          {
+            key: 'toxic',
+            label: 'Toxic',
+            severity: 'high',
+            svg: buildDiamond('<path d="M39 32 C39 25 44 20 50 20 C56 20 61 25 61 32 C61 38 56 43 50 43 C44 43 39 38 39 32 Z" fill="#111111" /><path d="M37 51 C42 46 58 46 63 51" stroke="#111111" stroke-width="6" stroke-linecap="round" /><path d="M31 62 L69 38" stroke="#111111" stroke-width="6" stroke-linecap="round" /><path d="M31 38 L69 62" stroke="#111111" stroke-width="6" stroke-linecap="round" />'),
+          },
+          {
+            key: 'irritant',
+            label: 'Irritant',
+            severity: 'medium',
+            svg: buildDiamond('<path d="M50 20 C55 20 58 24 58 31 C58 37 55 48 50 58 C45 48 42 37 42 31 C42 24 45 20 50 20 Z" fill="#111111" /><path d="M50 69 C54 69 57 72 57 76 C57 80 54 83 50 83 C46 83 43 80 43 76 C43 72 46 69 50 69 Z" fill="#111111" />'),
+          },
+          {
+            key: 'health_hazard',
+            label: 'Health Hazard',
+            severity: 'high',
+            svg: buildDiamond('<path d="M50 24 C56 24 61 29 61 35 C61 40 56 45 50 45 C44 45 39 40 39 35 C39 29 44 24 50 24 Z" fill="#111111" /><path d="M35 70 C35 56 42 49 50 49 C58 49 65 56 65 70" fill="#111111" /><path d="M50 49 L54 56 L62 57 L56 62 L58 70 L50 66 L42 70 L44 62 L38 57 L46 56 Z" fill="#ffffff" />'),
+          },
+          {
+            key: 'environmental_hazard',
+            label: 'Environmental Hazard',
+            severity: 'medium',
+            svg: buildDiamond('<path d="M34 67 C44 64 52 65 61 67" stroke="#111111" stroke-width="5" stroke-linecap="round" /><path d="M46 28 L46 61" stroke="#111111" stroke-width="6" stroke-linecap="round" /><path d="M46 37 L34 48" stroke="#111111" stroke-width="5" stroke-linecap="round" /><path d="M46 45 L58 37" stroke="#111111" stroke-width="5" stroke-linecap="round" /><path d="M58 64 C64 61 67 58 70 53 C64 52 60 53 55 57 C57 59 58 61 58 64 Z" fill="#111111" /><path d="M58 64 L69 69" stroke="#111111" stroke-width="5" stroke-linecap="round" />'),
+          },
+        ];
+
+        const GHS_LOOKUP = Object.fromEntries(GHS_CATALOG.map((item) => [item.key, item]));
+
+        const state = {
+          user: null,
+          materials: [],
+          usageLogs: [],
+          table: null,
+          activeFilter: 'all',
+        };
+
+        const refs = {
+          assetWarning: document.getElementById('assetWarning'),
+          sessionUser: document.getElementById('sessionUser'),
+          btnRefresh: document.getElementById('btnRefresh'),
+          btnExport: document.getElementById('btnExport'),
+          btnOpenCreate: document.getElementById('btnOpenCreate'),
+          btnSignOut: document.getElementById('btnSignOut'),
+          btnResetForm: document.getElementById('btnResetForm'),
+          importFile: document.getElementById('importFile'),
+          searchBox: document.getElementById('searchBox'),
+          filterButtons: document.getElementById('filterButtons'),
+          currentFilterLabel: document.getElementById('currentFilterLabel'),
+          syncStamp: document.getElementById('syncStamp'),
+          ghsPicker: document.getElementById('ghsPicker'),
+          materialForm: document.getElementById('materialForm'),
+          materialId: document.getElementById('materialId'),
+          materialName: document.getElementById('materialName'),
+          batchId: document.getElementById('batchId'),
+          receivedDate: document.getElementById('receivedDate'),
+          expirationDate: document.getElementById('expirationDate'),
+          currentStock: document.getElementById('currentStock'),
+          minThreshold: document.getElementById('minThreshold'),
+          formMessage: document.getElementById('formMessage'),
+          materialsTable: document.getElementById('materialsTable'),
+          activityFeed: document.getElementById('activityFeed'),
+          metricTotal: document.getElementById('metricTotal'),
+          metricExpired: document.getElementById('metricExpired'),
+          metricExpiring: document.getElementById('metricExpiring'),
+          metricLow: document.getElementById('metricLow'),
+          checkoutModal: document.getElementById('checkoutModal'),
+          checkoutForm: document.getElementById('checkoutForm'),
+          checkoutMaterialId: document.getElementById('checkoutMaterialId'),
+          checkoutMaterialName: document.getElementById('checkoutMaterialName'),
+          checkoutQuantity: document.getElementById('checkoutQuantity'),
+          checkoutReason: document.getElementById('checkoutReason'),
+          checkoutNote: document.getElementById('checkoutNote'),
+          checkoutMessage: document.getElementById('checkoutMessage'),
+          btnCloseCheckout: document.getElementById('btnCloseCheckout'),
+          btnCancelCheckout: document.getElementById('btnCancelCheckout'),
+        };
+
+        function escapeHtml(value) {
+          return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+        }
+
+        function setMessage(element, message, tone) {
+          if (!element) return;
+          element.textContent = message || '';
+          element.className = 'status-message';
+          if (tone) element.classList.add(tone);
+        }
+
+        function showAssetWarning(message) {
+          refs.assetWarning.textContent = message;
+          refs.assetWarning.classList.remove('hidden');
+        }
+
+        function hideAssetWarning() {
+          refs.assetWarning.classList.add('hidden');
+          refs.assetWarning.textContent = '';
+        }
+
+        function normalizeSymbols(value) {
+          if (Array.isArray(value)) {
+            return Array.from(new Set(value.map((item) => String(item || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_')).filter(Boolean)));
+          }
+
+          const raw = String(value || '').trim();
+          if (!raw) return [];
+          if (raw.startsWith('[')) {
+            try {
+              return normalizeSymbols(JSON.parse(raw));
+            } catch (error) {
+            }
+          }
+
+          return Array.from(new Set(raw.split(/[;,|]/).map((item) => String(item || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_')).filter(Boolean)));
+        }
+
+        function formatDate(value) {
+          if (!value || !DateTime) return value || 'Not set';
+          const parsed = DateTime.fromISO(String(value));
+          return parsed.isValid ? parsed.toFormat('dd LLL yyyy') : String(value);
+        }
+
+        function daysUntilExpiration(value) {
+          if (!value || !DateTime) return Number.POSITIVE_INFINITY;
+          const parsed = DateTime.fromISO(String(value)).endOf('day');
+          if (!parsed.isValid) return Number.POSITIVE_INFINITY;
+          return parsed.diff(DateTime.local(), 'days').days;
+        }
+
+        function getExpirationStatus(material) {
+          const daysRemaining = daysUntilExpiration(material.expiration_date);
+          if (daysRemaining === Number.POSITIVE_INFINITY) {
+            return { code: 'ok', label: 'No expiry' };
+          }
+          if (daysRemaining < 0) {
+            return { code: 'expired', label: 'Expired' };
+          }
+          if (daysRemaining < 30) {
+            return { code: 'expiring', label: 'Expiring < 30d' };
+          }
+          return { code: 'ok', label: 'In date' };
+        }
+
+        function isLowStock(material) {
+          return Number(material.current_stock || 0) <= Number(material.min_threshold || 0);
+        }
+
+        function isHighHazard(material) {
+          const symbols = normalizeSymbols(material.ghs_symbols);
+          return symbols.length >= 3 || symbols.some((symbol) => {
+            const entry = GHS_LOOKUP[symbol];
+            return entry && entry.severity === 'high';
+          });
+        }
+
+        function getStatusMarkup(material) {
+          const chips = [];
+          const expiration = getExpirationStatus(material);
+
+          if (expiration.code === 'expired') {
+            chips.push('<span class="legend-pill expired">Expired</span>');
+          } else if (expiration.code === 'expiring') {
+            chips.push('<span class="legend-pill expiring">Expiring</span>');
+          } else {
+            chips.push('<span class="legend-pill ok">In date</span>');
+          }
+
+          if (isLowStock(material)) {
+            chips.push('<span class="legend-pill low">Low stock</span>');
+          }
+
+          if (isHighHazard(material)) {
+            chips.push('<span class="legend-pill expiring">High hazard</span>');
+          }
+
+          return '<div class="status-stack">' + chips.join('') + '</div>';
+        }
+
+        function renderHazardIcons(symbols) {
+          const html = normalizeSymbols(symbols)
+            .map((symbol) => {
+              const entry = GHS_LOOKUP[symbol];
+              if (!entry) return '';
+              return '<span title="' + escapeHtml(entry.label) + '">' + entry.svg + '</span>';
+            })
+            .join('');
+          return html ? '<div class="hazard-stack">' + html + '</div>' : '<span class="muted">None</span>';
+        }
+
+        function updateMetrics() {
+          const expired = state.materials.filter((item) => getExpirationStatus(item).code === 'expired').length;
+          const expiring = state.materials.filter((item) => getExpirationStatus(item).code === 'expiring').length;
+          const low = state.materials.filter(isLowStock).length;
+
+          refs.metricTotal.textContent = String(state.materials.length);
+          refs.metricExpired.textContent = String(expired);
+          refs.metricExpiring.textContent = String(expiring);
+          refs.metricLow.textContent = String(low);
+        }
+
+        function updateFilterButtons() {
+          refs.filterButtons.querySelectorAll('[data-filter]').forEach((button) => {
+            button.classList.toggle('active', button.dataset.filter === state.activeFilter);
+          });
+
+          const labels = {
+            all: 'All Materials',
+            expired: 'Expired Materials',
+            expiring: 'Expiring in 30 Days',
+            low: 'Low Stock',
+            high: 'High Hazard',
+          };
+          refs.currentFilterLabel.innerHTML = '<strong>' + escapeHtml(labels[state.activeFilter] || labels.all) + '</strong>';
+        }
+
+        function materialMatchesFilters(material) {
+          const query = String(refs.searchBox.value || '').trim().toLowerCase();
+          const haystack = [
+            material.name,
+            material.batch_id,
+            normalizeSymbols(material.ghs_symbols).join(' '),
+          ].join(' ').toLowerCase();
+
+          if (query && !haystack.includes(query)) {
+            return false;
+          }
+
+          if (state.activeFilter === 'expired') {
+            return getExpirationStatus(material).code === 'expired';
+          }
+          if (state.activeFilter === 'expiring') {
+            return getExpirationStatus(material).code === 'expiring';
+          }
+          if (state.activeFilter === 'low') {
+            return isLowStock(material);
+          }
+          if (state.activeFilter === 'high') {
+            return isHighHazard(material);
+          }
+
+          return true;
+        }
+
+        function applyFilters() {
+          updateFilterButtons();
+          if (!state.table) return;
+          state.table.setFilter((rowData) => materialMatchesFilters(rowData));
+        }
+
+        function buildHazardPicker() {
+          refs.ghsPicker.innerHTML = GHS_CATALOG.map((entry) => {
+            return '<button class="ghs-token" type="button" data-ghs="' + entry.key + '">' + entry.svg + '<span>' + escapeHtml(entry.label) + '</span></button>';
+          }).join('');
+        }
+
+        function getSelectedHazards() {
+          return Array.from(refs.ghsPicker.querySelectorAll('[data-ghs].active')).map((button) => button.dataset.ghs);
+        }
+
+        function setSelectedHazards(values) {
+          const wanted = new Set(normalizeSymbols(values));
+          refs.ghsPicker.querySelectorAll('[data-ghs]').forEach((button) => {
+            button.classList.toggle('active', wanted.has(button.dataset.ghs));
+          });
+        }
+
+        function resetMaterialForm() {
+          refs.materialForm.reset();
+          refs.materialId.value = '';
+          setSelectedHazards([]);
+          setMessage(refs.formMessage, '', null);
+        }
+
+        function populateMaterialForm(material) {
+          refs.materialId.value = material.id;
+          refs.materialName.value = material.name || '';
+          refs.batchId.value = material.batch_id || '';
+          refs.receivedDate.value = material.received_date || '';
+          refs.expirationDate.value = material.expiration_date || '';
+          refs.currentStock.value = material.current_stock;
+          refs.minThreshold.value = material.min_threshold;
+          setSelectedHazards(material.ghs_symbols || []);
+          setMessage(refs.formMessage, 'Editing batch ' + material.batch_id + '.', 'warn');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function materialPayloadFromForm() {
+          return {
+            name: refs.materialName.value.trim(),
+            batch_id: refs.batchId.value.trim(),
+            received_date: refs.receivedDate.value || null,
+            expiration_date: refs.expirationDate.value || null,
+            current_stock: Number(refs.currentStock.value || 0),
+            min_threshold: Number(refs.minThreshold.value || 0),
+            ghs_symbols: getSelectedHazards(),
+          };
+        }
+
+        async function apiFetch(path, options) {
+          const token = localStorage.getItem(TOKEN_KEY);
+          const config = Object.assign({
+            credentials: 'same-origin',
+            headers: {},
+          }, options || {});
+
+          config.headers = Object.assign({}, config.headers || {});
+          if (token) {
+            config.headers.Authorization = 'Bearer ' + token;
+          }
+
+          const response = await fetch(path, config);
+          if (response.status === 401 || response.status === 403) {
+            localStorage.removeItem(TOKEN_KEY);
+            if (path !== '/api/hazmat/logout') {
+              window.location.href = '/admin.html#signin';
+            }
+          }
+          return response;
+        }
+
+        async function readJson(response) {
+          try {
+            return await response.json();
+          } catch (error) {
+            return null;
+          }
+        }
+
+        async function ensureSession() {
+          const response = await apiFetch('/api/hazmat/session');
+          if (!response.ok) {
+            throw new Error('failed to validate warehouse session');
+          }
+          const payload = await response.json();
+          state.user = payload.user || null;
+          refs.sessionUser.textContent = state.user ? (state.user.display_name || state.user.username || 'Warehouse_Admin') : 'Unavailable';
+        }
+
+        function markSyncStamp() {
+          if (!DateTime) {
+            refs.syncStamp.textContent = 'Synced';
+            return;
+          }
+          refs.syncStamp.textContent = 'Synced ' + DateTime.local().toFormat('dd LLL yyyy HH:mm');
+        }
+
+        function renderActivityFeed() {
+          if (!state.usageLogs.length) {
+            refs.activityFeed.innerHTML = '<div class="empty-state">No usage activity recorded yet.</div>';
+            return;
+          }
+
+          refs.activityFeed.innerHTML = state.usageLogs.map((entry) => {
+            const delta = Number(entry.quantity_delta || 0);
+            const deltaClass = delta < 0 ? 'negative' : 'positive';
+            const timestamp = formatDate(String(entry.timestamp || '').slice(0, 10));
+            const amount = (delta > 0 ? '+' : '') + delta.toFixed(2);
+            const materialName = entry.material ? entry.material.name : 'Unknown material';
+            return ''
+              + '<div class="activity-item">'
+              + '<div><strong>' + escapeHtml(materialName) + '</strong> <span class="activity-delta ' + deltaClass + '">' + escapeHtml(amount) + '</span></div>'
+              + '<div class="muted">' + escapeHtml(entry.reason || 'Inventory adjustment') + '</div>'
+              + '<div class="muted">' + escapeHtml(timestamp) + ' | User ID ' + escapeHtml(entry.user_id || 'system') + '</div>'
+              + '</div>';
+          }).join('');
+        }
+
+        function createTable() {
+          state.table = new Tabulator(refs.materialsTable, {
+            data: state.materials,
+            layout: 'fitColumns',
+            height: '100%',
+            responsiveLayout: 'collapse',
+            placeholder: 'No hazardous materials found.',
+            columns: [
+              {
+                title: 'Status',
+                field: 'status',
+                width: 170,
+                hozAlign: 'left',
+                headerSort: false,
+                formatter(cell) {
+                  return getStatusMarkup(cell.getRow().getData());
+                },
+              },
+              { title: 'Material', field: 'name', minWidth: 180, widthGrow: 2 },
+              { title: 'Batch ID', field: 'batch_id', minWidth: 120 },
+              {
+                title: 'GHS',
+                field: 'ghs_symbols',
+                minWidth: 160,
+                headerSort: false,
+                formatter(cell) {
+                  return renderHazardIcons(cell.getValue());
+                },
+              },
+              {
+                title: 'Received',
+                field: 'received_date',
+                minWidth: 120,
+                formatter(cell) {
+                  return escapeHtml(formatDate(cell.getValue()));
+                },
+              },
+              {
+                title: 'Expiration',
+                field: 'expiration_date',
+                minWidth: 150,
+                formatter(cell) {
+                  const material = cell.getRow().getData();
+                  const formatted = escapeHtml(formatDate(cell.getValue()));
+                  const status = getExpirationStatus(material);
+                  return '<div>' + formatted + '</div><div class="muted">' + escapeHtml(status.label) + '</div>';
+                },
+              },
+              {
+                title: 'Stock',
+                field: 'current_stock',
+                minWidth: 110,
+                hozAlign: 'right',
+                formatter(cell) {
+                  return Number(cell.getValue() || 0).toFixed(2);
+                },
+              },
+              {
+                title: 'Minimum',
+                field: 'min_threshold',
+                minWidth: 110,
+                hozAlign: 'right',
+                formatter(cell) {
+                  return Number(cell.getValue() || 0).toFixed(2);
+                },
+              },
+              {
+                title: 'Actions',
+                field: 'id',
+                minWidth: 210,
+                headerSort: false,
+                formatter(cell) {
+                  const id = cell.getValue();
+                  return ''
+                    + '<div class="table-actions">'
+                    + '<button class="mini-button warn" type="button" data-action="checkout" data-id="' + id + '">Checkout</button>'
+                    + '<button class="mini-button" type="button" data-action="edit" data-id="' + id + '">Edit</button>'
+                    + '<button class="mini-button danger" type="button" data-action="delete" data-id="' + id + '">Delete</button>'
+                    + '</div>';
+                },
+              },
+            ],
+            rowFormatter(row) {
+              const material = row.getData();
+              const element = row.getElement();
+              element.classList.remove('row-expired', 'row-expiring', 'row-low-stock');
+              const expiration = getExpirationStatus(material);
+              if (expiration.code === 'expired') {
+                element.classList.add('row-expired');
+              } else if (expiration.code === 'expiring') {
+                element.classList.add('row-expiring');
+              }
+              if (isLowStock(material)) {
+                element.classList.add('row-low-stock');
+              }
+            },
+          });
+
+          refs.materialsTable.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-action][data-id]');
+            if (!button) return;
+            const id = Number(button.dataset.id);
+            const material = state.materials.find((item) => Number(item.id) === id);
+            if (!material) return;
+
+            if (button.dataset.action === 'edit') {
+              populateMaterialForm(material);
+            }
+
+            if (button.dataset.action === 'checkout') {
+              openCheckoutModal(material);
+            }
+
+            if (button.dataset.action === 'delete') {
+              deleteMaterial(material);
+            }
+          });
+        }
+
+        async function loadMaterials() {
+          const response = await apiFetch('/api/hazmat/materials');
+          const payload = await readJson(response);
+          if (!response.ok) {
+            throw new Error((payload && payload.error) || 'failed to load materials');
+          }
+          state.materials = Array.isArray(payload) ? payload : [];
+          updateMetrics();
+
+          if (!state.table) {
+            createTable();
+          } else {
+            state.table.replaceData(state.materials);
+          }
+
+          applyFilters();
+        }
+
+        async function loadUsageLogs() {
+          const response = await apiFetch('/api/hazmat/usage-logs?limit=12');
+          const payload = await readJson(response);
+          if (!response.ok) {
+            throw new Error((payload && payload.error) || 'failed to load usage logs');
+          }
+          state.usageLogs = Array.isArray(payload) ? payload : [];
+          renderActivityFeed();
+        }
+
+        async function refreshPortal() {
+          await Promise.all([loadMaterials(), loadUsageLogs()]);
+          markSyncStamp();
+        }
+
+        function openCheckoutModal(material) {
+          refs.checkoutMaterialId.value = String(material.id);
+          refs.checkoutMaterialName.value = material.name + ' | Batch ' + material.batch_id;
+          refs.checkoutQuantity.value = '';
+          refs.checkoutReason.value = 'Issued to operation';
+          refs.checkoutNote.value = '';
+          refs.checkoutModal.classList.remove('hidden');
+          refs.checkoutModal.setAttribute('aria-hidden', 'false');
+          setMessage(refs.checkoutMessage, '', null);
+          refs.checkoutQuantity.focus();
+        }
+
+        function closeCheckoutModal() {
+          refs.checkoutModal.classList.add('hidden');
+          refs.checkoutModal.setAttribute('aria-hidden', 'true');
+          refs.checkoutForm.reset();
+          setMessage(refs.checkoutMessage, '', null);
+        }
+
+        async function saveMaterial(event) {
+          event.preventDefault();
+          const payload = materialPayloadFromForm();
+          const id = refs.materialId.value;
+
+          setMessage(refs.formMessage, 'Saving material record...', 'warn');
+
+          const response = await apiFetch(id ? '/api/hazmat/materials/' + encodeURIComponent(id) : '/api/hazmat/materials', {
+            method: id ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+
+          const data = await readJson(response);
+          if (!response.ok) {
+            setMessage(refs.formMessage, (data && data.error) || 'Failed to save material.', 'error');
+            return;
+          }
+
+          resetMaterialForm();
+          await refreshPortal();
+          setMessage(refs.formMessage, 'Material saved successfully.', 'ok');
+        }
+
+        async function deleteMaterial(material) {
+          const confirmed = window.confirm('Delete ' + material.name + ' batch ' + material.batch_id + '?');
+          if (!confirmed) return;
+
+          const response = await apiFetch('/api/hazmat/materials/' + encodeURIComponent(material.id), {
+            method: 'DELETE',
+          });
+          const data = await readJson(response);
+          if (!response.ok) {
+            window.alert((data && data.error) || 'Failed to delete material.');
+            return;
+          }
+
+          await refreshPortal();
+        }
+
+        function workbookRowsToMaterials(rows) {
+          return rows.map((row) => {
+            const payload = row || {};
+            const name = payload.name || payload.Name || payload.material || payload.Material;
+            const batchId = payload.batch_id || payload.batch || payload['Batch ID'] || payload.BatchID;
+            const hazards = payload.ghs_symbols || payload.GHS || payload.Hazards || payload['GHS Symbols'];
+            const receivedDate = payload.received_date || payload['Received Date'] || payload.received;
+            const expirationDate = payload.expiration_date || payload['Expiration Date'] || payload.expiration;
+            const currentStock = payload.current_stock || payload['Current Stock'] || payload.stock;
+            const minThreshold = payload.min_threshold || payload['Min Threshold'] || payload.minimum || payload.threshold;
+
+            return {
+              name,
+              batch_id: batchId,
+              ghs_symbols: normalizeSymbols(hazards),
+              received_date: receivedDate || null,
+              expiration_date: expirationDate || null,
+              current_stock: Number(currentStock || 0),
+              min_threshold: Number(minThreshold || 0),
+            };
+          }).filter((item) => item.name && item.batch_id);
+        }
+
+        async function importWorkbook(file) {
+          if (!window.XLSX) {
+            showAssetWarning('SheetJS is missing from /public/js/xlsx.full.min.js. Import is unavailable until the offline file is added.');
+            return;
+          }
+
+          const buffer = await file.arrayBuffer();
+          const workbook = window.XLSX.read(buffer, { type: 'array' });
+          const firstSheet = workbook.SheetNames[0];
+          const rows = window.XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { defval: '' });
+          const materials = workbookRowsToMaterials(rows);
+
+          if (!materials.length) {
+            window.alert('The workbook did not contain any recognizable material rows.');
+            return;
+          }
+
+          const response = await apiFetch('/api/hazmat/materials/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ materials }),
+          });
+
+          const data = await readJson(response);
+          if (!response.ok) {
+            window.alert((data && data.error) || 'Import failed.');
+            return;
+          }
+
+          await refreshPortal();
+          window.alert('Import complete. Created: ' + data.created + ' | Updated: ' + data.updated);
+        }
+
+        function exportWorkbook() {
+          if (!window.XLSX) {
+            showAssetWarning('SheetJS is missing from /public/js/xlsx.full.min.js. Export is unavailable until the offline file is added.');
+            return;
+          }
+
+          const rows = state.table ? state.table.getData('active') : state.materials.slice();
+          const sheetRows = rows.map((item) => ({
+            Material: item.name,
+            Batch_ID: item.batch_id,
+            GHS_Symbols: normalizeSymbols(item.ghs_symbols).join(', '),
+            Received_Date: item.received_date || '',
+            Expiration_Date: item.expiration_date || '',
+            Status: getExpirationStatus(item).label,
+            Current_Stock: Number(item.current_stock || 0),
+            Minimum_Threshold: Number(item.min_threshold || 0),
+            High_Hazard: isHighHazard(item) ? 'Yes' : 'No',
+          }));
+
+          const workbook = window.XLSX.utils.book_new();
+          const reportDate = DateTime ? DateTime.local().toFormat('dd LLL yyyy HH:mm') : new Date().toISOString();
+          const aoa = [
+            ['Mack Technologies', 'Hazardous Material Tracking Report'],
+            ['Department', 'HAZMAT'],
+            ['Generated', reportDate],
+            [],
+          ];
+          const headerSheet = window.XLSX.utils.aoa_to_sheet(aoa);
+          window.XLSX.utils.sheet_add_json(headerSheet, sheetRows, { origin: 'A6' });
+          headerSheet['!cols'] = [
+            { wch: 26 },
+            { wch: 18 },
+            { wch: 28 },
+            { wch: 16 },
+            { wch: 16 },
+            { wch: 18 },
+            { wch: 14 },
+            { wch: 18 },
+            { wch: 12 },
+          ];
+          window.XLSX.utils.book_append_sheet(workbook, headerSheet, 'HAZMAT Report');
+          window.XLSX.writeFile(workbook, 'hazmat-report.xlsx');
+        }
+
+        async function submitCheckout(event) {
+          event.preventDefault();
+          const quantity = Number(refs.checkoutQuantity.value || 0);
+          const materialId = Number(refs.checkoutMaterialId.value || 0);
+          const reasonParts = [refs.checkoutReason.value, refs.checkoutNote.value.trim()].filter(Boolean);
+
+          if (!materialId || !Number.isFinite(quantity) || quantity <= 0) {
+            setMessage(refs.checkoutMessage, 'A valid quantity is required.', 'error');
+            return;
+          }
+
+          setMessage(refs.checkoutMessage, 'Recording checkout...', 'warn');
+          const response = await apiFetch('/api/hazmat/usage-logs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              material_id: materialId,
+              quantity_delta: quantity * -1,
+              reason: reasonParts.join(' | '),
+            }),
+          });
+
+          const data = await readJson(response);
+          if (!response.ok) {
+            setMessage(refs.checkoutMessage, (data && data.error) || 'Failed to record checkout.', 'error');
+            return;
+          }
+
+          closeCheckoutModal();
+          await refreshPortal();
+        }
+
+        async function signOut() {
+          try {
+            await apiFetch('/api/hazmat/logout', { method: 'POST' });
+          } catch (error) {
+          }
+          localStorage.removeItem(TOKEN_KEY);
+          window.location.href = '/admin.html#signin';
+        }
+
+        function bindEvents() {
+          refs.filterButtons.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-filter]');
+            if (!button) return;
+            state.activeFilter = button.dataset.filter || 'all';
+            applyFilters();
+          });
+
+          refs.searchBox.addEventListener('input', applyFilters);
+
+          refs.ghsPicker.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-ghs]');
+            if (!button) return;
+            button.classList.toggle('active');
+          });
+
+          refs.materialForm.addEventListener('submit', (event) => {
+            saveMaterial(event).catch((error) => {
+              setMessage(refs.formMessage, error && error.message ? error.message : 'Failed to save material.', 'error');
+            });
+          });
+
+          refs.btnResetForm.addEventListener('click', resetMaterialForm);
+          refs.btnOpenCreate.addEventListener('click', () => {
+            resetMaterialForm();
+            refs.materialName.focus();
+          });
+          refs.btnRefresh.addEventListener('click', () => refreshPortal().catch((error) => showAssetWarning(error && error.message ? error.message : 'Refresh failed.')));
+          refs.btnExport.addEventListener('click', exportWorkbook);
+          refs.btnSignOut.addEventListener('click', signOut);
+
+          refs.importFile.addEventListener('change', (event) => {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            importWorkbook(file)
+              .catch((error) => window.alert(error && error.message ? error.message : 'Import failed.'))
+              .finally(() => {
+                refs.importFile.value = '';
+              });
+          });
+
+          refs.checkoutForm.addEventListener('submit', (event) => {
+            submitCheckout(event).catch((error) => {
+              setMessage(refs.checkoutMessage, error && error.message ? error.message : 'Checkout failed.', 'error');
+            });
+          });
+
+          refs.btnCloseCheckout.addEventListener('click', closeCheckoutModal);
+          refs.btnCancelCheckout.addEventListener('click', closeCheckoutModal);
+          refs.checkoutModal.addEventListener('click', (event) => {
+            if (event.target && event.target.dataset && event.target.dataset.close === 'modal') {
+              closeCheckoutModal();
+            }
+          });
+        }
+
+        async function boot() {
+          buildHazardPicker();
+          bindEvents();
+
+          if (!window.Tabulator || !window.XLSX || !DateTime) {
+            showAssetWarning('Offline vendor files are missing. Place tabulator.min.js, xlsx.full.min.js, luxon.min.js, and a Tabulator CSS file in /public/js and /public/css before using the portal.');
+          } else {
+            hideAssetWarning();
+          }
+
+          await ensureSession();
+          await refreshPortal();
+        }
+
+        boot().catch((error) => {
+          showAssetWarning(error && error.message ? error.message : 'Failed to start the portal.');
+        });
+      })();
+    </script>
+  </body>
+</html>

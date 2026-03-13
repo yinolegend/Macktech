@@ -2,10 +2,10 @@ services:
   - type: web
     name: macktech
     env: node
-    rootDir: backend
+    rootDir: .
     plan: free
-    buildCommand: npm install
-    startCommand: npm start
+    buildCommand: npm install --prefix backend
+    startCommand: node server.js
     disk:
       name: data
       mountPath: /app/data

@@ -1,0 +1,1272 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Command Center</title>
+    <link rel="stylesheet" href="/public/css/tabulator.min.css" />
+    <link rel="stylesheet" href="/public/css/Style.css" />
+  </head>
+  <body>
+    <div class="tactical-shell" data-view="hazmat" data-section="dashboard">
+      <aside class="tactical-sidebar" aria-label="Command Center Sidebar">
+        <div class="sidebar-brand">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" class="icon-svg brand-svg">
+              <path d="M12 2 20 6v6c0 5-3.8 9.5-8 11-4.2-1.5-8-6-8-11V6l8-4Z"></path>
+              <path d="m8.5 12 2.3 2.3L15.8 9.3"></path>
+            </svg>
+          </div>
+          <div>
+            <p class="eyebrow">Tactical Dark</p>
+            <h1>Command Center</h1>
+            <p class="sidebar-copy">Offline oversight for hazmat inventory, calibration compliance, and failure analysis diagnostics.</p>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav" aria-label="Workspace navigation">
+          <button class="sidebar-nav-button active" type="button" data-section="dashboard">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="icon-svg">
+                <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+                <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+                <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+                <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+              </svg>
+            </span>
+            <span>Dashboard</span>
+          </button>
+          <button id="quick-new-asset-button" class="sidebar-nav-button" type="button">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="icon-svg">
+                <path d="M12 5v14"></path>
+                <path d="M5 12h14"></path>
+                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+              </svg>
+            </span>
+            <span>New Asset (+)</span>
+          </button>
+          <button class="sidebar-nav-button" type="button" data-section="cfe">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="icon-svg">
+                <path d="M8 3h8"></path>
+                <path d="M9 3v4"></path>
+                <path d="M15 3v4"></path>
+                <rect x="5" y="5" width="14" height="16" rx="2"></rect>
+                <path d="M9 12h6"></path>
+                <path d="M9 16h4"></path>
+              </svg>
+            </span>
+            <span>New CFE (+)</span>
+          </button>
+          <button id="failure-analysis-button" class="sidebar-nav-button" type="button" data-section="assets">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="icon-svg">
+                <path d="M5 20h14"></path>
+                <path d="M7 16v-5"></path>
+                <path d="M12 16V8"></path>
+                <path d="M17 16v-9"></path>
+                <path d="M3 4h18"></path>
+              </svg>
+            </span>
+            <span>Failure Analysis</span>
+          </button>
+          <button class="sidebar-nav-button" type="button" data-section="reports">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="icon-svg">
+                <path d="M4 20h16"></path>
+                <path d="M7 16v-5"></path>
+                <path d="M12 16V8"></path>
+                <path d="M17 16v-9"></path>
+              </svg>
+            </span>
+            <span>Reports</span>
+          </button>
+          <button class="sidebar-nav-button" type="button" data-section="settings">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="icon-svg">
+                <path d="M12 3v3"></path>
+                <path d="M12 18v3"></path>
+                <path d="m4.9 4.9 2.1 2.1"></path>
+                <path d="m17 17 2.1 2.1"></path>
+                <path d="M3 12h3"></path>
+                <path d="M18 12h3"></path>
+                <path d="m4.9 19.1 2.1-2.1"></path>
+                <path d="m17 7 2.1-2.1"></path>
+                <circle cx="12" cy="12" r="4"></circle>
+              </svg>
+            </span>
+            <span>Settings</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="user-panel">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="icon-svg">
+                <path d="M12 2 20 6v6c0 5-3.8 9.5-8 11-4.2-1.5-8-6-8-11V6l8-4Z"></path>
+                <path d="m8.5 12 2.3 2.3L15.8 9.3"></path>
+              </svg>
+            </span>
+            <div>
+              <small>Authenticated Session</small>
+              <strong id="session-user">Authenticated</strong>
+            </div>
+          </div>
+          <div class="sidebar-actions">
+            <button id="refresh-button" class="sidebar-utility" type="button">
+              <svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true">
+                <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
+                <path d="M21 3v6h-6"></path>
+              </svg>
+              <span>Refresh</span>
+            </button>
+            <button id="logout-button" class="sidebar-utility" type="button">
+              <svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true">
+                <path d="M10 17 15 12 10 7"></path>
+                <path d="M15 12H3"></path>
+                <path d="M21 21V3"></path>
+              </svg>
+              <span>Sign Out</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <main class="viewport">
+        <header class="viewport-header">
+          <div>
+            <p id="section-label" class="eyebrow">Dashboard</p>
+            <h2 id="section-title">Main Overview</h2>
+            <p id="section-subtitle" class="section-subtitle">Monitor both databases and switch workspaces instantly without reloading the page.</p>
+          </div>
+          <div class="header-meta">
+            <label class="view-switcher" for="view-selector">
+              <span class="view-switcher-label">Active Database</span>
+              <div class="view-select-shell">
+                <select id="view-selector" class="view-select" aria-label="Switch active database">
+                  <option value="hazmat">Hazmat</option>
+                  <option value="calibration">Calibration</option>
+                  <option value="debug">Debug Lab</option>
+                </select>
+                <span class="view-select-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" class="icon-svg">
+                    <path d="m7 10 5 5 5-5"></path>
+                  </svg>
+                </span>
+              </div>
+            </label>
+            <span id="active-database-chip" class="database-chip">Hazmat Database</span>
+          </div>
+        </header>
+
+        <div id="asset-warning" class="notice-banner warning hidden"></div>
+        <div id="status-banner" class="notice-banner hidden"></div>
+
+        <section class="workspace-section active" data-section="dashboard" aria-hidden="false">
+          <details class="dashboard-summary-panel" open>
+            <summary>Summary Cards</summary>
+            <div class="stats-grid">
+              <article class="stat-card stat-critical summary-card-trigger" data-summary-filter="red" role="button" tabindex="0" aria-pressed="false">
+                <div class="stat-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" class="icon-svg">
+                    <path d="M12 9v4"></path>
+                    <path d="M12 17h.01"></path>
+                    <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path>
+                  </svg>
+                </div>
+                <div>
+                  <p id="expired-label">Total Expired Items</p>
+                  <strong id="expired-count">0</strong>
+                  <small id="expired-copy">RED rows mark expired hazmat stock or overdue calibration assets.</small>
+                </div>
+              </article>
+              <article class="stat-card stat-amber summary-card-trigger" data-summary-filter="amber" role="button" tabindex="0" aria-pressed="false">
+                <div class="stat-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" class="icon-svg">
+                    <path d="M12 6v6l4 2"></path>
+                    <circle cx="12" cy="12" r="9"></circle>
+                  </svg>
+                </div>
+                <div>
+                  <p id="warning-label">Warning Window</p>
+                  <strong id="warning-count">0</strong>
+                  <small id="warning-copy">AMBER rows show items inside the configured warning lead time.</small>
+                </div>
+              </article>
+              <article class="stat-card stat-blue summary-card-trigger" data-summary-filter="safe" role="button" tabindex="0" aria-pressed="false">
+                <div class="stat-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" class="icon-svg">
+                    <path d="M4 20h16"></path>
+                    <path d="M7 16v-5"></path>
+                    <path d="M12 16V8"></path>
+                    <path d="M17 16v-9"></path>
+                  </svg>
+                </div>
+                <div>
+                  <p id="secondary-label">Low Stock Exposure</p>
+                  <strong id="low-stock-count">0</strong>
+                  <small id="secondary-copy">Hazmat rows also flag AMBER when stock falls below threshold.</small>
+                </div>
+              </article>
+              <article class="stat-card stat-lock summary-card-trigger" data-summary-filter="locked" role="button" tabindex="0" aria-pressed="false">
+                <div class="stat-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" class="icon-svg">
+                    <rect x="5" y="11" width="14" height="10" rx="2"></rect>
+                    <path d="M8 11V8a4 4 0 0 1 8 0v3"></path>
+                  </svg>
+                </div>
+                <div>
+                  <p id="lock-label">Locked Check-Outs</p>
+                  <strong id="locked-count">0</strong>
+                  <small id="lock-copy">RED calibration assets cannot be checked out.</small>
+                </div>
+              </article>
+            </div>
+          </details>
+
+          <div class="overview-grid overview-grid-center">
+            <section class="panel-card tactical-panel asset-control-panel">
+              <div class="panel-header-row section-toolbar">
+                <div>
+                  <p class="eyebrow">Asset Controls</p>
+                  <h3>Smart Asset Queue</h3>
+                </div>
+              </div>
+              <label class="search-field dashboard-search-field" aria-label="Search asset queue">
+                <span class="button-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" class="icon-svg">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <path d="m20 20-3.5-3.5"></path>
+                  </svg>
+                </span>
+                <input id="dashboard-calibration-search" type="search" placeholder="Search by asset, serial, board, department, or status" />
+              </label>
+              <details class="queue-filter-shell">
+                <summary>Filters</summary>
+                <div class="queue-filter-body">
+                  <div class="asset-queue-toolbar" role="group" aria-label="Smart asset queue filters">
+                    <label class="compact-filter-field">
+                      Due in
+                      <select id="asset-due-preset-filter">
+                        <option value="all">Any day</option>
+                        <option value="1">1 day</option>
+                        <option value="3">3 days</option>
+                        <option value="5">5 days</option>
+                        <option value="1-5">1-5 days</option>
+                        <option value="custom">Custom</option>
+                      </select>
+                    </label>
+                    <label class="compact-filter-field">
+                      Day
+                      <input id="asset-due-min-filter" type="number" min="0" placeholder="1" inputmode="numeric" />
+                    </label>
+                    <label class="compact-filter-field">
+                      To
+                      <input id="asset-due-max-filter" type="number" min="0" placeholder="5" inputmode="numeric" />
+                    </label>
+                    <button id="clear-asset-filters-button" class="table-button" type="button">Clear</button>
+                  </div>
+
+                  <details class="advanced-filter-panel">
+                    <summary>Advanced Filters</summary>
+                    <div class="asset-filter-grid advanced-filter-grid">
+                      <label class="filter-field">
+                        Department
+                        <select id="asset-department-filter">
+                          <option value="all">All Departments</option>
+                        </select>
+                      </label>
+                      <label class="filter-field">
+                        Asset Type
+                        <select id="asset-type-filter">
+                          <option value="all">All Types</option>
+                        </select>
+                      </label>
+                      <label class="filter-field">
+                        Status
+                        <select id="asset-status-filter">
+                          <option value="all">All Statuses</option>
+                          <option value="red">Red</option>
+                          <option value="amber">Amber</option>
+                          <option value="safe">Safe</option>
+                          <option value="locked">Locked</option>
+                        </select>
+                      </label>
+                    </div>
+                  </details>
+                </div>
+              </details>
+
+              <div class="asset-filter-actions">
+                <small class="panel-copy">Queue auto-sorts by next calibration date so nearest due assets appear first.</small>
+              </div>
+              <div id="dashboard-asset-results" class="asset-results-list"></div>
+            </section>
+          </div>
+
+        </section>
+
+        <section class="workspace-section" data-section="assets" aria-hidden="true">
+          <div class="section-stack">
+            <div class="panel-card tactical-panel view-panel active" data-view-panel="hazmat" aria-hidden="false">
+              <div class="panel-header-row section-toolbar">
+                <div>
+                  <p class="eyebrow">Hazmat Database</p>
+                  <h3>New Asset + Inventory Grid</h3>
+                </div>
+                <div class="toolbar-actions">
+                  <label class="action-button secondary upload-button" aria-label="Import hazmat workbook">
+                    <span class="button-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" class="icon-svg">
+                        <path d="M12 16V4"></path>
+                        <path d="m7 9 5-5 5 5"></path>
+                        <path d="M5 20h14"></path>
+                      </svg>
+                    </span>
+                    <span>Import Excel</span>
+                    <input id="inventory-import-input" type="file" accept=".xlsx,.xls,.csv" />
+                  </label>
+                  <button id="add-material-button" class="action-button" type="button">
+                    <span class="button-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" class="icon-svg">
+                        <path d="M12 5v14"></path>
+                        <path d="M5 12h14"></path>
+                      </svg>
+                    </span>
+                    <span>Add Material</span>
+                  </button>
+                </div>
+              </div>
+              <label class="search-field" aria-label="Search hazmat inventory">
+                <span class="button-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" class="icon-svg">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <path d="m20 20-3.5-3.5"></path>
+                  </svg>
+                </span>
+                <input id="inventory-search" type="search" placeholder="Search by material, batch, or hazard symbol" />
+              </label>
+              <div id="inventory-table" class="table-frame"></div>
+            </div>
+
+            <div class="panel-card tactical-panel view-panel" data-view-panel="calibration" aria-hidden="true">
+              <div class="panel-header-row section-toolbar">
+                <div>
+                  <h3>New Asset + Midnight Grid</h3>
+                </div>
+                <div class="toolbar-actions">
+                  <label class="action-button secondary upload-button" aria-label="Import calibration workbook">
+                    <span class="button-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" class="icon-svg">
+                        <path d="M12 16V4"></path>
+                        <path d="m7 9 5-5 5 5"></path>
+                        <path d="M5 20h14"></path>
+                      </svg>
+                    </span>
+                    <span>Import Excel</span>
+                    <input id="calibration-import-input" type="file" accept=".xlsx,.xls,.csv" />
+                  </label>
+                  <button id="add-calibration-button" class="action-button" type="button">
+                    <span class="button-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" class="icon-svg">
+                        <path d="M12 5v14"></path>
+                        <path d="M5 12h14"></path>
+                      </svg>
+                    </span>
+                    <span>Add Asset</span>
+                  </button>
+                </div>
+              </div>
+              <div id="calibration-table" class="table-frame"></div>
+            </div>
+
+            <div class="panel-card tactical-panel view-panel debug-lab-panel" data-view-panel="debug" aria-hidden="true">
+              <div class="panel-header-row section-toolbar">
+                <div>
+                  <p class="eyebrow">Failure Analysis</p>
+                  <h3>Debug Lab Ticket Console</h3>
+                </div>
+                <div class="toolbar-actions">
+                  <button id="debug-ticket-reset-button" class="action-button secondary" type="button">New Ticket</button>
+                  <button id="debug-refresh-button" class="action-button" type="button">Sync Bench</button>
+                </div>
+              </div>
+              <div class="debug-grid">
+                <section class="debug-column">
+                  <div class="asset-queue-toolbar debug-queue-toolbar" role="group" aria-label="Debug Smart Asset Queue filters">
+                    <label class="compact-filter-field">
+                      Quick Search
+                      <input id="debug-queue-keyword-filter" type="search" placeholder="Serial, signature, mode, component" />
+                    </label>
+                    <label class="compact-filter-field">
+                      Board Type
+                      <select id="debug-board-type-filter">
+                        <option value="all">All Board Types</option>
+                      </select>
+                    </label>
+                    <label class="compact-filter-field">
+                      Failure Mode
+                      <select id="debug-failure-mode-filter">
+                        <option value="all">All Failure Modes</option>
+                      </select>
+                    </label>
+                    <button id="debug-clear-queue-filters-button" class="table-button" type="button">Clear</button>
+                  </div>
+                  <div id="debug-ticket-table" class="table-frame"></div>
+                </section>
+                <section class="debug-column">
+                  <form id="debug-ticket-form" class="debug-form">
+                    <input name="ticket_id" type="hidden" />
+                    <div class="field-grid">
+                      <label>
+                        Board Serial
+                        <input name="serial_number" type="text" required />
+                      </label>
+                      <label>
+                        Model Rev
+                        <input name="model_rev" type="text" />
+                      </label>
+                    </div>
+                    <label>
+                      Failure Signature
+                      <input id="debug-failure-signature-input" name="failure_signature" type="text" required />
+                    </label>
+                    <div id="debug-pattern-alert" class="config-note">Pattern alert will appear here after entering a failure signature.</div>
+                    <div class="field-grid">
+                      <label>
+                        Technician ID
+                        <input name="technician_id" type="text" />
+                      </label>
+                      <label>
+                        Department
+                        <select id="debug-ticket-department" name="department_id">
+                          <option value="">Unassigned</option>
+                        </select>
+                      </label>
+                    </div>
+                    <div class="field-grid">
+                      <label>
+                        Status
+                        <select name="status">
+                          <option value="OPEN">OPEN</option>
+                          <option value="BENCH">BENCH</option>
+                          <option value="FIXED">FIXED</option>
+                          <option value="SCRAP">SCRAP</option>
+                        </select>
+                      </label>
+                      <label>
+                        Total Bench Time (hrs)
+                        <input name="total_bench_time" type="number" min="0" step="0.25" value="0" />
+                      </label>
+                    </div>
+                    <label>
+                      Verification Pass Notes
+                      <textarea name="verification_pass" rows="2" placeholder="Validation results, rework checks, and release note"></textarea>
+                    </label>
+                    <div class="modal-actions">
+                      <button class="action-button" type="submit">Save Ticket</button>
+                      <button id="debug-ticket-delete-button" class="action-button secondary" type="button">Delete Ticket</button>
+                    </div>
+                  </form>
+
+                  <section class="debug-component-shell">
+                    <div class="panel-header-row">
+                      <div>
+                        <p class="eyebrow">Faulty Components</p>
+                        <h4>Selected Ticket Components</h4>
+                      </div>
+                    </div>
+                    <form id="debug-component-form" class="debug-form compact">
+                      <input name="component_id" type="hidden" />
+                      <div class="field-grid">
+                        <label>
+                          Ref Designator
+                          <input name="ref_designator" type="text" required />
+                        </label>
+                        <label>
+                          Component Type
+                          <input name="component_type" type="text" />
+                        </label>
+                      </div>
+                      <div class="field-grid">
+                        <label>
+                          Failure Mode
+                          <input name="failure_mode" type="text" />
+                        </label>
+                        <label>
+                          Lot Code
+                          <input name="lot_code" type="text" />
+                        </label>
+                      </div>
+                      <div class="modal-actions">
+                        <button class="action-button amber" type="submit">Save Component</button>
+                        <button id="debug-component-reset-button" class="action-button secondary" type="button">Reset</button>
+                      </div>
+                    </form>
+                    <div id="debug-component-list" class="debug-component-list"></div>
+                  </section>
+
+                  <section class="debug-bench-shell">
+                    <div class="panel-header-row">
+                      <div>
+                        <p class="eyebrow">Live Bench</p>
+                        <h4>Active Board Queue</h4>
+                      </div>
+                    </div>
+                    <div id="debug-live-bench-list" class="asset-results-list"></div>
+                  </section>
+                </section>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="workspace-section" data-section="cfe" aria-hidden="true">
+          <div class="section-stack">
+            <div class="panel-card tactical-panel">
+              <div class="panel-header-row">
+                <div>
+                  <p class="eyebrow">Calibration CFE</p>
+                  <h3>New CFE Intake</h3>
+                </div>
+              </div>
+              <p class="panel-copy">This workspace is now reserved for new CFE entries tied to Calibration operations.</p>
+              <div class="config-note">The section is live in the SPA navigation and ready for any CFE-specific fields or actions you want added next.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="workspace-section" data-section="templates" aria-hidden="true">
+          <div class="section-stack">
+            <div class="panel-card tactical-panel view-panel active" data-view-panel="hazmat" aria-hidden="false">
+              <div class="panel-header-row">
+                <div>
+                  <p class="eyebrow">Hazmat DNA</p>
+                  <h3>Classification Reference</h3>
+                </div>
+                <div class="resource-links">
+                  <a class="resource-link" href="/public/sds/" target="_blank" rel="noreferrer">SDS Repository</a>
+                  <a class="resource-link" href="/public/certs/" target="_blank" rel="noreferrer">Certificate Vault</a>
+                </div>
+              </div>
+              <div id="hazmat-dna-grid" class="dna-grid"></div>
+            </div>
+
+            <div class="panel-card tactical-panel view-panel" data-view-panel="calibration" aria-hidden="true">
+              <div class="panel-header-row section-toolbar">
+                <div>
+                  <p class="eyebrow">Calibration Templates</p>
+                  <h3>Template DNA</h3>
+                </div>
+                <div class="toolbar-actions">
+                  <button id="add-template-button" class="action-button secondary" type="button">
+                    <span class="button-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" class="icon-svg">
+                        <path d="M4 6h16"></path>
+                        <path d="M4 12h16"></path>
+                        <path d="M4 18h10"></path>
+                        <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                      </svg>
+                    </span>
+                    <span>Add Template</span>
+                  </button>
+                </div>
+              </div>
+              <label class="search-field" aria-label="Search calibration templates">
+                <span class="button-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" class="icon-svg">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <path d="m20 20-3.5-3.5"></path>
+                  </svg>
+                </span>
+                <input id="template-search" type="search" placeholder="Search templates by name, category, or department" />
+              </label>
+              <div id="template-table" class="table-frame"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="workspace-section" data-section="reports" aria-hidden="true">
+          <section class="panel-card tactical-panel report-interface-shell">
+            <div class="panel-header-row section-toolbar">
+              <div>
+                <p class="eyebrow">Performance Intelligence</p>
+                <h3>Asset Report Interface</h3>
+              </div>
+              <div class="report-module-switch" role="tablist" aria-label="Report module selector">
+                <button id="report-module-hazmat" class="table-button is-active" type="button" aria-pressed="true">Hazmat Report</button>
+                <button id="report-module-calibration" class="table-button" type="button" aria-pressed="false">Calibration Report</button>
+                <button id="report-module-debug" class="table-button" type="button" aria-pressed="false">Debug Lab Report</button>
+              </div>
+            </div>
+            <p id="report-interface-copy" class="panel-copy">Hazmat report is active. Use this to track total stock, expired items, and where to improve handling readiness.</p>
+
+            <section id="hazmat-report-panel" class="report-module-panel" data-report-module="hazmat" aria-hidden="false">
+              <h4>Hazmat Operational Snapshot</h4>
+              <div id="hazmat-report-metrics" class="report-kpi-grid"></div>
+              <div class="report-improve-block">
+                <strong>Where To Improve</strong>
+                <ul id="hazmat-report-improvements" class="report-improvement-list"></ul>
+              </div>
+            </section>
+
+            <section id="calibration-report-panel" class="report-module-panel hidden" data-report-module="calibration" aria-hidden="true">
+              <h4>Calibration Performance Snapshot</h4>
+              <div id="calibration-report-metrics" class="report-kpi-grid"></div>
+              <div class="report-improve-block">
+                <strong>Where To Improve</strong>
+                <ul id="calibration-report-improvements" class="report-improvement-list"></ul>
+              </div>
+            </section>
+
+            <section id="debug-report-panel" class="report-module-panel hidden" data-report-module="debug" aria-hidden="true">
+              <h4>Failure Analysis Snapshot</h4>
+              <div id="debug-report-metrics" class="report-kpi-grid"></div>
+              <div class="report-improve-block">
+                <strong>System Alerts</strong>
+                <ul id="debug-report-improvements" class="report-improvement-list"></ul>
+              </div>
+              <div class="debug-chart-grid">
+                <article class="debug-chart-card">
+                  <h5>Pareto Top Failures</h5>
+                  <canvas id="debug-pareto-chart" height="180"></canvas>
+                </article>
+                <article class="debug-chart-card">
+                  <h5>Weekly Yield Trend</h5>
+                  <canvas id="debug-yield-chart" height="180"></canvas>
+                </article>
+              </div>
+              <div class="toolbar-actions">
+                <button id="debug-generate-report-button" class="action-button blue" type="button">Generate FA Report PDF</button>
+              </div>
+            </section>
+          </section>
+
+          <div class="reports-grid">
+            <section class="panel-card tactical-panel">
+              <div class="panel-header-row">
+                <div>
+                  <p class="eyebrow">Export Hub</p>
+                  <h3>Audit Workbook</h3>
+                </div>
+              </div>
+              <p class="panel-copy">Export both offline databases plus transaction logs into one compact workbook for audits and shift hand-offs.</p>
+              <button id="export-audit-button" class="action-button" type="button">
+                <span class="button-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" class="icon-svg">
+                    <path d="M12 16V4"></path>
+                    <path d="m8 12 4 4 4-4"></path>
+                    <path d="M5 20h14"></path>
+                  </svg>
+                </span>
+                <span>Export Audit Report</span>
+              </button>
+              <div id="report-summary" class="report-summary"></div>
+            </section>
+
+            <section class="panel-card tactical-panel">
+              <div class="panel-header-row">
+                <div>
+                  <p class="eyebrow">Transaction Feed</p>
+                  <h3>Recent Logs</h3>
+                </div>
+              </div>
+              <div id="recent-log-list" class="log-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="workspace-section" data-section="settings" aria-hidden="true">
+          <div class="settings-grid">
+            <section class="panel-card tactical-panel">
+              <div class="department-admin">
+                <div class="panel-header-row">
+                  <div>
+                    <p class="eyebrow">Administrate Departments</p>
+                    <h3>Department Manager</h3>
+                  </div>
+                  <label class="department-view-select" for="department-view-mode">
+                    <span>Layout</span>
+                    <select id="department-view-mode" name="department_view_mode">
+                      <option value="expanded">Expanded</option>
+                      <option value="compact">Compact</option>
+                    </select>
+                  </label>
+                </div>
+                <form id="department-create-form" class="department-create-form">
+                  <input id="new-department-name" name="department_name" type="text" placeholder="Create a new department" maxlength="60" />
+                  <label id="department-supervisor-field" class="department-supervisor-field hidden" for="new-department-supervisor">
+                    <span>Supervisor</span>
+                    <input id="new-department-supervisor" name="department_supervisor" type="text" placeholder="Required for Calibration" maxlength="80" />
+                  </label>
+                  <button class="table-button" type="submit">Create</button>
+                </form>
+                <div id="department-admin-list" class="department-admin-list"></div>
+              </div>
+
+              <div class="settings-report-launch">
+                <div class="panel-header-row">
+                  <div>
+                    <p class="eyebrow">Reports In Settings</p>
+                    <h3>Open Analytics Interface</h3>
+                  </div>
+                </div>
+                <p class="panel-copy">Open the report for the active module. Hazmat and Calibration stay separated.</p>
+                <div class="toolbar-actions">
+                  <button id="settings-open-hazmat-report" class="action-button secondary" type="button">Open Hazmat Report</button>
+                  <button id="settings-open-calibration-report" class="action-button secondary" type="button">Open Calibration Report</button>
+                  <button id="settings-open-debug-report" class="action-button secondary" type="button">Open Debug Lab Report</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel-card tactical-panel settings-template-panel">
+              <div class="panel-header-row section-toolbar">
+                <div>
+                  <p class="eyebrow">Template Controls</p>
+                  <h3 id="settings-template-title">Templates</h3>
+                </div>
+                <div class="toolbar-actions">
+                  <button id="settings-add-template-button" class="action-button secondary" type="button">
+                    <span class="button-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" class="icon-svg">
+                        <path d="M4 6h16"></path>
+                        <path d="M4 12h16"></path>
+                        <path d="M4 18h10"></path>
+                        <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                      </svg>
+                    </span>
+                    <span>Add Template</span>
+                  </button>
+                </div>
+              </div>
+              <label class="search-field" aria-label="Search settings templates">
+                <span class="button-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" class="icon-svg">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <path d="m20 20-3.5-3.5"></path>
+                  </svg>
+                </span>
+                <input id="settings-template-search" type="search" placeholder="Search templates by name, category, or department" />
+              </label>
+              <div id="settings-template-table" class="table-frame"></div>
+            </section>
+
+            <section class="panel-card tactical-panel">
+              <div class="panel-header-row">
+                <div>
+                  <p class="eyebrow">Offline Asset Stack</p>
+                  <h3>Approved Local Dependencies</h3>
+                </div>
+              </div>
+              <ul class="asset-stack-list">
+                <li>/public/js/tabulator.min.js</li>
+                <li>/public/js/xlsx.full.min.js</li>
+                <li>/public/js/jspdf.min.js</li>
+                <li>/public/js/luxon.min.js</li>
+                <li>/public/js/chart.umd.js</li>
+              </ul>
+              <div class="config-note">
+                Inline SVG icons are embedded directly in this layout so no image files or icon runtimes are required.
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="material-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 id="material-modal-title">Add Material</h2>
+          <button class="icon-button" type="button" data-close-modal="material-modal" aria-label="Close material modal">
+            <svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true">
+              <path d="M18 6 6 18"></path>
+              <path d="m6 6 12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <form id="material-form" class="modal-form">
+          <label>
+            Material Name
+            <input name="name" type="text" required />
+          </label>
+          <label>
+            Batch ID
+            <input name="batch_id" type="text" required />
+          </label>
+          <label>
+            Expiration Date
+            <input name="expiration_date" type="date" />
+          </label>
+          <div class="field-grid">
+            <label>
+              Stock Level
+              <input name="stock_level" type="number" min="0" step="0.01" required />
+            </label>
+            <label>
+              Minimum Threshold
+              <input name="min_threshold" type="number" min="0" step="0.01" required />
+            </label>
+          </div>
+          <div>
+            <span class="field-label">Hazard DNA (GHS Symbols)</span>
+            <div id="ghs-selector" class="ghs-selector"></div>
+          </div>
+          <div class="modal-actions">
+            <button class="action-button secondary" type="button" data-close-modal="material-modal">Cancel</button>
+            <button class="action-button" type="submit">Save Material</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="usage-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-card small">
+        <div class="modal-header">
+          <h2 id="usage-modal-title">Record Usage</h2>
+          <button class="icon-button" type="button" data-close-modal="usage-modal" aria-label="Close usage modal">
+            <svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true">
+              <path d="M18 6 6 18"></path>
+              <path d="m6 6 12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <form id="usage-form" class="modal-form">
+          <label>
+            Quantity Used
+            <input name="quantity" type="number" min="0.01" step="0.01" required />
+          </label>
+          <label>
+            Reason
+            <input name="reason" type="text" placeholder="Issue, consume, or transfer" />
+          </label>
+          <div class="modal-actions">
+            <button class="action-button secondary" type="button" data-close-modal="usage-modal">Cancel</button>
+            <button class="action-button amber" type="submit">Commit Usage</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="calibration-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 id="calibration-modal-title">Add Calibration Asset</h2>
+          <button class="icon-button" type="button" data-close-modal="calibration-modal" aria-label="Close calibration modal">
+            <svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true">
+              <path d="M18 6 6 18"></path>
+              <path d="m6 6 12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <form id="calibration-form" class="modal-form">
+          <input name="attachment_path" type="hidden" />
+          <label>
+            Created Date
+            <input name="date_created_display" type="text" readonly />
+          </label>
+          <div class="field-grid">
+            <label>
+              Asset / Tool Name
+              <input name="tool_name" type="text" required />
+            </label>
+            <label>
+              Serial Number
+              <input name="serial_number" type="text" required />
+            </label>
+          </div>
+          <div class="field-grid">
+            <label>
+              Type
+              <input name="asset_type" type="text" placeholder="Pressure gauge, micrometer, multimeter" />
+            </label>
+            <label>
+              Model
+              <input name="model" type="text" placeholder="Model number" />
+            </label>
+          </div>
+          <label>
+            Manufacturer
+            <input name="manufacturer" type="text" placeholder="Manufacturer" />
+          </label>
+          <div class="field-grid">
+            <label>
+              Measurement Types
+              <input name="measurement_types" type="text" placeholder="Pressure, temperature, voltage" />
+            </label>
+            <label>
+              Units of Measure
+              <input name="unit_of_measure" type="text" placeholder="psi, mm, V, A" />
+            </label>
+          </div>
+          <div class="field-grid">
+            <label>
+              Range or Size
+              <input name="range_size" type="text" placeholder="0-300 psi, 0-25 mm" />
+            </label>
+            <label>
+              Accuracy
+              <input name="accuracy" type="text" placeholder="+/-0.5% FS" />
+            </label>
+          </div>
+          <div class="field-grid">
+            <label>
+              Date Acquired
+              <input name="date_acquired" type="date" />
+            </label>
+            <label>
+              Source / Vendor
+              <input name="source_vendor" type="text" placeholder="Vendor or source" />
+            </label>
+          </div>
+          <div class="field-grid">
+            <label>
+              Cost
+              <input name="cost" type="number" step="0.01" min="0" placeholder="0.00" />
+            </label>
+            <div class="field-label calibration-assignment-field">
+              <span>Assigned Department or Owner</span>
+              <select id="calibration-assignment-mode" name="assignment_mode">
+                <option value="department">Assigned Department</option>
+                <option value="owner">Owned By</option>
+              </select>
+              <select id="calibration-assigned-department" name="assigned_department"></select>
+              <input id="calibration-owner-input" name="owner_assignment" class="hidden" type="text" placeholder="Enter owner information" />
+            </div>
+          </div>
+          <label>
+            Last Calibration Date
+            <input name="last_cal" type="date" />
+          </label>
+          <label>
+            Environment
+            <textarea name="environment" rows="2" placeholder="Where this asset is used"></textarea>
+          </label>
+          <label>
+            Instructions
+            <textarea name="instructions" rows="3" placeholder="Usage or calibration instructions"></textarea>
+          </label>
+          <label>
+            Notes
+            <textarea name="notes" rows="3" placeholder="Additional notes"></textarea>
+          </label>
+          <label>
+            Attachment
+            <input name="attachment" type="file" accept=".pdf,.doc,.jpg,.jpeg,.png" />
+          </label>
+          <div id="calibration-attachment-path" class="config-note">No attachment uploaded.</div>
+          <label>
+            Calibration Test Template
+            <div class="template-picker">
+              <select name="template_id" required></select>
+              <button id="manage-template-button" class="table-button" type="button">New Template</button>
+            </div>
+          </label>
+          <div id="calibration-template-summary" class="config-note">Select a calibration template to inherit category, interval, alert lead, grace period, and unit settings.</div>
+          <div class="modal-actions">
+            <button class="action-button secondary" type="button" data-close-modal="calibration-modal">Cancel</button>
+            <button class="action-button" type="submit">Save Asset</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="template-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-card floating-edit-card template-modal-card">
+        <div class="modal-header">
+          <h2 id="template-modal-title">Add Calibration Template</h2>
+          <button class="icon-button" type="button" data-close-modal="template-modal" aria-label="Close template modal">
+            <svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true">
+              <path d="M18 6 6 18"></path>
+              <path d="m6 6 12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <form id="template-form" class="modal-form template-modal-form">
+          <div class="template-modal-body">
+            <section class="template-form-section">
+              <div class="template-section-heading">
+                <p class="eyebrow">Section 1</p>
+                <h3>Template Info</h3>
+              </div>
+              <div class="template-form-grid template-form-grid-two">
+                <label>
+                  Template Name
+                  <input name="template_name" type="text" required />
+                </label>
+                <label>
+                  Category
+                  <select name="category">
+                    <option value="Mechanical">Mechanical</option>
+                    <option value="Electrical">Electrical</option>
+                    <option value="Pressure">Pressure</option>
+                  </select>
+                </label>
+              </div>
+              <div class="template-form-grid template-form-grid-two">
+                <div class="field-label template-department-field">
+                  <div class="template-inline-header">
+                    <span>Assigned Department</span>
+                    <button id="template-add-department-toggle" class="table-button" type="button">+ Add Department</button>
+                  </div>
+                  <select id="template-assigned-department" name="assigned_department"></select>
+                  <div id="template-add-department-inline" class="template-inline-editor hidden">
+                    <div class="template-inline-grid">
+                      <label>
+                        Department Name
+                        <input id="template-new-department-name" type="text" maxlength="60" placeholder="Calibration Lab" />
+                      </label>
+                      <label id="template-new-department-supervisor-wrap" class="template-department-supervisor-wrap hidden">
+                        Supervisor
+                        <input id="template-new-department-supervisor" type="text" maxlength="80" placeholder="Required for Calibration" />
+                      </label>
+                    </div>
+                    <div class="template-inline-actions">
+                      <button id="template-cancel-department-button" class="table-button" type="button">Cancel</button>
+                      <button id="template-save-department-button" class="table-button blue" type="button">Save Department</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="template-form-section">
+              <div class="template-section-heading">
+                <p class="eyebrow">Section 2</p>
+                <h3>Calibration Scheduling</h3>
+              </div>
+              <div class="template-form-grid template-form-grid-three">
+                <div class="field-label">
+                  <span>Calibration Interval Mode</span>
+                  <select id="template-interval-mode" name="interval_mode">
+                    <option value="months">Months</option>
+                    <option value="days">Days</option>
+                  </select>
+                </div>
+                <label id="template-interval-months-wrap">
+                  Interval (months)
+                  <select id="template-interval-months" name="interval_months">
+                    <option value="1">1 month</option>
+                    <option value="2">2 months</option>
+                    <option value="3">3 months</option>
+                    <option value="4">4 months</option>
+                    <option value="5">5 months</option>
+                    <option value="6">6 months</option>
+                    <option value="7">7 months</option>
+                    <option value="8">8 months</option>
+                    <option value="9">9 months</option>
+                    <option value="10">10 months</option>
+                    <option value="11">11 months</option>
+                    <option value="12">12 months</option>
+                  </select>
+                </label>
+                <label id="template-interval-days-wrap" class="hidden">
+                  Interval (days)
+                  <input id="template-interval-days" name="interval_days" type="number" min="1" step="1" />
+                </label>
+              </div>
+              <div class="template-form-grid template-form-grid-three">
+                <label>
+                  Alert Lead (days)
+                  <input name="alert_lead_days" type="number" min="0" step="1" required />
+                </label>
+                <label>
+                  Grace Period (days)
+                  <input name="grace_period_days" type="number" min="0" step="1" required />
+                </label>
+                <label>
+                  Max Calibrations Per Day
+                  <input id="template-max-daily-calibrations" name="max_daily_calibrations" type="number" min="1" max="10" step="1" required />
+                </label>
+              </div>
+              <input id="template-cal-interval-days" name="cal_interval_days" type="hidden" value="365" />
+            </section>
+
+            <section class="template-form-section">
+              <div class="template-section-heading">
+                <p class="eyebrow">Section 3</p>
+                <h3>Allowed Calibration Days</h3>
+              </div>
+              <div id="template-allowed-days-field" class="field-label template-allowed-days-field">
+                <div id="template-allowed-days" class="allowed-days-grid" role="group" aria-label="Allowed calibration days">
+                  <label><input type="checkbox" value="1" checked /><span>Mon</span></label>
+                  <label><input type="checkbox" value="2" checked /><span>Tue</span></label>
+                  <label><input type="checkbox" value="3" checked /><span>Wed</span></label>
+                  <label><input type="checkbox" value="4" checked /><span>Thu</span></label>
+                  <label><input type="checkbox" value="5" checked /><span>Fri</span></label>
+                  <label><input type="checkbox" value="6" /><span>Sat</span></label>
+                  <label><input type="checkbox" value="7" /><span>Sun</span></label>
+                </div>
+                <small>Scheduling respects every selected day, including weekends when enabled.</small>
+              </div>
+            </section>
+
+            <section class="template-form-section">
+              <div class="template-section-heading">
+                <p class="eyebrow">Section 4</p>
+                <h3>Units of Measure</h3>
+              </div>
+              <div id="template-unit-field" class="field-label unit-picker-field">
+                <div class="unit-picker-label-row">
+                  <span>Unit Library</span>
+                  <button id="template-add-unit-toggle" class="table-button" type="button">+ Add Unit</button>
+                </div>
+                <div class="unit-picker-shell">
+                  <input id="template-unit-search" class="unit-picker-search" type="search" placeholder="Search units..." aria-label="Search units of measure" />
+                  <select id="template-unit-select" class="unit-picker-select" size="10" aria-label="Units of measure list"></select>
+                  <p id="template-unit-empty" class="panel-copy hidden">No units match your search.</p>
+                </div>
+                <p id="template-unit-selected" class="unit-picker-selected">Selected unit: none</p>
+                <div id="template-add-unit-inline" class="template-inline-editor unit-add-inline hidden">
+                  <div class="template-inline-grid unit-add-grid">
+                    <label>
+                      Name
+                      <input id="template-new-unit-name" type="text" maxlength="80" placeholder="Lux" />
+                    </label>
+                    <label>
+                      Symbol
+                      <input id="template-new-unit-symbol" type="text" maxlength="20" placeholder="lx" />
+                    </label>
+                  </div>
+                  <div class="template-inline-actions">
+                    <button id="template-cancel-unit-button" class="table-button" type="button">Cancel</button>
+                    <button id="template-save-unit-button" class="table-button blue" type="button">Save Unit</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <input id="template-unit-of-measure" name="unit_of_measure" type="hidden" value="Unitless" required />
+          <div class="modal-actions template-modal-actions">
+            <button class="action-button secondary" type="button" data-close-modal="template-modal">Cancel</button>
+            <button class="action-button" type="submit">Save Template</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="department-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-card small floating-edit-card">
+        <div class="modal-header">
+          <h2 id="department-modal-title">Edit Department</h2>
+          <button class="icon-button" type="button" data-close-modal="department-modal" aria-label="Close department modal">
+            <svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true">
+              <path d="M18 6 6 18"></path>
+              <path d="m6 6 12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <form id="department-modal-form" class="modal-form">
+          <label>
+            Department Name
+            <input name="department_name" type="text" maxlength="60" required />
+          </label>
+          <label>
+            Supervisor
+            <input id="department-modal-supervisor" name="department_supervisor" type="text" maxlength="80" placeholder="Required while in Calibration" />
+          </label>
+          <div id="department-modal-note" class="config-note">Department updates apply to both Hazmat and Calibration templates.</div>
+          <div class="modal-actions">
+            <button class="action-button secondary" type="button" data-close-modal="department-modal">Cancel</button>
+            <button class="action-button" type="submit">Save Department</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="checkout-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-card small">
+        <div class="modal-header">
+          <h2 id="checkout-modal-title">Check Out Asset</h2>
+          <button class="icon-button" type="button" data-close-modal="checkout-modal" aria-label="Close check-out modal">
+            <svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true">
+              <path d="M18 6 6 18"></path>
+              <path d="m6 6 12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <form id="checkout-form" class="modal-form">
+          <label>
+            Reason / Assignment
+            <input name="reason" type="text" placeholder="Production line, quality audit, or service call" />
+          </label>
+          <div class="modal-actions">
+            <button class="action-button secondary" type="button" data-close-modal="checkout-modal">Cancel</button>
+            <button class="action-button" type="submit">Authorize Check-Out</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="certificate-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-card small">
+        <div class="modal-header">
+          <h2 id="certificate-modal-title">Generate Certificate</h2>
+          <button class="icon-button" type="button" data-close-modal="certificate-modal" aria-label="Close certificate modal">
+            <svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true">
+              <path d="M18 6 6 18"></path>
+              <path d="m6 6 12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <form id="certificate-form" class="modal-form">
+          <label>
+            Technician Name
+            <input name="technician" type="text" required />
+          </label>
+          <div class="modal-actions">
+            <button class="action-button secondary" type="button" data-close-modal="certificate-modal">Cancel</button>
+            <button class="action-button blue" type="submit">Generate PDF</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div id="asset-detail-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div>
+            <p id="asset-detail-eyebrow" class="eyebrow">Asset Details</p>
+            <h2 id="asset-detail-title">Asset</h2>
+          </div>
+          <div id="asset-detail-actions" class="toolbar-actions asset-detail-actions">
+            <button id="asset-detail-primary-action" class="table-button" type="button">Verification</button>
+            <button id="asset-detail-edit-action" class="table-button" type="button">Edit</button>
+            <button id="asset-detail-delete-action" class="table-button" type="button">Delete</button>
+          </div>
+          <button class="icon-button" type="button" data-close-modal="asset-detail-modal" aria-label="Close asset details modal">
+            <svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true">
+              <path d="M18 6 6 18"></path>
+              <path d="m6 6 12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="detail-summary">
+          <span id="asset-detail-kind" class="status-chip status-blue">Hazmat</span>
+          <div id="asset-detail-status"><span class="status-chip status-safe">READY</span></div>
+        </div>
+        <div id="asset-detail-grid" class="detail-grid"></div>
+        <section class="asset-audit-panel">
+          <div class="panel-header-row">
+            <div>
+              <p class="eyebrow">Asset Audit</p>
+              <h3>Change History</h3>
+            </div>
+          </div>
+          <div id="asset-detail-log-list" class="log-list"></div>
+        </section>
+      </div>
+    </div>
+
+    <script src="/public/js/luxon.min.js"></script>
+    <script src="/public/js/tabulator.min.js"></script>
+    <script src="/public/js/xlsx.full.min.js"></script>
+    <script src="/public/js/jspdf.min.js"></script>
+    <script src="/public/js/chart.umd.js"></script>
+    <script src="/public/js/Auth_Redirect.js"></script>
+    <script src="/public/js/Assets_Logic.js"></script>
+  </body>
+</html>

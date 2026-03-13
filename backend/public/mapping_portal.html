@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Facility Map Editor - Mack Technologies</title>
-    <link rel="stylesheet" href="css/unified-theme.css" />
+    <link rel="stylesheet" href="../../frontend/styles/unified-theme.css" />
     <style>
       :root {
         --ink: #183153;
@@ -137,18 +137,34 @@
       }
 
       .signin {
-        padding: 10px 24px 24px;
+        padding: 24px;
         flex: 1;
         overflow: auto;
+        display: grid;
+        place-items: center;
+        align-content: center;
       }
 
       .signin-card {
         width: min(560px, 100%);
+        max-width: 560px;
         border: 1px solid var(--line);
         border-radius: 16px;
-        padding: 20px;
+        padding: 24px;
         background: #ffffff;
         box-shadow: 0 14px 30px rgba(16, 46, 82, 0.08);
+      }
+
+      .signin-actions {
+        margin-top: 12px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .signin-actions .btn {
+        width: 100%;
+        min-height: 46px;
       }
 
       .signin-card h2 {
@@ -930,6 +946,15 @@
           justify-content: flex-start;
         }
 
+        .signin {
+          padding: 20px 16px;
+          place-items: start center;
+        }
+
+        .signin-actions {
+          grid-template-columns: 1fr;
+        }
+
         .grid2 { grid-template-columns: 1fr; }
         .token-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         .library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1047,24 +1072,24 @@
         <div class="actions">
           <span class="pill" id="sessionBadge">Not signed in</span>
           <a class="btn ghost" href="index.html">Home</a>
-          <button id="btnSignOut" class="btn ghost" type="button">Sign out</button>
+          <button id="btnSignOut" class="btn ghost hidden" type="button">Sign out</button>
         </div>
       </header>
 
       <section id="signin" class="signin">
-        <div class="signin-card panel">
+        <form id="signinForm" class="signin-card panel">
           <h2>Mapping Login</h2>
           <p>Only the Admin user can access this editor.</p>
           <label for="mapUser">Username</label>
           <input id="mapUser" placeholder="admin" autocomplete="username" />
           <label for="mapPass">Password</label>
           <input id="mapPass" type="password" placeholder="password" autocomplete="current-password" />
-          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-            <button id="btnSignIn" class="btn primary" type="button">Sign in to Mapping</button>
+          <div class="signin-actions">
+            <button id="btnSignIn" class="btn primary" type="submit" onclick="if (window.__mapEditorBooted) return true; if (window.__mapLoginFallback) { window.__mapLoginFallback(); return false; } return true;">Sign in to Mapping</button>
             <button id="btnUseSession" class="btn ghost" type="button">Use current session</button>
           </div>
           <div id="signinMsg" class="msg"></div>
-        </div>
+        </form>
       </section>
 
       <section id="editor" class="editor hidden">
@@ -1326,9 +1351,127 @@
       </section>
     </div>
 
-    <script src="vendor/fabric.min.js"></script>
     <script>
+      (() => {
+        const TOKEN_KEY = 'mack_token';
+
+        function normalizeLocalApiHost(value) {
+          const normalized = String(value || '').trim().toLowerCase();
+          if (!normalized || normalized === '127.0.0.1' || normalized === '0.0.0.0' || normalized === '::1' || normalized === '[::1]') {
+            return 'localhost';
+          }
+          return normalized;
+        }
+
+        function getApiBase() {
+          if (location.protocol === 'http:' || location.protocol === 'https:') {
+            const rawHostname = String(location.hostname || '').trim().toLowerCase();
+            const hostname = normalizeLocalApiHost(rawHostname);
+            if (location.port === '3000' && hostname === rawHostname) return location.origin;
+            const protocol = location.protocol === 'https:' ? 'https:' : 'http:';
+            return `${protocol}//${hostname}:3000`;
+          }
+          return 'http://localhost:3000';
+        }
+
+        function setFallbackMsg(text, tone) {
+          const el = document.getElementById('signinMsg');
+          if (!el) return;
+          el.textContent = text || '';
+          el.className = 'msg';
+          if (tone) el.classList.add(tone);
+        }
+
+        window.__mapLoginFallback = async function __mapLoginFallback() {
+          if (window.__mapEditorBooted) return true;
+
+          const username = String((document.getElementById('mapUser') || {}).value || '').trim();
+          const password = String((document.getElementById('mapPass') || {}).value || '');
+
+          if (!username || !password) {
+            setFallbackMsg('Username and password are required.', 'warn');
+            return false;
+          }
+
+          setFallbackMsg('Signing in...', 'warn');
+
+          let res = null;
+          try {
+            res = await fetch(getApiBase() + '/api/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username, password }),
+            });
+          } catch (error) {
+            setFallbackMsg('Cannot reach the local login service at ' + getApiBase() + '.', 'error');
+            return false;
+          }
+
+          if (!res.ok) {
+            setFallbackMsg('Invalid credentials.', 'error');
+            return false;
+          }
+
+          const data = await res.json();
+          const user = data && data.user;
+          const token = data && data.token;
+          const signedInUserName = String((user && user.username) || '').toLowerCase();
+          if (!token || !user || signedInUserName !== 'admin') {
+            setFallbackMsg('Map editor is restricted to the admin user.', 'error');
+            return false;
+          }
+
+          localStorage.setItem(TOKEN_KEY, token);
+          setFallbackMsg('Signed in. Reloading editor...', 'warn');
+          window.location.reload();
+          return false;
+        };
+
+        const fallbackSigninForm = document.getElementById('signinForm');
+        if (fallbackSigninForm) {
+          fallbackSigninForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            if (!window.__mapEditorBooted && window.__mapLoginFallback) {
+              window.__mapLoginFallback();
+            }
+          });
+        }
+      })();
+    </script>
+
+    <script src="../../frontend/assets/vendor/fabric.min.js"></script>
+    <script>
+      window.__mapEditorBooted = false;
       const TOKEN_KEY = 'mack_token';
+
+      function normalizeLocalApiHost(value) {
+        const normalized = String(value || '').trim().toLowerCase();
+        if (!normalized || normalized === '127.0.0.1' || normalized === '0.0.0.0' || normalized === '::1' || normalized === '[::1]') {
+          return 'localhost';
+        }
+        return normalized;
+      }
+
+      function getApiBase() {
+        if (location.protocol === 'http:' || location.protocol === 'https:') {
+          const rawHostname = String(location.hostname || '').trim().toLowerCase();
+          const hostname = normalizeLocalApiHost(rawHostname);
+          if (location.port === '3000' && hostname === rawHostname) return location.origin;
+          const protocol = location.protocol === 'https:' ? 'https:' : 'http:';
+          return `${protocol}//${hostname}:3000`;
+        }
+        return 'http://localhost:3000';
+      }
+
+      function apiUrl(path) {
+        if (!path) return getApiBase();
+        if (/^https?:\/\//i.test(path)) return path;
+        return getApiBase().replace(/\/$/, '') + path;
+      }
+
+      function apiFetch(path, options) {
+        return fetch(apiUrl(path), options);
+      }
 
       const AREA_KINDS = [
         { id: 'department', label: 'Department' },
@@ -1607,8 +1750,10 @@
 
       const refs = {
         signin: document.getElementById('signin'),
+        signinForm: document.getElementById('signinForm'),
         editor: document.getElementById('editor'),
         sessionBadge: document.getElementById('sessionBadge'),
+        btnSignOut: document.getElementById('btnSignOut'),
         signinMsg: document.getElementById('signinMsg'),
         saveMsg: document.getElementById('saveMsg'),
         bgMsg: document.getElementById('bgMsg'),
@@ -2209,6 +2354,7 @@
         state.user = user || null;
         if (state.user) {
           refs.sessionBadge.textContent = 'Signed in: ' + (state.user.display_name || state.user.username || 'admin');
+          refs.btnSignOut.classList.remove('hidden');
           refs.signin.classList.add('hidden');
           refs.editor.classList.remove('hidden');
         } else {
@@ -2216,6 +2362,7 @@
           state.currentMapId = '';
           state.activeMapId = '';
           refs.sessionBadge.textContent = 'Not signed in';
+          refs.btnSignOut.classList.add('hidden');
           refs.signin.classList.remove('hidden');
           refs.editor.classList.add('hidden');
           renderMapCatalog();
@@ -2372,6 +2519,12 @@
         const normalized = raw.startsWith('/') ? raw : ('/' + raw.replace(/^\/+/, ''));
         if (!normalized.startsWith('/icons/') || !/\.svg$/i.test(normalized)) return fallback || '';
         return normalized;
+      }
+
+      function resolveSvgAssetUrl(value) {
+        const normalized = normalizeSvgAssetPath(value, '');
+        if (!normalized) return '';
+        return apiUrl(normalized);
       }
 
       function normalizeRotation(value, fallback) {
@@ -2541,10 +2694,10 @@
           return;
         }
 
-        const activeTool = activeLineToolKey();
+        const fallbackTool = activeLineToolKey();
         const targetTool = (selectedArea && isLineArea(selectedArea))
           ? inferLineToolFromArea(selectedArea)
-          : (activeTool || 'wall');
+          : (fallbackTool || 'wall');
         const thickness = clampLineThickness(value, getConfiguredLineWidth(targetTool));
 
         state.lineToolWidths[targetTool] = thickness;
@@ -2572,7 +2725,7 @@
         }
 
         syncLineThicknessUi();
-        if (state.drawing && activeTool) syncDrawingPreviewObject();
+        if (state.drawing && fallbackTool) syncDrawingPreviewObject();
       }
 
       function getDraftAreaBounds(draw) {
@@ -2885,7 +3038,7 @@
             'data-icon-url="' + escapeHtml(icon.url) + '" ' +
             'data-icon-label="' + escapeHtml(icon.label) + '" ' +
             'data-icon-category="' + escapeHtml(icon.category) + '">' +
-            '<img src="' + escapeHtml(icon.url) + '" alt="" loading="lazy" aria-hidden="true" />' +
+            '<img src="' + escapeHtml(resolveSvgAssetUrl(icon.url)) + '" alt="" loading="lazy" aria-hidden="true" />' +
             '<span>' + escapeHtml(icon.label) + '</span>' +
             '</button>'
           )).join('') +
@@ -2901,7 +3054,7 @@
         state.iconLibraryLoaded = false;
         renderIconLibrary();
 
-        const res = await fetch('/api/map/icons', { cache: 'no-store' });
+        const res = await apiFetch('/api/map/icons', { cache: 'no-store' });
         if (!res.ok) throw new Error('Failed to load icon library');
 
         const data = await res.json();
@@ -4310,7 +4463,8 @@
       function loadSvgTemplate(svgPath) {
         const fabricApi = getFabricApi();
         const normalized = normalizeSvgAssetPath(svgPath, '');
-        if (!fabricApi || !normalized) return Promise.resolve(null);
+        const svgUrl = resolveSvgAssetUrl(normalized);
+        if (!fabricApi || !normalized || !svgUrl) return Promise.resolve(null);
 
         const cached = state.svgTemplateCache[normalized];
         if (cached && cached.promise) return cached.promise;
@@ -4350,7 +4504,7 @@
         const majorVersion = Number.parseInt(String(fabricApi.version || '0').split('.')[0], 10);
         const promise = majorVersion >= 6
           ? Promise.resolve()
-            .then(() => fabricApi.loadSVGFromURL(normalized))
+            .then(() => fabricApi.loadSVGFromURL(svgUrl))
             .then((result) => buildTemplate(result && result.objects, result && result.options))
             .catch((err) => {
               console.error('svg template load failed', err);
@@ -4358,7 +4512,7 @@
             })
           : new Promise((resolve) => {
             try {
-              fabricApi.loadSVGFromURL(normalized, (objects, options) => {
+              fabricApi.loadSVGFromURL(svgUrl, (objects, options) => {
                 resolve(buildTemplate(objects, options));
               });
             } catch (err) {
@@ -5169,7 +5323,7 @@
 
       async function loadMapCatalog(options) {
         const opts = options || {};
-        const res = await fetch('/api/maps', { cache: 'no-store' });
+        const res = await apiFetch('/api/maps', { cache: 'no-store' });
         if (!res.ok) throw new Error(await readErrorMessage(res, 'Failed to load maps'));
         const data = await res.json();
         const nextId = setMapCatalog(data, opts.preferredMapId);
@@ -5189,7 +5343,7 @@
         if (!name) return;
 
         setMsg(refs.saveMsg, cloneCurrent ? 'Creating duplicated map...' : 'Creating map...', 'warn');
-        const res = await fetch('/api/maps', {
+        const res = await apiFetch('/api/maps', {
           method: 'POST',
           headers: authHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
@@ -5215,7 +5369,7 @@
         const nextName = normalizeText(window.prompt('Rename current map:', current.name), '');
         if (!nextName || nextName === current.name) return;
 
-        const res = await fetch('/api/maps/' + encodeURIComponent(current.id), {
+        const res = await apiFetch('/api/maps/' + encodeURIComponent(current.id), {
           method: 'PATCH',
           headers: authHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ name: nextName }),
@@ -5238,7 +5392,7 @@
         const ok = window.confirm('Delete the map "' + current.name + '"? This cannot be undone.');
         if (!ok) return;
 
-        const res = await fetch('/api/maps/' + encodeURIComponent(current.id), {
+        const res = await apiFetch('/api/maps/' + encodeURIComponent(current.id), {
           method: 'DELETE',
           headers: authHeaders(),
         });
@@ -5257,7 +5411,7 @@
           return;
         }
 
-        const res = await fetch('/api/maps/' + encodeURIComponent(current.id), {
+        const res = await apiFetch('/api/maps/' + encodeURIComponent(current.id), {
           method: 'PATCH',
           headers: authHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ setActive: true }),
@@ -5279,7 +5433,7 @@
 
         const safeFormat = String(format || '').toLowerCase() === 'pdf' ? 'pdf' : 'svg';
         setMsg(refs.saveMsg, 'Preparing ' + safeFormat.toUpperCase() + ' export...', 'warn');
-        const res = await fetch('/api/maps/' + encodeURIComponent(current.id) + '/export.' + safeFormat, { cache: 'no-store' });
+        const res = await apiFetch('/api/maps/' + encodeURIComponent(current.id) + '/export.' + safeFormat, { cache: 'no-store' });
         if (!res.ok) throw new Error(await readErrorMessage(res, 'Failed to export map'));
 
         const blob = await res.blob();
@@ -5299,7 +5453,7 @@
         const previousMapId = state.currentMapId;
         const requestedId = normalizeMapRecordId(mapId || state.currentMapId || state.activeMapId);
         const query = requestedId ? ('?mapId=' + encodeURIComponent(requestedId)) : '';
-        const res = await fetch('/api/map' + query, { cache: 'no-store' });
+        const res = await apiFetch('/api/map' + query, { cache: 'no-store' });
         if (!res.ok) throw new Error(await readErrorMessage(res, 'Failed to load map'));
         const data = await res.json();
         state.currentMapId = normalizeMapRecordId(data && data.id) || requestedId || state.currentMapId;
@@ -5364,7 +5518,7 @@
           }),
         };
 
-        const res = await fetch('/api/map?mapId=' + encodeURIComponent(state.currentMapId), {
+        const res = await apiFetch('/api/map?mapId=' + encodeURIComponent(state.currentMapId), {
           method: 'PUT',
           headers: authHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify(payload),
@@ -5393,7 +5547,7 @@
         const fd = new FormData();
         fd.append('image', file);
 
-        const res = await fetch('/api/map/upload-image', {
+        const res = await apiFetch('/api/map/upload-image', {
           method: 'POST',
           headers: authHeaders(),
           body: fd,
@@ -5489,7 +5643,7 @@
       async function validateCurrentSession() {
         if (!state.token) return false;
         try {
-          const res = await fetch('/api/me', { headers: authHeaders() });
+          const res = await apiFetch('/api/me', { headers: authHeaders() });
           if (!res.ok) return false;
           const user = await res.json();
           const username = String((user && user.username) || '').toLowerCase();
@@ -5527,11 +5681,17 @@
         }
 
         setMsg(refs.signinMsg, 'Signing in...', 'warn');
-        const res = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password }),
-        });
+        let res = null;
+        try {
+          res = await apiFetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password }),
+          });
+        } catch (err) {
+          setMsg(refs.signinMsg, 'Cannot reach the local login service at ' + getApiBase() + '. Open the app from http://localhost:3000/login.html.', 'error');
+          return;
+        }
 
         if (!res.ok) {
           setMsg(refs.signinMsg, 'Invalid credentials.', 'error');
@@ -5593,7 +5753,8 @@
           closeWorkspaceMenus();
         });
 
-        document.getElementById('btnSignIn').addEventListener('click', () => {
+        refs.signinForm.addEventListener('submit', (event) => {
+          event.preventDefault();
           signIn().catch((err) => setMsg(refs.signinMsg, err.message || 'Sign in failed', 'error'));
         });
 
@@ -5601,7 +5762,7 @@
           openEditorFromSession().catch((err) => setMsg(refs.signinMsg, err.message || 'Session check failed', 'error'));
         });
 
-        document.getElementById('btnSignOut').addEventListener('click', signOut);
+        refs.btnSignOut.addEventListener('click', signOut);
 
         if (refs.mapPicker) {
           refs.mapPicker.addEventListener('change', () => {
@@ -5890,6 +6051,7 @@
         openEditorFromSession().catch((err) => {
           setMsg(refs.signinMsg, (err && err.message) ? err.message : 'Session check failed.', 'error');
         });
+        window.__mapEditorBooted = true;
       }
 
       boot();

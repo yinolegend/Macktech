@@ -6,5 +6,5 @@ services:
       - "3000:3000"
     volumes:
       - ./data:/app/data
-      - ./backend/public:/app/backend/public
+      - ./backups:/app/backups
     restart: unless-stopped

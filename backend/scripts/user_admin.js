@@ -40,6 +40,7 @@ async function ensureUsersTable() {
       username TEXT NOT NULL UNIQUE,
       password_hash TEXT,
       display_name TEXT,
+      role TEXT DEFAULT 'User',
       external INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
     )
@@ -54,6 +55,22 @@ async function ensureUsersTable() {
       // Best-effort migration for older DBs.
     }
   }
+
+  if (!names.has('role')) {
+    try {
+      await run("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'User'");
+    } catch (err) {
+      // Best-effort migration for older DBs.
+    }
+  }
+
+  try {
+    await run(
+      "UPDATE users SET role = CASE WHEN lower(username) = 'admin' THEN 'Admin' ELSE COALESCE(NULLIF(role, ''), 'User') END WHERE role IS NULL OR role = ''"
+    );
+  } catch (err) {
+    // Best-effort migration for older DBs.
+  }
 }
 
 function usage() {
@@ -61,22 +78,24 @@ function usage() {
   console.log('');
   console.log('Usage:');
   console.log('  node scripts/user_admin.js list');
-  console.log('  node scripts/user_admin.js add <username> <password> [display_name]');
+  console.log('  node scripts/user_admin.js add <username> <password> [display_name] [role]');
   console.log('  node scripts/user_admin.js passwd <username> <new_password>');
+  console.log('  node scripts/user_admin.js role <username> <role>');
   console.log('');
   console.log('Examples:');
-  console.log('  node scripts/user_admin.js add jsmith P@ssw0rd "John Smith"');
+  console.log('  node scripts/user_admin.js add jsmith P@ssw0rd "John Smith" Warehouse_Admin');
   console.log('  node scripts/user_admin.js passwd jsmith NewP@ssw0rd');
+  console.log('  node scripts/user_admin.js role jsmith Warehouse_Admin');
   console.log('');
   console.log('NPM aliases from backend/:');
   console.log('  npm run user:list');
-  console.log('  npm run user:add -- <username> <password> [display_name]');
+  console.log('  npm run user:add -- <username> <password> [display_name] [role]');
   console.log('  npm run user:passwd -- <username> <new_password>');
 }
 
 async function listUsers() {
   const users = await all(
-    'SELECT id, username, display_name, external, created_at FROM users ORDER BY username COLLATE NOCASE ASC'
+    'SELECT id, username, display_name, role, external, created_at FROM users ORDER BY username COLLATE NOCASE ASC'
   );
 
   if (!users.length) {
@@ -88,13 +107,14 @@ async function listUsers() {
   for (const u of users) {
     const label = u.display_name ? ` (${u.display_name})` : '';
     const ext = Number(u.external) === 1 ? ' [external]' : '';
-    console.log(`- ${u.id}: ${u.username}${label}${ext}`);
+    const role = u.role ? ` [${u.role}]` : '';
+    console.log(`- ${u.id}: ${u.username}${label}${role}${ext}`);
   }
 }
 
-async function addUser(username, password, displayName) {
+async function addUser(username, password, displayName, role) {
   if (!username || !password) {
-    throw new Error('add requires <username> <password> [display_name]');
+    throw new Error('add requires <username> <password> [display_name] [role]');
   }
 
   const existing = await get('SELECT id FROM users WHERE username = ?', [username]);
@@ -105,8 +125,8 @@ async function addUser(username, password, displayName) {
   const hash = await bcrypt.hash(password, 10);
   const createdAt = new Date().toISOString().replace('T', ' ').replace('Z', '');
   const result = await run(
-    'INSERT INTO users (username, password_hash, display_name, external, created_at) VALUES (?, ?, ?, ?, ?)',
-    [username, hash, displayName || username, 0, createdAt]
+    'INSERT INTO users (username, password_hash, display_name, role, external, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    [username, hash, displayName || username, role || 'User', 0, createdAt]
   );
 
   console.log(`Created user ${username} with id ${result.lastID}.`);
@@ -127,8 +147,22 @@ async function setPassword(username, newPassword) {
   console.log(`Password updated for ${username}.`);
 }
 
+async function setRole(username, role) {
+  if (!username || !role) {
+    throw new Error('role requires <username> <role>');
+  }
+
+  const existing = await get('SELECT id FROM users WHERE username = ?', [username]);
+  if (!existing) {
+    throw new Error(`User not found: ${username}`);
+  }
+
+  await run('UPDATE users SET role = ? WHERE username = ?', [role, username]);
+  console.log(`Role updated for ${username}: ${role}.`);
+}
+
 async function main() {
-  const [cmd, a, b, c] = process.argv.slice(2);
+  const [cmd, a, b, c, d] = process.argv.slice(2);
 
   if (!cmd || cmd === '-h' || cmd === '--help' || cmd === 'help') {
     usage();
@@ -143,12 +177,17 @@ async function main() {
   }
 
   if (cmd === 'add') {
-    await addUser(a, b, c);
+    await addUser(a, b, c, d);
     process.exit(0);
   }
 
   if (cmd === 'passwd') {
     await setPassword(a, b);
+    process.exit(0);
+  }
+
+  if (cmd === 'role') {
+    await setRole(a, b);
     process.exit(0);
   }
 
