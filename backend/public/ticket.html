@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Create Ticket — Mack Technologies</title>
+    <title>Create Ticket — Command Center</title>
     <link rel="stylesheet" href="css/unified-theme.css" />
     <style>
       :root{
@@ -357,7 +357,8 @@
     </div>
 
     <script>
-      const TOKEN_KEY = 'mack_token';
+      const TOKEN_KEY = 'command_center_token';
+      const LEGACY_TOKEN_KEY = 'mack_token';
       const editorEl = document.getElementById('ticket_editor');
       const colorInput = document.getElementById('toolbar_color');
       const emojiPanel = document.getElementById('emoji_panel');
@@ -429,7 +430,7 @@
 
       (async function prefillRequester(){
         try{
-          const token = localStorage.getItem(TOKEN_KEY);
+          const token = localStorage.getItem(TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY);
           if (!token) return;
           const res = await fetch('/api/me', { headers:{ Authorization:'Bearer ' + token } });
           if (!res.ok) return;
@@ -477,7 +478,7 @@
         };
 
         const headers = { 'Content-Type':'application/json' };
-        const token = localStorage.getItem(TOKEN_KEY);
+        const token = localStorage.getItem(TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY);
         if (token) headers['Authorization'] = 'Bearer ' + token;
 
         const resultEl = document.getElementById('result');

@@ -1,9 +1,10 @@
-(function tacticalCommandCenter() {
+﻿(function tacticalCommandCenter() {
   const auth = window.CommandCenterAuth || {};
-  const TOKEN_KEY = auth.TOKEN_KEY || 'mack_token';
-  const VIEW_STORAGE_KEY = 'mack_command_center_view';
-  const SECTION_STORAGE_KEY = 'mack_command_center_section';
-  const SETTINGS_STORAGE_KEY = 'mack_command_center_settings';
+  const TOKEN_KEY = auth.TOKEN_KEY || 'command_center_token';
+  const LEGACY_TOKEN_KEY = auth.LEGACY_TOKEN_KEY || 'mack_token';
+  const VIEW_STORAGE_KEY = 'command_center_view';
+  const SECTION_STORAGE_KEY = 'command_center_section';
+  const SETTINGS_STORAGE_KEY = 'command_center_settings';
   const VALID_VIEWS = new Set(['hazmat', 'calibration']);
   const VALID_SECTIONS = new Set(['dashboard', 'assets', 'cfe', 'templates', 'reports', 'settings']);
   const DEFAULT_SETTINGS = {
@@ -944,7 +945,7 @@
   }
 
   function updateSectionHeader() {
-    const viewLabel = state.currentView === 'hazmat' ? 'Hazmat Database' : 'Calibration Database';
+    const viewLabel = state.currentView === 'hazmat' ? 'Hazmat Database' : '';
     const meta = getSectionMeta(state.currentSection, state.currentView);
     elements.sectionLabel.textContent = meta.label;
     elements.sectionTitle.textContent = meta.title;
@@ -1540,6 +1541,7 @@
       auth.clearToken();
     } else {
       localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(LEGACY_TOKEN_KEY);
     }
 
     if (typeof auth.redirectToLogin === 'function') {
@@ -1557,7 +1559,7 @@
       headers.set('Content-Type', 'application/json');
     }
 
-    const token = localStorage.getItem(TOKEN_KEY);
+    const token = localStorage.getItem(TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY);
     if (token && !headers.has('Authorization')) {
       headers.set('Authorization', `Bearer ${token}`);
     }

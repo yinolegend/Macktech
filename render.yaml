@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: macktech
+    name: command-center
     env: node
     rootDir: .
     plan: free

@@ -1,10 +1,11 @@
-(function tacticalCommandCenter() {
+﻿(function tacticalCommandCenter() {
   const auth = window.CommandCenterAuth || {};
-  const TOKEN_KEY = auth.TOKEN_KEY || 'mack_token';
-  const VIEW_STORAGE_KEY = 'mack_command_center_view';
-  const SECTION_STORAGE_KEY = 'mack_command_center_section';
-  const SETTINGS_STORAGE_KEY = 'mack_command_center_settings';
-  const UNIT_LIBRARY_STORAGE_KEY = 'mack_command_center_units';
+  const TOKEN_KEY = auth.TOKEN_KEY || 'command_center_token';
+  const LEGACY_TOKEN_KEY = auth.LEGACY_TOKEN_KEY || 'mack_token';
+  const VIEW_STORAGE_KEY = 'command_center_view';
+  const SECTION_STORAGE_KEY = 'command_center_section';
+  const SETTINGS_STORAGE_KEY = 'command_center_settings';
+  const UNIT_LIBRARY_STORAGE_KEY = 'command_center_units';
   const VALID_VIEWS = new Set(['hazmat', 'calibration', 'debug']);
   const VALID_SECTIONS = new Set(['dashboard', 'assets', 'cfe', 'reports', 'settings']);
   const DEFAULT_SETTINGS = {
@@ -261,6 +262,8 @@
     elements.debugClearQueueFiltersButton = document.getElementById('debug-clear-queue-filters-button');
     elements.inventoryImportInput = document.getElementById('inventory-import-input');
     elements.calibrationImportInput = document.getElementById('calibration-import-input');
+    elements.debugImportInput = document.getElementById('debug-import-input');
+    elements.debugImportSummary = document.getElementById('debug-import-summary');
     elements.debugRefreshButton = document.getElementById('debug-refresh-button');
     elements.debugTicketForm = document.getElementById('debug-ticket-form');
     elements.debugTicketResetButton = document.getElementById('debug-ticket-reset-button');
@@ -386,7 +389,7 @@
       openCalibrationModal();
     });
     addEvent(elements.failureAnalysisButton, 'click', () => {
-      setView('debug');
+      setView(getPreferredAssetView());
       setSection('assets');
     });
     addEvent(elements.dashboardSummaryPanel, 'click', handleSummaryCardInteraction);
@@ -467,6 +470,7 @@
     addEvent(elements.certificateForm, 'submit', submitCertificateForm);
     addEvent(elements.inventoryImportInput, 'change', handleInventoryImport);
     addEvent(elements.calibrationImportInput, 'change', handleCalibrationImport);
+    addEvent(elements.debugImportInput, 'change', handleDebugImport);
     addEvent(elements.settingsForm, 'submit', submitSettingsForm);
     addEvent(elements.departmentCreateForm, 'submit', submitDepartmentCreateForm);
     addEvent(elements.departmentViewMode, 'change', handleDepartmentViewModeChange);
@@ -515,11 +519,154 @@
     elements.assetWarning.textContent = '';
   }
 
+  function normalizeAccessModuleKey(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'dashboard') return 'dashboard';
+    if (normalized === 'reports' || normalized === 'report') return 'reports';
+    if (normalized === 'admin' || normalized === 'admin_console' || normalized === 'admin-console') return 'admin_console';
+    if (normalized === 'calibration') return 'calibration';
+    if (normalized === 'debug' || normalized === 'debug_lab' || normalized === 'failure_analysis' || normalized === 'failure-analysis') return 'failure_analysis';
+    if (normalized === 'hazmat') return 'hazmat';
+    return '';
+  }
+
+  function getUserModuleAccess() {
+    if (!state.user || !Array.isArray(state.user.modules)) {
+      return ['hazmat', 'calibration', 'failure_analysis', 'reports', 'dashboard'];
+    }
+    return state.user.modules.slice();
+  }
+
+  function hasModuleAccess(moduleName) {
+    const key = normalizeAccessModuleKey(moduleName);
+    if (!key) return false;
+    return getUserModuleAccess().includes(key);
+  }
+
+  function hasPermissionAccess(permission) {
+    if (!state.user || !Array.isArray(state.user.permissions)) {
+      return true;
+    }
+    return state.user.permissions.includes(permission);
+  }
+
+  function getAvailableViews() {
+    const orderedModules = getUserModuleAccess();
+    const preferred = [];
+
+    orderedModules.forEach((moduleKey) => {
+      if (moduleKey === 'hazmat' && !preferred.includes('hazmat')) preferred.push('hazmat');
+      if (moduleKey === 'calibration' && !preferred.includes('calibration')) preferred.push('calibration');
+      if (moduleKey === 'failure_analysis' && !preferred.includes('debug')) preferred.push('debug');
+    });
+
+    return preferred.length ? preferred : ['hazmat'];
+  }
+
+  function getPreferredAssetView() {
+    const availableViews = getAvailableViews();
+    return availableViews.includes(state.currentView) ? state.currentView : availableViews[0];
+  }
+
+  function getAvailableSections() {
+    if (!state.user) {
+      return ['dashboard', 'assets', 'cfe', 'reports', 'settings'];
+    }
+
+    const sections = ['dashboard'];
+    if (getAvailableViews().length) {
+      sections.push('assets');
+    }
+    if (hasModuleAccess('calibration') && hasPermissionAccess('edit_access')) {
+      sections.push('cfe');
+    }
+    if (hasModuleAccess('reports') || getAvailableViews().length) {
+      sections.push('reports');
+    }
+    if (hasPermissionAccess('settings_access') || hasPermissionAccess('department_management')) {
+      sections.push('settings');
+    }
+
+    return Array.from(new Set(sections));
+  }
+
+  function canAccessSection(sectionName) {
+    return getAvailableSections().includes(String(sectionName || '').trim().toLowerCase());
+  }
+
+  function assetSectionLabel() {
+    const views = getAvailableViews();
+    return views.length === 1 ? moduleLabel(views[0]) : 'Operations';
+  }
+
+  function quickActionLabel() {
+    const view = getPreferredAssetView();
+    if (view === 'calibration') return 'New Asset (+)';
+    if (view === 'debug') return 'New Ticket (+)';
+    return 'New Hazmat (+)';
+  }
+
+  function applyPortalAccessControl() {
+    const availableViews = getAvailableViews();
+    const availableSections = new Set(getAvailableSections());
+    const preferredView = availableViews.includes(state.currentView) ? state.currentView : availableViews[0];
+
+    state.currentView = preferredView;
+    state.currentModule = normalizeModule(preferredView);
+
+    if (!availableSections.has(state.currentSection)) {
+      state.currentSection = availableSections.has('dashboard') ? 'dashboard' : (Array.from(availableSections)[0] || 'dashboard');
+    }
+
+    if (elements.viewSelector) {
+      Array.from(elements.viewSelector.options).forEach((option) => {
+        const isVisible = availableViews.includes(option.value);
+        option.hidden = !isVisible;
+        option.disabled = !isVisible;
+      });
+      elements.viewSelector.value = preferredView;
+    }
+
+    elements.sectionButtons.forEach((button) => {
+      const sectionName = button.dataset.section;
+      if (!sectionName) return;
+      const isVisible = availableSections.has(sectionName);
+      button.classList.toggle('hidden', !isVisible);
+      button.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
+    });
+
+    if (elements.quickNewAssetButton) {
+      const canEdit = hasPermissionAccess('edit_access') && availableViews.length > 0;
+      elements.quickNewAssetButton.classList.toggle('hidden', !canEdit);
+      elements.quickNewAssetButton.setAttribute('aria-hidden', canEdit ? 'false' : 'true');
+      const quickLabel = elements.quickNewAssetButton.querySelector('span:last-child');
+      if (quickLabel) {
+        quickLabel.textContent = quickActionLabel();
+      }
+    }
+
+    if (elements.failureAnalysisButton) {
+      const assetLabel = elements.failureAnalysisButton.querySelector('span:last-child');
+      if (assetLabel) {
+        assetLabel.textContent = assetSectionLabel();
+      }
+    }
+
+    updateCfeVisibility();
+  }
+
   async function refreshPortal(options = {}) {
     const silentStatus = Boolean(options && options.silentStatus);
     try {
+      const session = await apiFetch('/api/command-center/session');
+      state.user = session.user;
+      applyPortalAccessControl();
+
+      const canReadHazmat = hasModuleAccess('hazmat');
+      const canReadCalibration = hasModuleAccess('calibration');
+      const canReadDebug = hasModuleAccess('debug');
+
       const [
-        session,
         materials,
         hazmatTemplates,
         calibrationTemplates,
@@ -529,23 +676,26 @@
         departments,
         logs,
       ] = await Promise.all([
-        apiFetch('/api/command-center/session'),
-        apiFetch('/api/command-center/materials'),
-        apiFetch('/api/command-center/hazmat/templates'),
-        apiFetch('/api/command-center/calibration/templates'),
-        apiFetch('/api/command-center/calibration'),
-        apiFetch('/api/command-center/debug-lab/tickets?limit=500').catch(() => []),
-        apiFetch('/api/command-center/debug-lab/analytics').catch(() => ({
+        canReadHazmat ? apiFetch('/api/command-center/materials') : Promise.resolve([]),
+        canReadHazmat ? apiFetch('/api/command-center/hazmat/templates') : Promise.resolve([]),
+        canReadCalibration ? apiFetch('/api/command-center/calibration/templates') : Promise.resolve([]),
+        canReadCalibration ? apiFetch('/api/command-center/calibration') : Promise.resolve([]),
+        canReadDebug ? apiFetch('/api/command-center/debug-lab/tickets?limit=500').catch(() => []) : Promise.resolve([]),
+        canReadDebug ? apiFetch('/api/command-center/debug-lab/analytics').catch(() => ({
           pareto: [],
           yield_trends: [],
           systemic_alerts: [],
           chronic_failures: [],
-        })),
+        })) : Promise.resolve({
+          pareto: [],
+          yield_trends: [],
+          systemic_alerts: [],
+          chronic_failures: [],
+        }),
         apiFetch('/api/command-center/departments').catch(() => []),
         apiFetch('/api/command-center/logs?limit=24'),
       ]);
 
-      state.user = session.user;
       state.materials = Array.isArray(materials) ? materials : [];
       state.hazmatTemplates = Array.isArray(hazmatTemplates) ? hazmatTemplates : [];
       state.templates = Array.isArray(calibrationTemplates) ? calibrationTemplates : [];
@@ -571,6 +721,7 @@
   }
 
   function renderAll() {
+    applyPortalAccessControl();
     elements.sessionUser.textContent = state.user
       ? `${state.user.display_name || state.user.username} (${state.user.role})`
       : 'Authenticated';
@@ -2737,6 +2888,8 @@
     const ticket = payload && payload.ticket ? payload.ticket : {};
     const components = Array.isArray(ticket.faulty_components) ? ticket.faulty_components : [];
     const history = Array.isArray(payload && payload.serial_history) ? payload.serial_history : [];
+    const technicianRoster = Array.isArray(payload && payload.technician_roster) ? payload.technician_roster : [];
+    const timelineEvents = Array.isArray(payload && payload.timeline_events) ? payload.timeline_events : [];
     const patternAlert = payload && payload.pattern_alert ? payload.pattern_alert : null;
 
     const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
@@ -2760,6 +2913,7 @@
       ['Model Rev', ticket.model_rev || 'N/A'],
       ['Failure Signature', ticket.failure_signature || 'N/A'],
       ['Technician', ticket.technician_id || 'N/A'],
+      ['Technician Roster', technicianRoster.length ? technicianRoster.join(', ') : (ticket.technician_id || 'N/A')],
       ['Department', ticket.department_name || 'Unassigned'],
       ['Status', normalizeDebugStatus(ticket.status)],
       ['Bench Time (hrs)', String(Number(ticket.total_bench_time || 0).toFixed(2))],
@@ -2838,6 +2992,34 @@
       });
     }
 
+    if (componentY > 252) {
+      doc.addPage();
+      componentY = 20;
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.text('Import Timeline', 14, componentY + 8);
+    doc.setFont('helvetica', 'normal');
+    componentY += 15;
+
+    if (!timelineEvents.length) {
+      doc.text('No import timeline events found for this board.', 16, componentY);
+      componentY += 8;
+    } else {
+      timelineEvents.slice(0, 18).forEach((entry) => {
+        if (componentY > 276) {
+          doc.addPage();
+          componentY = 20;
+        }
+        const row = [
+          formatDateTime(entry.created_at || ''),
+          startCase(entry.event_type || 'import_merge'),
+          entry.failure_signature_after || ticket.failure_signature || 'N/A',
+        ].join(' | ');
+        doc.text(`- ${row}`, 16, componentY, { maxWidth: 176 });
+        componentY += 6;
+      });
+    }
+
     if (componentY > 262) {
       doc.addPage();
       componentY = 20;
@@ -2907,20 +3089,21 @@
     const nextView = normalizeView(view);
     state.currentView = nextView;
     state.currentModule = normalizeModule(nextView);
+    applyPortalAccessControl();
     window.currentModule = state.currentModule;
     if (elements.shell) {
-      elements.shell.dataset.view = nextView;
+      elements.shell.dataset.view = state.currentView;
     }
     if (options.persist !== false) {
-      persistView(nextView);
+      persistView(state.currentView);
     }
 
     if (elements.viewSelector) {
-      elements.viewSelector.value = nextView;
+      elements.viewSelector.value = state.currentView;
     }
 
     elements.viewPanels.forEach((panel) => {
-      const isActive = panel.dataset.viewPanel === nextView;
+      const isActive = panel.dataset.viewPanel === state.currentView;
       panel.classList.toggle('active', isActive);
       panel.setAttribute('aria-hidden', isActive ? 'false' : 'true');
     });
@@ -2946,7 +3129,7 @@
 
     if (options.redraw === false) return;
 
-    redrawVisibleTables(state.currentSection, nextView);
+    redrawVisibleTables(state.currentSection, state.currentView);
   }
 
   function setSection(section, options = {}) {
@@ -3005,9 +3188,9 @@
   function updateSectionHeader() {
     const viewLabel = state.currentView === 'hazmat'
       ? 'Hazmat Database'
-      : (state.currentView === 'calibration' ? 'Calibration Database' : 'Debug Lab Database');
+      : (state.currentView === 'calibration' ? '' : 'Debug Lab Database');
     const meta = getSectionMeta(state.currentSection, state.currentView);
-    const showDatabaseChip = state.currentSection === 'assets';
+    const showDatabaseChip = state.currentSection === 'assets' && !!viewLabel;
     elements.sectionLabel.textContent = meta.label;
     elements.sectionTitle.textContent = meta.title;
     elements.sectionSubtitle.textContent = meta.subtitle;
@@ -3067,7 +3250,11 @@
   }
 
   function normalizeView(view) {
-    return VALID_VIEWS.has(view) ? view : 'hazmat';
+    const availableViews = getAvailableViews();
+    if (VALID_VIEWS.has(view) && availableViews.includes(view)) {
+      return view;
+    }
+    return availableViews[0] || 'hazmat';
   }
 
   function normalizeModule(value) {
@@ -3112,14 +3299,17 @@
     }
 
     const normalized = VALID_SECTIONS.has(requested) ? requested : 'dashboard';
-    if (normalized === 'cfe' && normalizeModule(state.currentModule) !== 'calibration') {
+    if (!canAccessSection(normalized)) {
+      return 'dashboard';
+    }
+    if (normalized === 'cfe' && (normalizeModule(state.currentModule) !== 'calibration' || !hasPermissionAccess('edit_access'))) {
       return 'dashboard';
     }
     return normalized;
   }
 
   function updateCfeVisibility() {
-    const showCfe = normalizeModule(state.currentModule) === 'calibration';
+    const showCfe = normalizeModule(state.currentModule) === 'calibration' && hasPermissionAccess('edit_access');
     if (!elements.cfeSectionButton) return;
     elements.cfeSectionButton.classList.toggle('hidden', !showCfe);
     elements.cfeSectionButton.setAttribute('aria-hidden', showCfe ? 'false' : 'true');
@@ -5119,6 +5309,61 @@
     }
   }
 
+  async function handleDebugImport(event) {
+    const files = Array.from((event && event.target && event.target.files) || []);
+    if (!files.length) return;
+
+    try {
+      const tickets = [];
+      for (const file of files) {
+        const workbook = await readWorkbook(file);
+        const firstSheet = workbook && Array.isArray(workbook.SheetNames) ? workbook.SheetNames[0] : '';
+        if (!firstSheet || !workbook.Sheets[firstSheet]) {
+          continue;
+        }
+
+        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { defval: '' });
+        const mapped = mapDebugImportRows(rows, file.name);
+        tickets.push(...mapped);
+      }
+
+      if (!tickets.length) {
+        throw new Error('No valid debug rows detected in selected spreadsheets.');
+      }
+
+      const result = await apiFetch('/api/command-center/debug-lab/import', {
+        method: 'POST',
+        body: JSON.stringify({ tickets }),
+      });
+
+      const summaryText = [
+        `Debug import complete: ${Number(result && result.processed) || tickets.length} rows processed.`,
+        `${Number(result && result.created) || 0} created,`,
+        `${Number(result && result.reopened) || 0} reopened,`,
+        `${Number(result && result.updated) || 0} updated,`,
+        `${Number(result && result.duplicate_skipped) || 0} duplicates skipped,`,
+        `${Number(result && result.errors) || 0} errors.`,
+      ].join(' ');
+
+      if (elements.debugImportSummary) {
+        elements.debugImportSummary.textContent = summaryText;
+      }
+
+      setStatus(summaryText, 'info');
+      await refreshPortal({ silentStatus: true });
+    } catch (error) {
+      const message = error && error.message ? error.message : 'Failed to import debug spreadsheets.';
+      if (elements.debugImportSummary) {
+        elements.debugImportSummary.textContent = message;
+      }
+      setStatus(message, 'error');
+    } finally {
+      if (event && event.target) {
+        event.target.value = '';
+      }
+    }
+  }
+
   function exportAuditWorkbook() {
     if (!window.XLSX) {
       setStatus('XLSX is not available locally.', 'error');
@@ -5250,6 +5495,7 @@
       auth.clearToken();
     } else {
       localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(LEGACY_TOKEN_KEY);
     }
 
     if (typeof auth.redirectToLogin === 'function') {
@@ -5268,7 +5514,7 @@
       headers.set('Content-Type', 'application/json');
     }
 
-    const token = localStorage.getItem(TOKEN_KEY);
+    const token = localStorage.getItem(TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY);
     if (token && !headers.has('Authorization')) {
       headers.set('Authorization', `Bearer ${token}`);
     }
@@ -5350,6 +5596,34 @@
       unit_of_measure: pickValue(row, ['unit_of_measure', 'unit', 'uom']),
       assigned_department: pickValue(row, ['assigned_department', 'department', 'dept']),
     })).filter((row) => row.tool_name && row.serial_number);
+  }
+
+  function mapDebugImportRows(rows, sourceFile) {
+    return rows.map(normalizeRow).map((row, index) => {
+      const technicianList = pickValue(row, ['technicians', 'technician_list', 'techs', 'worked_by', 'tech_names']);
+      const technicianSingle = pickValue(row, ['technician_id', 'technician', 'tech']);
+
+      return {
+        serial_number: pickValue(row, ['serial_number', 'serial', 'sn', 'board_serial', 'board_sn', 'asset_id']),
+        model_rev: pickValue(row, ['model_rev', 'model_revision', 'revision', 'board_type']),
+        failure_signature: pickValue(row, ['failure_signature', 'signature', 'failure', 'failure_mode', 'symptom', 'issue']),
+        technician_id: technicianSingle,
+        technicians: technicianList || technicianSingle,
+        status: pickValue(row, ['status', 'ticket_status']),
+        total_bench_time: pickValue(row, ['total_bench_time', 'bench_hours', 'bench_time', 'hours']),
+        verification_pass: pickValue(row, ['verification_pass', 'verification', 'verification_result']),
+        failure_notes: pickValue(row, ['failure_notes', 'failure_note', 'symptom_notes']),
+        repair_notes: pickValue(row, ['repair_notes', 'repair_note', 'rework_notes', 'repair_action']),
+        verification_notes: pickValue(row, ['verification_notes', 'verification_note', 'qc_notes']),
+        comments: pickValue(row, ['comments', 'comment']),
+        notes: pickValue(row, ['notes', 'note']),
+        department_id: pickValue(row, ['department_id']),
+        department_name: pickValue(row, ['department_name', 'department', 'dept']),
+        source_reference: pickValue(row, ['source_reference', 'reference', 'rma', 'rma_number', 'ticket_reference']),
+        source_file: String(sourceFile || '').trim(),
+        source_row_number: index + 2,
+      };
+    }).filter((row) => row.serial_number && row.failure_signature);
   }
 
   function normalizeRow(row) {

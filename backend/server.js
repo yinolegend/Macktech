@@ -5,7 +5,7 @@ const { Server } = require('socket.io');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-const { PORT, JWT_SECRET, JWT_EXPIRES_IN } = require('../config/app');
+const { PORT, JWT_SECRET, JWT_EXPIRES_IN, SESSION_MAX_AGE_MS } = require('../config/app');
 const paths = require('../config/paths');
 const db = require('./database');
 const ad = require('./auth/directory');
@@ -24,6 +24,7 @@ const { createAnnouncementController } = require('../api/controllers/announcemen
 const { createPageController } = require('../api/controllers/pageController');
 const { createHazmatController } = require('../api/controllers/hazmatController');
 const { createCommandCenterController } = require('../api/controllers/commandCenterController');
+const { createAdminConsoleController } = require('../api/controllers/adminConsoleController');
 const { hazmatDb, gagesDb, debugDb, syncPortalModels } = require('../models');
 
 let PDFDocument = null;
@@ -58,15 +59,16 @@ function createServerApp() {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use(session({
-    name: 'mack_session',
+    name: 'command_center_session',
     secret: JWT_SECRET,
     resave: false,
     saveUninitialized: false,
+    rolling: true,
     cookie: {
       httpOnly: true,
       sameSite: 'lax',
       secure: false,
-      maxAge: 12 * 60 * 60 * 1000,
+      maxAge: SESSION_MAX_AGE_MS,
     },
   }));
 
@@ -95,6 +97,23 @@ function createServerApp() {
     return next();
   });
 
+  // Serve the service worker with no-cache so browsers always fetch the latest version.
+  // Service-Worker-Allowed: / grants it scope over the entire origin.
+  app.get('/sw.js', (req, res) => {
+    res.set({
+      'Content-Type': 'application/javascript',
+      'Service-Worker-Allowed': '/',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    });
+    res.sendFile(require('path').join(paths.FRONTEND_PAGES_DIR, 'sw.js'));
+  });
+
+  // Serve the PWA manifest with the correct MIME type.
+  app.get('/manifest.webmanifest', (req, res) => {
+    res.set('Content-Type', 'application/manifest+json');
+    res.sendFile(require('path').join(paths.FRONTEND_PAGES_DIR, 'manifest.webmanifest'));
+  });
+
   app.use(express.static(paths.FRONTEND_PAGES_DIR));
   app.use(express.static(paths.FRONTEND_SCRIPTS_DIR));
   app.use(express.static(paths.FRONTEND_ASSETS_DIR));
@@ -113,7 +132,7 @@ function createServerApp() {
   app.use('/map-assets', express.static(paths.MAP_ASSETS_DIR));
   app.use('/calibration-attachments', express.static(paths.CALIBRATION_ATTACHMENTS_DIR));
 
-  const { resolveUserFromRequest, authMiddleware, requireRole } = createAuthHelpers({
+  const { resolveUserFromRequest, authMiddleware, requireRole, requirePermission, requireAnyModule } = createAuthHelpers({
     db,
     ad,
     jwt,
@@ -188,9 +207,16 @@ function createServerApp() {
       paths,
       calibrationAttachmentUpload,
     }),
+    adminConsoleController: createAdminConsoleController({
+      db,
+      bcrypt,
+      paths,
+      hazmatDb,
+      gagesDb,
+    }),
   };
 
-  registerRoutes(app, controllers, authMiddleware, requireRole);
+  registerRoutes(app, controllers, authMiddleware, requireRole, requirePermission, requireAnyModule);
 
   return {
     app,

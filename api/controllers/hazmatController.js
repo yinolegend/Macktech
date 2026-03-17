@@ -122,6 +122,12 @@ function createHazmatController({ Material, UsageLog, sequelize, paths }) {
 
     logout: async (req, res) => {
       res.clearCookie('hazmat_access', { path: '/' });
+      if (req.session) {
+        return req.session.destroy(() => {
+          res.clearCookie('mack_session', { path: '/' });
+          return res.json({ ok: true });
+        });
+      }
       return res.json({ ok: true });
     },
 

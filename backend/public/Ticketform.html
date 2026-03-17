@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Ticket Form — Mack Technologies</title>
+    <title>Ticket Form — Command Center</title>
     <link rel="stylesheet" href="css/unified-theme.css" />
     <style>
       .card{ max-width:760px; margin:24px auto; background:white; border-radius:10px; padding:20px; box-shadow:0 6px 20px rgba(11,27,60,0.06) }
@@ -53,12 +53,13 @@
     <script>
       // Standalone ticket form (mostly for kiosk/QR code use). Kept tiny so any
       // teammate can adjust fields without digging into the app shell.
-      const TOKEN_KEY = 'mack_token';
+      const TOKEN_KEY = 'command_center_token';
+      const LEGACY_TOKEN_KEY = 'mack_token';
 
       // Prefill name from token-based /api/me or from query string headerless SSO can't be read from JS.
       (async function prefill(){
         try{
-          const token = localStorage.getItem(TOKEN_KEY);
+          const token = localStorage.getItem(TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY);
           if (token) {
             const res = await fetch('/api/me', { headers: { Authorization: 'Bearer ' + token } });
             if (res.ok) {
@@ -89,7 +90,7 @@
         const payload = { title, description, requester: name };
 
         const headers = { 'Content-Type':'application/json' };
-        const token = localStorage.getItem(TOKEN_KEY);
+        const token = localStorage.getItem(TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY);
         if (token) headers['Authorization'] = 'Bearer ' + token;
 
         try{

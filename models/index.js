@@ -13,6 +13,7 @@ const defineCalibrationTemplate = require('./CalibrationTemplate');
 const defineCalibrationAsset = require('./CalibrationAsset');
 const defineFailureTicket = require('./FailureTicket');
 const defineFaultyComponent = require('./FaultyComponent');
+const defineDebugTicketHistory = require('./DebugTicketHistory');
 const defineCommandLog = require('./CommandLog');
 const defineDepartment = require('./Department');
 const {
@@ -67,6 +68,7 @@ const Department = defineDepartment(gagesSequelize, DataTypes);
 
 const FailureTicket = defineFailureTicket(debugSequelize, DataTypes);
 const FaultyComponent = defineFaultyComponent(debugSequelize, DataTypes);
+const DebugTicketHistory = defineDebugTicketHistory(debugSequelize, DataTypes);
 const DebugLog = defineCommandLog(debugSequelize, DataTypes);
 
 Material.hasMany(UsageLog, {
@@ -95,6 +97,16 @@ FailureTicket.hasMany(FaultyComponent, {
 });
 
 FaultyComponent.belongsTo(FailureTicket, {
+  foreignKey: 'ticket_id',
+  as: 'ticket',
+});
+
+FailureTicket.hasMany(DebugTicketHistory, {
+  foreignKey: 'ticket_id',
+  as: 'timeline_events',
+});
+
+DebugTicketHistory.belongsTo(FailureTicket, {
   foreignKey: 'ticket_id',
   as: 'ticket',
 });
@@ -242,6 +254,7 @@ async function syncDebugModels() {
   await debugSequelize.authenticate();
   await FailureTicket.sync();
   await FaultyComponent.sync();
+  await DebugTicketHistory.sync();
   await DebugLog.sync();
 }
 
@@ -585,6 +598,7 @@ const debugDb = {
   sequelize: debugSequelize,
   FailureTicket,
   FaultyComponent,
+  DebugTicketHistory,
   CommandLog: DebugLog,
 };
 
@@ -604,6 +618,7 @@ module.exports = {
   CalibrationAsset,
   FailureTicket,
   FaultyComponent,
+  DebugTicketHistory,
   HazmatLog,
   GageLog,
   DebugLog,

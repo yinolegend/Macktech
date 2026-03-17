@@ -1,4 +1,4 @@
-# Macktech Architecture
+# Command Center Architecture
 
 ## Runtime
 

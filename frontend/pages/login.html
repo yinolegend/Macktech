@@ -1,9 +1,16 @@
-<!doctype html>
+﻿<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Login Portal - Mack Technologies</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0b74ff" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Command Center" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+    <title>Login Portal - Command Center</title>
     <link rel="stylesheet" href="css/unified-theme.css" />
     <style>
       * { box-sizing: border-box; }
@@ -266,7 +273,8 @@
     </main>
 
     <script>
-      const TOKEN_KEY = 'mack_token';
+      const TOKEN_KEY = 'command_center_token';
+      const LEGACY_TOKEN_KEY = 'mack_token';
       const loginCard = document.getElementById('login_card');
       const targetSelect = document.getElementById('login_target');
       const portalBadge = document.getElementById('portal_badge');
@@ -281,13 +289,22 @@
       const usernameInput = document.getElementById('username');
       const passwordInput = document.getElementById('password');
 
+      function userHasPermission(user, permission) {
+        return Array.isArray(user && user.permissions) && user.permissions.includes(permission);
+      }
+
+      function userHasAnyOperationalModule(user) {
+        const modules = Array.isArray(user && user.modules) ? user.modules : [];
+        return modules.some((moduleKey) => moduleKey === 'dashboard' || moduleKey === 'hazmat' || moduleKey === 'calibration' || moduleKey === 'failure_analysis' || moduleKey === 'reports');
+      }
+
       const PORTALS = {
         admin: {
           label: 'Admin Login',
           badge: 'Admin Portal',
           helper: 'Sign in to open the Admin Console.',
-          destination: 'admin.html',
-          allowedRoles: ['Admin'],
+          destination: '/admin-console',
+          accessCheck: (user) => userHasPermission(user, 'admin_console'),
           accessError: 'This account does not have access to the Admin Console.',
         },
         'command-center': {
@@ -295,7 +312,7 @@
           badge: 'Command Center',
           helper: 'Sign in to open Command Center for HAZMAT inventory and gage calibration.',
           destination: '/portals/command-center',
-          allowedRoles: ['Admin', 'Command_Center', 'Warehouse_Admin'],
+          accessCheck: (user) => userHasAnyOperationalModule(user),
           accessError: 'This account does not have access to Command Center.',
         },
         announcements: {
@@ -330,6 +347,14 @@
           }
         } catch (err) {
           window.location.href = path;
+        }
+      }
+
+      function hydrateInitialPortalSelection() {
+        const params = new URLSearchParams(window.location.search || '');
+        const requestedPortal = params.get('portal');
+        if (requestedPortal && PORTALS[requestedPortal]) {
+          targetSelect.value = requestedPortal;
         }
       }
 
@@ -395,7 +420,7 @@
             body: JSON.stringify({ username, password, portal: targetSelect.value || 'command-center' }),
           });
         } catch (error) {
-          setMsg('Cannot reach the local login service at http://localhost:3000.', 'error');
+          setMsg('Cannot reach the login service on this host.', 'error');
           return;
         }
 
@@ -412,7 +437,7 @@
           return;
         }
 
-        if (Array.isArray(portal.allowedRoles) && !portal.allowedRoles.includes(String(user.role || ''))) {
+        if (portal.accessCheck && !portal.accessCheck(user, data)) {
           setMsg(portal.accessError, 'error');
           return;
         }
@@ -423,6 +448,7 @@
         }
 
         localStorage.setItem(TOKEN_KEY, token);
+        localStorage.removeItem(LEGACY_TOKEN_KEY);
         setMsg('Sign in successful. Redirecting...', 'ok');
         openRelative(getDestination(portal, data));
       }
@@ -439,7 +465,13 @@
         }
       });
 
+      hydrateInitialPortalSelection();
       renderPortalPreview();
     </script>
-  </body>
+    <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(function(){});
+    }
+  </script>
+</body>
 </html>

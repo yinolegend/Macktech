@@ -1,0 +1,39 @@
+{
+  "name": "Command Center",
+  "short_name": "Command Center",
+  "description": "Facility operations hub — tickets, announcements, maps, and more.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b172a",
+  "theme_color": "#0b74ff",
+  "scope": "/",
+  "lang": "en-US",
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["utilities", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Submit Ticket",
+      "url": "/Ticketform.html",
+      "description": "Quickly submit a support ticket"
+    },
+    {
+      "name": "Announcements",
+      "url": "/announcements.html",
+      "description": "View latest announcements"
+    }
+  ]
+}

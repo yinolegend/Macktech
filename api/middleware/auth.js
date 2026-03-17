@@ -1,3 +1,6 @@
+const { canonicalizeRole, hasPermission, hasAnyModule } = require('../../config/access');
+const { SESSION_MAX_AGE_MS } = require('../../config/app');
+
 function createAuthHelpers({ db, ad, jwt, jwtSecret }) {
   function requestPrefersHtml(req) {
     const accept = String((req && req.headers && req.headers.accept) || '');
@@ -13,11 +16,6 @@ function createAuthHelpers({ db, ad, jwt, jwtSecret }) {
       return 'command_center_access';
     }
     return '';
-  }
-
-  function requestSupportsCommandCenterSession(req) {
-    const requestPath = String((req && req.path) || '');
-    return requestPath === '/portals/command-center' || requestPath.startsWith('/api/command-center');
   }
 
   function readCookie(req, cookieName) {
@@ -48,15 +46,35 @@ function createAuthHelpers({ db, ad, jwt, jwtSecret }) {
       if (token) {
         const payload = jwt.verify(token, jwtSecret);
         const user = await db.getUserById(payload.id);
-        if (user) return user;
+        if (user && String(user.account_status || '').toLowerCase() !== 'disabled') {
+          return user;
+        }
       }
     } catch (error) {
     }
 
-    if (requestSupportsCommandCenterSession(req) && req.session && req.session.commandCenterUserId) {
+    if (req.session && req.session.auth && Number(req.session.auth.user_id) > 0) {
       try {
-        const user = await db.getUserById(req.session.commandCenterUserId);
-        if (user) return user;
+        const expiresAt = Number(req.session.auth.expires_at || 0);
+        if (expiresAt && expiresAt < Date.now()) {
+          req.session.auth = null;
+        } else {
+          const user = await db.getUserById(req.session.auth.user_id);
+          if (user && String(user.account_status || '').toLowerCase() !== 'disabled') {
+            req.session.auth = {
+              ...req.session.auth,
+              role: user.role,
+              permissions: Array.isArray(user.permissions) ? user.permissions : [],
+              modules: Array.isArray(user.modules) ? user.modules : [],
+              department: user.department || '',
+              expires_at: Date.now() + SESSION_MAX_AGE_MS,
+            };
+            if (req.session.cookie) {
+              req.session.cookie.maxAge = SESSION_MAX_AGE_MS;
+            }
+            return user;
+          }
+        }
       } catch (error) {
       }
     }
@@ -87,7 +105,7 @@ function createAuthHelpers({ db, ad, jwt, jwtSecret }) {
             username: sam,
             password_hash: null,
             display_name,
-            role: 'User',
+            role: 'Viewer',
             external: 1,
           });
           user = await db.getUserById(id);
@@ -107,30 +125,33 @@ function createAuthHelpers({ db, ad, jwt, jwtSecret }) {
       const user = await resolveUserFromRequest(req);
       if (!user) {
         if (requestPrefersHtml(req)) {
-          return res.redirect('/admin.html#signin');
+          return res.redirect('/login.html');
         }
         return res.status(401).json({ error: 'missing token or SSO header' });
       }
-      req.user = {
-        id: user.id,
-        username: user.username,
-        display_name: user.display_name,
-        role: user.role || 'User',
-      };
+
+      if (String(user.account_status || '').toLowerCase() === 'disabled') {
+        if (requestPrefersHtml(req)) {
+          return res.redirect('/login.html');
+        }
+        return res.status(403).json({ error: 'account disabled' });
+      }
+
+      req.user = user;
       return next();
     } catch (error) {
       console.error('authMiddleware', error && error.message ? error.message : error);
       if (requestPrefersHtml(req)) {
-        return res.redirect('/admin.html#signin');
+        return res.redirect('/login.html');
       }
       return res.status(401).json({ error: 'authentication failed' });
     }
   }
 
   function requireRole(...roles) {
-    const allowedRoles = new Set(roles.filter(Boolean));
+    const allowedRoles = new Set(roles.filter(Boolean).map((role) => canonicalizeRole(role)));
     return (req, res, next) => {
-      const currentRole = req.user && req.user.role;
+      const currentRole = canonicalizeRole(req.user && req.user.role);
       if (currentRole === 'Admin') {
         return next();
       }
@@ -139,7 +160,36 @@ function createAuthHelpers({ db, ad, jwt, jwtSecret }) {
       }
 
       if (requestPrefersHtml(req)) {
-        return res.redirect('/admin.html#signin');
+        return res.redirect('/login.html');
+      }
+
+      return res.status(403).json({ error: 'forbidden' });
+    };
+  }
+
+  function requirePermission(...permissions) {
+    const allowedPermissions = permissions.filter(Boolean).map((permission) => String(permission).trim());
+    return (req, res, next) => {
+      if (allowedPermissions.some((permission) => hasPermission(req.user, permission))) {
+        return next();
+      }
+
+      if (requestPrefersHtml(req)) {
+        return res.redirect('/login.html');
+      }
+
+      return res.status(403).json({ error: 'forbidden' });
+    };
+  }
+
+  function requireAnyModule(...modules) {
+    return (req, res, next) => {
+      if (hasAnyModule(req.user, modules)) {
+        return next();
+      }
+
+      if (requestPrefersHtml(req)) {
+        return res.redirect('/login.html');
       }
 
       return res.status(403).json({ error: 'forbidden' });
@@ -150,6 +200,8 @@ function createAuthHelpers({ db, ad, jwt, jwtSecret }) {
     resolveUserFromRequest,
     authMiddleware,
     requireRole,
+    requirePermission,
+    requireAnyModule,
   };
 }
 

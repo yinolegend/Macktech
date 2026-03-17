@@ -1,0 +1,305 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0b74ff" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Command Center" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+    <title>Admin Console | Command Center</title>
+    <link rel="stylesheet" href="/css/unified-theme.css" />
+    <link rel="stylesheet" href="/css/admin-console.css?v=20260317c" />
+  </head>
+  <body class="theme-unified admin-console-page">
+    <main class="console-shell">
+      <header class="console-hero">
+        <div>
+          <p class="console-eyebrow">System Control Center</p>
+          <h1>Admin Console</h1>
+          <p class="console-copy">Manage local users, roles, departments, and offline access across calibration, hazmat, and failure analysis workflows.</p>
+        </div>
+        <div class="console-hero-actions">
+          <div class="session-chip">
+            <small>Signed in as</small>
+            <strong id="session-user">Administrator</strong>
+          </div>
+          <button id="sign-out-button" class="hero-button ghost" type="button">Sign Out</button>
+        </div>
+      </header>
+
+      <section class="overview-strip" aria-label="System overview cards">
+        <article class="metric-card">
+          <small>Total Users</small>
+          <strong id="metric-total-users">0</strong>
+        </article>
+        <article class="metric-card accent-green">
+          <small>Active Users</small>
+          <strong id="metric-active-users">0</strong>
+        </article>
+        <article class="metric-card accent-blue">
+          <small>Calibration Assets</small>
+          <strong id="metric-calibration-assets">0</strong>
+        </article>
+        <article class="metric-card accent-amber">
+          <small>Hazmat Inventory</small>
+          <strong id="metric-hazmat-inventory">0</strong>
+        </article>
+        <article class="metric-card accent-orange">
+          <small>Upcoming Calibrations</small>
+          <strong id="metric-upcoming-calibrations">0</strong>
+        </article>
+      </section>
+
+      <nav class="console-tabs" aria-label="Admin console sections">
+        <button class="console-tab active" type="button" data-section="overview">System Overview</button>
+        <button class="console-tab" type="button" data-section="users">User Management</button>
+        <button class="console-tab" type="button" data-section="roles">Roles &amp; Permissions</button>
+        <button class="console-tab" type="button" data-section="departments">Departments</button>
+      </nav>
+
+      <div id="status-banner" class="status-banner" aria-live="polite"></div>
+
+      <section class="console-section active" data-section="overview">
+        <div class="panel-grid overview-grid">
+          <article class="panel-card wide-card">
+            <div class="panel-head">
+              <div>
+                <p class="panel-eyebrow">System Overview</p>
+                <h2>Control Center Snapshot</h2>
+              </div>
+            </div>
+            <div id="overview-summary" class="summary-list"></div>
+          </article>
+          <article class="panel-card">
+            <div class="panel-head">
+              <div>
+                <p class="panel-eyebrow">Role Coverage</p>
+                <h2>Assigned Roles</h2>
+              </div>
+            </div>
+            <div id="role-distribution" class="stack-list"></div>
+          </article>
+          <article class="panel-card">
+            <div class="panel-head">
+              <div>
+                <p class="panel-eyebrow">Offline Security</p>
+                <h2>Active Controls</h2>
+              </div>
+            </div>
+            <div class="security-grid">
+              <div class="security-item">
+                <strong>Hashed Passwords</strong>
+                <small>Bcrypt hashing is used for all local passwords.</small>
+              </div>
+              <div class="security-item">
+                <strong>Session Expiration</strong>
+                <small>Local authenticated sessions expire automatically after 12 hours.</small>
+              </div>
+              <div class="security-item">
+                <strong>Disabled Account Blocking</strong>
+                <small>Disabled users are denied at login and on protected routes.</small>
+              </div>
+              <div class="security-item">
+                <strong>Module Access</strong>
+                <small>Portal navigation is driven by the user’s assigned modules and role.</small>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="console-section" data-section="users">
+        <div class="panel-grid user-grid">
+          <article class="panel-card form-card">
+            <div class="panel-head">
+              <div>
+                <p class="panel-eyebrow">User Management</p>
+                <h2 id="user-form-title">Create User</h2>
+              </div>
+              <button id="clear-user-form-button" class="inline-button" type="button">Clear</button>
+            </div>
+
+            <form id="user-form" class="admin-form">
+              <input id="user-id" type="hidden" />
+
+              <label>
+                Username
+                <input id="user-username" name="username" type="text" autocomplete="off" required />
+              </label>
+
+              <label>
+                Password
+                <input id="user-password" name="password" type="password" autocomplete="new-password" />
+              </label>
+
+              <label>
+                Full Name
+                <input id="user-display-name" name="display_name" type="text" autocomplete="name" required />
+              </label>
+
+              <label>
+                Department
+                <input id="user-department" name="department" type="text" list="department-options" />
+              </label>
+
+              <label>
+                Role
+                <select id="user-role" name="role"></select>
+              </label>
+
+              <label>
+                Account Status
+                <select id="user-status" name="account_status">
+                  <option value="active">Active</option>
+                  <option value="disabled">Disabled</option>
+                </select>
+              </label>
+
+              <label>
+                Access Level
+                <select id="user-access-level" name="access_level">
+                  <option value="view_only">View Only</option>
+                  <option value="view_edit">View + Edit</option>
+                </select>
+              </label>
+
+              <div class="modules-panel">
+                <div class="modules-head">
+                  <strong>Operational Module Access</strong>
+                  <button id="apply-role-defaults-button" class="inline-button" type="button">Use Role Defaults</button>
+                </div>
+                <p class="modules-copy">Select the modules this account can access: Failure, Hazmat, Calibration, and Announcements.</p>
+                <div id="module-checkboxes" class="module-checkboxes"></div>
+              </div>
+
+              <div class="form-actions">
+                <button id="save-user-button" class="hero-button" type="submit">Save User</button>
+              </div>
+            </form>
+          </article>
+
+          <article class="panel-card list-card">
+            <div class="panel-head">
+              <div>
+                <p class="panel-eyebrow">Local Accounts</p>
+                <h2>Users</h2>
+              </div>
+            </div>
+
+            <div class="toolbar-row users-toolbar">
+              <label class="user-picker-toolbar" for="users-user-select">
+                <span>Select User</span>
+                <select id="users-user-select">
+                  <option value="">Select user to edit</option>
+                </select>
+              </label>
+              <input id="user-search" type="search" placeholder="Search by username, name, department, or role" />
+            </div>
+
+            <div class="table-shell">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Department</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Access</th>
+                    <th>Modules</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="user-table-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="console-section" data-section="roles">
+        <article class="panel-card">
+          <div class="panel-head roles-head">
+            <div>
+              <p class="panel-eyebrow">Role-Based Access</p>
+              <h2>Roles &amp; Permissions</h2>
+            </div>
+            <label class="role-user-toolbar" for="roles-user-select">
+              <span>Select User</span>
+              <select id="roles-user-select">
+                <option value="">Select user to work with</option>
+              </select>
+            </label>
+          </div>
+          <div id="roles-grid" class="roles-grid"></div>
+        </article>
+      </section>
+
+      <section class="console-section" data-section="departments">
+        <div class="panel-grid department-grid">
+          <article class="panel-card form-card">
+            <div class="panel-head">
+              <div>
+                <p class="panel-eyebrow">Department Management</p>
+                <h2 id="department-form-title">Create Department</h2>
+              </div>
+              <button id="clear-department-form-button" class="inline-button" type="button">Clear</button>
+            </div>
+
+            <form id="department-form" class="admin-form">
+              <input id="department-id" type="hidden" />
+
+              <label>
+                Department Name
+                <input id="department-name" name="name" type="text" required />
+              </label>
+
+              <label>
+                Supervisor
+                <input id="department-supervisor" name="supervisor" type="text" />
+              </label>
+
+              <div class="form-actions">
+                <button class="hero-button" type="submit">Save Department</button>
+              </div>
+            </form>
+          </article>
+
+          <article class="panel-card list-card">
+            <div class="panel-head">
+              <div>
+                <p class="panel-eyebrow">Department Directory</p>
+                <h2>Departments</h2>
+              </div>
+            </div>
+
+            <div class="table-shell">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Supervisor</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="department-table-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <datalist id="department-options"></datalist>
+
+    <script src="/scripts/admin-console.js?v=20260317-users1"></script>
+    <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(function(){});
+    }
+  </script>
+</body>
+</html>

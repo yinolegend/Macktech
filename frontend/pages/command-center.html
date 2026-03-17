@@ -1,8 +1,15 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0b74ff" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Command Center" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
     <title>Command Center</title>
     <link rel="stylesheet" href="/public/css/tabulator.min.css" />
     <link rel="stylesheet" href="/public/css/command-center.css" />
@@ -93,7 +100,7 @@
               </label>
               <button id="add-calibration-button" class="action-button menu-action-button" type="button">
                 <span data-lucide="plus"></span>
-                Add Asset
+                New Asset (+)
               </button>
               <button id="add-template-button" class="action-button ghost menu-action-button" type="button">
                 <span data-lucide="layers-3"></span>
@@ -435,5 +442,10 @@
     <script src="/public/js/jspdf.plugin.autotable.js"></script>
     <script src="/public/js/lucide.min.js"></script>
     <script src="/public/js/command-center.js"></script>
-  </body>
+    <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(function(){});
+    }
+  </script>
+</body>
   </html>

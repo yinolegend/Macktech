@@ -1,6 +1,6 @@
-## Macktech Offline Portal
+## Command Center Offline Portal
 
-Macktech is a self-hosted portal that runs fully offline on a local Express API. The system serves a local HTML frontend, stores its operational data on disk, and keeps its client-side libraries and icon assets in the repository.
+Command Center is a self-hosted portal that runs fully offline on a local Express API. The system serves a local HTML frontend, stores its operational data on disk, and keeps its client-side libraries and icon assets in the repository.
 
 ### Quick start
 

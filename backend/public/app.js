@@ -11,8 +11,10 @@
 
 // --- Auth & global state helpers ------------------------------------------------
 // Authentication token storage key (admins will sign in via /admin.html)
-const TOKEN_KEY = 'mack_token';
-const APPEARANCE_STORAGE_KEY = 'mack_appearance';
+const TOKEN_KEY = 'command_center_token';
+const LEGACY_TOKEN_KEY = 'mack_token';
+const APPEARANCE_STORAGE_KEY = 'command_center_appearance';
+const LEGACY_APPEARANCE_STORAGE_KEY = 'mack_appearance';
 
 // Socket instance (created after token is known so we can attach it in auth handshake)
 let socket = null;
@@ -31,8 +33,24 @@ let facilityMapSearchQuery = '';
 let facilityMapFitMode = true;
 
 // Helper: attach Authorization header to fetch requests when a token exists.
+function readStoredToken() {
+  try {
+    return localStorage.getItem(TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY) || '';
+  } catch (error) {
+    return '';
+  }
+}
+
+function readStoredAppearance() {
+  try {
+    return localStorage.getItem(APPEARANCE_STORAGE_KEY) || localStorage.getItem(LEGACY_APPEARANCE_STORAGE_KEY) || '';
+  } catch (error) {
+    return '';
+  }
+}
+
 function authHeaders(){
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = readStoredToken();
   return token ? { Authorization: 'Bearer ' + token } : {};
 }
 
@@ -47,16 +65,17 @@ function normalizeAppearance(value){
 }
 
 function applyAppearance(mode){
-  const next = normalizeAppearance(mode || localStorage.getItem(APPEARANCE_STORAGE_KEY) || 'light');
+  const next = normalizeAppearance(mode || readStoredAppearance() || 'light');
   document.body.classList.toggle('appearance-dark', next === 'dark');
   document.body.classList.toggle('appearance-light', next !== 'dark');
   localStorage.setItem(APPEARANCE_STORAGE_KEY, next);
+  localStorage.removeItem(LEGACY_APPEARANCE_STORAGE_KEY);
   if (appThemeToggle) appThemeToggle.textContent = next === 'dark' ? 'Light Mode' : 'Dark Mode';
 }
 
 // Connect Socket.IO, passing the token in `auth` for server verification.
 function connectSocket(){
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = readStoredToken();
   if (typeof io !== 'function') return null;
   socket = io({ auth: { token } });
   socket.on('chat message', (m)=> addMessage(m));

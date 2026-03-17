@@ -1,9 +1,16 @@
-<!doctype html>
+﻿<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Announcements — Mack Technologies</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0b74ff" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Command Center" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+    <title>Announcements — Command Center</title>
     <link rel="stylesheet" href="css/unified-theme.css" />
     <style>
       .card{ width:min(96vw,1540px); max-width:1540px; min-height:90vh; margin:0 auto; background:white; border-radius:20px; padding:clamp(24px,2.6vw,38px); box-shadow:0 40px 110px rgba(9,30,68,0.18); border:1px solid rgba(11,116,255,0.08); transition:min-height 0.3s ease, padding 0.3s ease; display:flex; flex-direction:column; }
@@ -89,7 +96,7 @@
     <div class="card">
       <div class="page-header">
         <div class="title-group">
-          <h1>Mack Technologies</h1>    
+          <h1>Command Center</h1>    
           <div class="muted">Company announcements and notices</div>
         </div>
         <div>
@@ -405,5 +412,10 @@
       document.getElementById('btnHomeFromAnnouncements').addEventListener('click', ()=> { window.location.href = '/'; });
       loadAnnouncements();
     </script>
-  </body>
+    <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(function(){});
+    }
+  </script>
+</body>
 </html>

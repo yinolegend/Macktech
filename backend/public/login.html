@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Login Portal - Mack Technologies</title>
+    <title>Login Portal - Command Center</title>
     <link rel="stylesheet" href="css/unified-theme.css" />
     <style>
       * { box-sizing: border-box; }
@@ -266,7 +266,8 @@
     </main>
 
     <script>
-      const TOKEN_KEY = 'mack_token';
+      const TOKEN_KEY = 'command_center_token';
+      const LEGACY_TOKEN_KEY = 'mack_token';
       const loginCard = document.getElementById('login_card');
       const targetSelect = document.getElementById('login_target');
       const portalBadge = document.getElementById('portal_badge');
@@ -395,7 +396,7 @@
             body: JSON.stringify({ username, password, portal: targetSelect.value || 'command-center' }),
           });
         } catch (error) {
-          setMsg('Cannot reach the local login service at http://localhost:3000.', 'error');
+          setMsg('Cannot reach the login service on this host.', 'error');
           return;
         }
 
@@ -423,6 +424,7 @@
         }
 
         localStorage.setItem(TOKEN_KEY, token);
+        localStorage.removeItem(LEGACY_TOKEN_KEY);
         setMsg('Sign in successful. Redirecting...', 'ok');
         openRelative(getDestination(portal, data));
       }

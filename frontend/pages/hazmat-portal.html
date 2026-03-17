@@ -1,8 +1,15 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0b74ff" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Command Center" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
     <title>Hazardous Material Tracking Portal</title>
     <link rel="stylesheet" href="/public/css/tabulator_midnight.min.css" />
     <style>
@@ -969,7 +976,8 @@
     <script src="/public/js/tabulator.min.js"></script>
     <script>
       (() => {
-        const TOKEN_KEY = 'mack_token';
+        const TOKEN_KEY = 'command_center_token';
+        const LEGACY_TOKEN_KEY = 'mack_token';
         const { DateTime } = window.luxon || {};
 
         function buildDiamond(innerMarkup) {
@@ -1313,7 +1321,7 @@
         }
 
         async function apiFetch(path, options) {
-          const token = localStorage.getItem(TOKEN_KEY);
+          const token = localStorage.getItem(TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY) || '';
           const config = Object.assign({
             credentials: 'same-origin',
             headers: {},
@@ -1327,6 +1335,7 @@
           const response = await fetch(path, config);
           if (response.status === 401 || response.status === 403) {
             localStorage.removeItem(TOKEN_KEY);
+            localStorage.removeItem(LEGACY_TOKEN_KEY);
             if (path !== '/api/hazmat/logout') {
               window.location.href = '/admin.html#signin';
             }
@@ -1670,7 +1679,7 @@
           const workbook = window.XLSX.utils.book_new();
           const reportDate = DateTime ? DateTime.local().toFormat('dd LLL yyyy HH:mm') : new Date().toISOString();
           const aoa = [
-            ['Mack Technologies', 'Hazardous Material Tracking Report'],
+            ['Command Center', 'Hazardous Material Tracking Report'],
             ['Department', 'HAZMAT'],
             ['Generated', reportDate],
             [],
@@ -1730,6 +1739,7 @@
           } catch (error) {
           }
           localStorage.removeItem(TOKEN_KEY);
+          localStorage.removeItem(LEGACY_TOKEN_KEY);
           window.location.href = '/admin.html#signin';
         }
 
@@ -1808,5 +1818,10 @@
         });
       })();
     </script>
-  </body>
+    <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(function(){});
+    }
+  </script>
+</body>
 </html>

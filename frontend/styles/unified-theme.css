@@ -168,3 +168,42 @@ body.theme-unified .controls {
   border-radius: 12px;
   background: linear-gradient(180deg, #fbfdff, #f5fbff);
 }
+
+/* ── Mobile responsive pass ─────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  body.theme-unified.page-login,
+  body.theme-unified.page-app,
+  body.theme-unified.page-ticket,
+  body.theme-unified.page-ticket-form,
+  body.theme-unified.page-announcements,
+  body.theme-unified.page-index {
+    padding: 12px 8px;
+  }
+
+  body.theme-unified .card,
+  body.theme-unified .app-shell,
+  body.theme-unified .card-main,
+  body.theme-unified .ticket,
+  body.theme-unified .editor-shell {
+    border-radius: 12px !important;
+    padding: 16px !important;
+  }
+
+  body.theme-unified .btn,
+  body.theme-unified .top-button,
+  body.theme-unified form button[type='submit'] {
+    width: 100%;
+    justify-content: center;
+  }
+
+  body.theme-unified .editor-toolbar {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  body.theme-unified .toolbar button,
+  body.theme-unified .toolbar select {
+    font-size: 13px;
+  }
+}

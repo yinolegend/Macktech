@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -374,7 +374,7 @@
                         <path d="M5 12h14"></path>
                       </svg>
                     </span>
-                    <span>Add Asset</span>
+                    <span>New Asset (+)</span>
                   </button>
                 </div>
               </div>
@@ -388,10 +388,22 @@
                   <h3>Debug Lab Ticket Console</h3>
                 </div>
                 <div class="toolbar-actions">
+                  <label class="action-button secondary upload-button" aria-label="Import debug workbook">
+                    <span class="button-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" class="icon-svg">
+                        <path d="M12 16V4"></path>
+                        <path d="m7 9 5-5 5 5"></path>
+                        <path d="M5 20h14"></path>
+                      </svg>
+                    </span>
+                    <span>Import Spreadsheet</span>
+                    <input id="debug-import-input" type="file" accept=".xlsx,.xls,.csv" multiple />
+                  </label>
                   <button id="debug-ticket-reset-button" class="action-button secondary" type="button">New Ticket</button>
                   <button id="debug-refresh-button" class="action-button" type="button">Sync Bench</button>
                 </div>
               </div>
+              <div id="debug-import-summary" class="config-note">Import supports offline XLSX/CSV files. Duplicate rows are skipped, returns reopen existing serial tickets.</div>
               <div class="debug-grid">
                 <section class="debug-column">
                   <div class="asset-queue-toolbar debug-queue-toolbar" role="group" aria-label="Debug Smart Asset Queue filters">

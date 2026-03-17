@@ -1,9 +1,16 @@
-<!doctype html>
+﻿<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Facility Map Editor - Mack Technologies</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0b74ff" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Command Center" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+    <title>Facility Map Editor - Command Center</title>
     <link rel="stylesheet" href="../styles/unified-theme.css" />
     <style>
       :root {
@@ -1353,23 +1360,12 @@
 
     <script>
       (() => {
-        const TOKEN_KEY = 'mack_token';
-
-        function normalizeLocalApiHost(value) {
-          const normalized = String(value || '').trim().toLowerCase();
-          if (!normalized || normalized === '127.0.0.1' || normalized === '0.0.0.0' || normalized === '::1' || normalized === '[::1]') {
-            return 'localhost';
-          }
-          return normalized;
-        }
+        const TOKEN_KEY = 'command_center_token';
+        const LEGACY_TOKEN_KEY = 'mack_token';
 
         function getApiBase() {
           if (location.protocol === 'http:' || location.protocol === 'https:') {
-            const rawHostname = String(location.hostname || '').trim().toLowerCase();
-            const hostname = normalizeLocalApiHost(rawHostname);
-            if (location.port === '3000' && hostname === rawHostname) return location.origin;
-            const protocol = location.protocol === 'https:' ? 'https:' : 'http:';
-            return `${protocol}//${hostname}:3000`;
+            return location.origin;
           }
           return 'http://localhost:3000';
         }
@@ -1422,6 +1418,7 @@
           }
 
           localStorage.setItem(TOKEN_KEY, token);
+          localStorage.removeItem(LEGACY_TOKEN_KEY);
           setFallbackMsg('Signed in. Reloading editor...', 'warn');
           window.location.reload();
           return false;
@@ -1442,23 +1439,12 @@
     <script src="../assets/vendor/fabric.min.js"></script>
     <script>
       window.__mapEditorBooted = false;
-      const TOKEN_KEY = 'mack_token';
-
-      function normalizeLocalApiHost(value) {
-        const normalized = String(value || '').trim().toLowerCase();
-        if (!normalized || normalized === '127.0.0.1' || normalized === '0.0.0.0' || normalized === '::1' || normalized === '[::1]') {
-          return 'localhost';
-        }
-        return normalized;
-      }
+      const TOKEN_KEY = 'command_center_token';
+      const LEGACY_TOKEN_KEY = 'mack_token';
 
       function getApiBase() {
         if (location.protocol === 'http:' || location.protocol === 'https:') {
-          const rawHostname = String(location.hostname || '').trim().toLowerCase();
-          const hostname = normalizeLocalApiHost(rawHostname);
-          if (location.port === '3000' && hostname === rawHostname) return location.origin;
-          const protocol = location.protocol === 'https:' ? 'https:' : 'http:';
-          return `${protocol}//${hostname}:3000`;
+          return location.origin;
         }
         return 'http://localhost:3000';
       }
@@ -1699,7 +1685,7 @@
       };
 
       const state = {
-        token: localStorage.getItem(TOKEN_KEY) || '',
+        token: localStorage.getItem(TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY) || '',
         user: null,
         map: {
           canvas: { width: 1400, height: 850 },
@@ -1801,7 +1787,8 @@
         toolStatus: document.getElementById('toolStatus'),
       };
 
-      const APPEARANCE_STORAGE_KEY = 'mack_appearance';
+      const APPEARANCE_STORAGE_KEY = 'command_center_appearance';
+      const LEGACY_APPEARANCE_STORAGE_KEY = 'mack_appearance';
 
       function authHeaders(extra) {
         const headers = Object.assign({}, extra || {});
@@ -2447,9 +2434,10 @@
       }
 
       function applyAppearance(mode) {
-        const next = normalizeAppearance(mode || localStorage.getItem(APPEARANCE_STORAGE_KEY) || 'light');
+        const next = normalizeAppearance(mode || localStorage.getItem(APPEARANCE_STORAGE_KEY) || localStorage.getItem(LEGACY_APPEARANCE_STORAGE_KEY) || 'light');
         state.appearance = next;
         localStorage.setItem(APPEARANCE_STORAGE_KEY, next);
+        localStorage.removeItem(LEGACY_APPEARANCE_STORAGE_KEY);
         document.body.classList.toggle('appearance-dark', next === 'dark');
         document.body.classList.toggle('appearance-light', next !== 'dark');
         if (refs.appearanceBadge) refs.appearanceBadge.textContent = 'Theme: ' + (next === 'dark' ? 'Dark' : 'Light');
@@ -5689,7 +5677,7 @@
             body: JSON.stringify({ username, password }),
           });
         } catch (err) {
-          setMsg(refs.signinMsg, 'Cannot reach the local login service at ' + getApiBase() + '. Open the app from http://localhost:3000/login.html.', 'error');
+          setMsg(refs.signinMsg, 'Cannot reach the login service on this host. Open /login.html and try again.', 'error');
           return;
         }
 
@@ -5710,6 +5698,7 @@
         state.token = token;
         state.user = user;
         localStorage.setItem(TOKEN_KEY, token);
+        localStorage.removeItem(LEGACY_TOKEN_KEY);
         refs.mapPass.value = '';
         setMsg(refs.signinMsg, '', null);
         setSession(user);
@@ -5721,6 +5710,7 @@
         state.token = '';
         state.user = null;
         localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(LEGACY_TOKEN_KEY);
         closeWorkspaceMenus();
         setSession(null);
         setMsg(refs.signinMsg, 'Signed out.', 'warn');
@@ -6056,5 +6046,10 @@
 
       boot();
     </script>
-  </body>
+    <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(function(){});
+    }
+  </script>
+</body>
 </html>

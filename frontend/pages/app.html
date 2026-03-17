@@ -1,9 +1,16 @@
-<!doctype html>
+﻿<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Mack — App</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0b74ff" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Command Center" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+    <title>Command Center — App</title>
     <link rel="stylesheet" href="css/unified-theme.css" />
     <style>
       *, *::before, *::after { box-sizing: border-box; }
@@ -179,8 +186,8 @@
       </div>
       <div id="handbook" class="section">
         <div class="section-card">
-          <h2>Mack Technologies Documents</h2>
-          <p>Browse Mack Technologies documents below.</p>
+          <h2>Command Center Documents</h2>
+          <p>Browse Command Center documents below.</p>
           <div id="handbook-department-controls" style="display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-top:10px">
             <div id="handbook-department-select-wrap" style="min-width:220px">
               <label for="handbook-department-filter" style="display:block;font-size:12px;font-weight:600;color:#6b7a99;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px">Department</label>
@@ -265,5 +272,10 @@
       const btnHomeCreate = document.getElementById('btnHomeInCreate');
       if (btnHomeCreate) btnHomeCreate.addEventListener('click', ()=> { window.location.href = '/'; });
     </script>
-  </body>
+    <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(function(){});
+    }
+  </script>
+</body>
 </html>

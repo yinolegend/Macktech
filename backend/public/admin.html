@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Admin Sign In — Mack Technologies</title>
+    <title>Admin Sign In — Command Center</title>
     <link rel="stylesheet" href="css/admin-shared.css" />
     <link rel="stylesheet" href="css/unified-theme.css" />
   </head>
@@ -103,15 +103,15 @@
       // the area they need (tickets, dashboard, etc.).
 
       // --- Session helpers & shared state ------------------------------------
-      const TOKEN_KEY = 'mack_token';
+      const TOKEN_KEY = 'command_center_token';
+      const LEGACY_TOKEN_KEY = 'mack_token';
       let usersCache = []; // list of users {id, username, display_name}
+
+      function readToken(){ return localStorage.getItem(TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY) || ''; }
 
       function getApiBase(){
         if (location.protocol === 'http:' || location.protocol === 'https:') {
-          if (location.port === '3000') return location.origin;
-          const protocol = location.protocol === 'https:' ? 'https:' : 'http:';
-          const hostname = location.hostname || 'localhost';
-          return `${protocol}//${hostname}:3000`;
+          return location.origin;
         }
         return 'http://localhost:3000';
       }
@@ -153,7 +153,7 @@
       // Load users for assignment dropdown (admins can assign tickets).
       async function fetchUsers(){
         try{
-          const res = await apiFetch('/api/users', { headers: { Authorization: 'Bearer ' + localStorage.getItem(TOKEN_KEY) } });
+          const res = await apiFetch('/api/users', { headers: { Authorization: 'Bearer ' + readToken() } });
           if (!res.ok) return;
           usersCache = await res.json();
         }catch(e){ console.error('fetch users', e); }
@@ -162,7 +162,7 @@
       // Pull every ticket, update dashboard counters, and paint the list view.
       async function renderTickets(){
         try{
-          const res = await apiFetch('/api/tickets', { headers: { Authorization: 'Bearer ' + localStorage.getItem(TOKEN_KEY) } });
+          const res = await apiFetch('/api/tickets', { headers: { Authorization: 'Bearer ' + readToken() } });
           const list = await res.json();
           // compute dashboard stats
           const stats = { total: 0, open: 0, closed: 0, onHold: 0, overdue: 0, holdReasons: {} };
@@ -449,7 +449,7 @@
       // --- Ticket detail drawer ---------------------------------------------
       async function showTicket(id){
         try{
-          const res = await apiFetch(`/api/tickets/${id}`, { headers: { Authorization: 'Bearer ' + localStorage.getItem(TOKEN_KEY) } });
+          const res = await apiFetch(`/api/tickets/${id}`, { headers: { Authorization: 'Bearer ' + readToken() } });
           if (!res.ok) return;
           const t = await res.json();
           const det = document.getElementById('ticketDetail');
@@ -538,7 +538,7 @@
             // if assigning now and no previous assigned_at, set assigned_at
             if (assignee) fields.assigned_at = new Date().toISOString(); else fields.assigned_at = null;
             try{
-              await apiFetch(`/api/tickets/${t.id}`, { method: 'PUT', headers: { 'Content-Type':'application/json', Authorization: 'Bearer ' + localStorage.getItem(TOKEN_KEY) }, body: JSON.stringify(fields) });
+              await apiFetch(`/api/tickets/${t.id}`, { method: 'PUT', headers: { 'Content-Type':'application/json', Authorization: 'Bearer ' + readToken() }, body: JSON.stringify(fields) });
               await renderTickets();
               await showTicket(id);
             }catch(e){ alert('Save failed'); }
@@ -558,7 +558,7 @@
           document.getElementById('btnAddNote').addEventListener('click', async ()=>{
             const msg = document.getElementById('note').value.trim();
             if (!msg) return;
-            await apiFetch(`/api/tickets/${t.id}/events`, { method:'POST', headers: { 'Content-Type':'application/json', Authorization: 'Bearer ' + localStorage.getItem(TOKEN_KEY) }, body: JSON.stringify({ message: msg, type: 'note' }) });
+            await apiFetch(`/api/tickets/${t.id}/events`, { method:'POST', headers: { 'Content-Type':'application/json', Authorization: 'Bearer ' + readToken() }, body: JSON.stringify({ message: msg, type: 'note' }) });
             document.getElementById('note').value = '';
             loadEvents(id);
           });
@@ -567,7 +567,7 @@
             statusDropdown.addEventListener('change', async ()=>{
               const newStatus = statusDropdown.value;
               try{
-                await apiFetch(`/api/tickets/${t.id}`, { method:'PUT', headers: { 'Content-Type':'application/json', Authorization: 'Bearer ' + localStorage.getItem(TOKEN_KEY) }, body: JSON.stringify({ status: newStatus }) });
+                await apiFetch(`/api/tickets/${t.id}`, { method:'PUT', headers: { 'Content-Type':'application/json', Authorization: 'Bearer ' + readToken() }, body: JSON.stringify({ status: newStatus }) });
                 currentStatus = newStatus;
                 if (statusDisplay) statusDisplay.textContent = newStatus.toUpperCase();
                 await renderTickets();
@@ -582,7 +582,7 @@
           if (closeBtn){
             closeBtn.addEventListener('click', async ()=>{
               try{
-                await apiFetch(`/api/tickets/${t.id}`, { method:'PUT', headers: { 'Content-Type':'application/json', Authorization: 'Bearer ' + localStorage.getItem(TOKEN_KEY) }, body: JSON.stringify({ status: 'closed' }) });
+                await apiFetch(`/api/tickets/${t.id}`, { method:'PUT', headers: { 'Content-Type':'application/json', Authorization: 'Bearer ' + readToken() }, body: JSON.stringify({ status: 'closed' }) });
                 await renderTickets();
                 await showTicket(id);
               }catch(err){ alert('Unable to close ticket right now'); }
@@ -595,7 +595,7 @@
 
       async function loadEvents(id){
         try{
-          const res = await apiFetch(`/api/tickets/${id}/events`, { headers: { Authorization: 'Bearer ' + localStorage.getItem(TOKEN_KEY) } });
+          const res = await apiFetch(`/api/tickets/${id}/events`, { headers: { Authorization: 'Bearer ' + readToken() } });
           const list = await res.json();
           const el = document.getElementById('events');
           if (!el) return;
@@ -647,6 +647,7 @@
           const j = await res.json();
           if (!res.ok) return document.getElementById('msg').textContent = j.error || 'sign in failed';
           localStorage.setItem(TOKEN_KEY, j.token);
+          localStorage.removeItem(LEGACY_TOKEN_KEY);
           if (j.redirectTo) {
             window.location.href = j.redirectTo;
             return;
@@ -665,6 +666,7 @@
 
       document.getElementById('btnSignOut').addEventListener('click', ()=>{
         localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(LEGACY_TOKEN_KEY);
         document.getElementById('signin').style.display = 'block';
         document.getElementById('console').style.display = 'none';
       });

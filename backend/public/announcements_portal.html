@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Announcements Portal — Mack Technologies</title>
+    <title>Announcements Portal — Command Center</title>
     <link rel="stylesheet" href="css/admin-shared.css" />
     <link rel="stylesheet" href="css/unified-theme.css" />
     <style>
@@ -835,7 +835,8 @@
     </div>
 
     <script>
-      const TOKEN_KEY = 'mack_token';
+      const TOKEN_KEY = 'command_center_token';
+      const LEGACY_TOKEN_KEY = 'mack_token';
       let announcementCache = [];
       let currentEditingId = null;
       let handbookDepartmentOptions = [];
@@ -884,10 +885,7 @@
 
       function getApiBase(){
         if (location.protocol === 'http:' || location.protocol === 'https:') {
-          if (location.port === '3000') return location.origin;
-          const protocol = location.protocol === 'https:' ? 'https:' : 'http:';
-          const hostname = location.hostname || 'localhost';
-          return `${protocol}//${hostname}:3000`;
+          return location.origin;
         }
         return 'http://localhost:3000';
       }
@@ -895,6 +893,14 @@
         const base = getApiBase();
         if (!base) return path;
         return base.replace(/\/$/, '') + path;
+      }
+
+      function readToken(){
+        try {
+          return localStorage.getItem(TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY) || '';
+        } catch (error) {
+          return '';
+        }
       }
 
       function escapeHtml(str){
@@ -1261,6 +1267,7 @@
             return;
           }
           localStorage.setItem(TOKEN_KEY, data.token);
+          localStorage.removeItem(LEGACY_TOKEN_KEY);
           showPortalForUser(data.user && (data.user.display_name || data.user.username || u));
         } catch (err) {
           msg.textContent = 'Network error: ' + err.message;
@@ -1268,7 +1275,7 @@
       }
 
       async function fetchWithAuth(path, options){
-        const token = localStorage.getItem(TOKEN_KEY);
+        const token = readToken();
         // Don't set headers if body is FormData (browser will set Content-Type with boundary)
         let headers = options && options.headers ? Object.assign({}, options.headers) : {};
         headers.Authorization = 'Bearer ' + token;
@@ -1718,6 +1725,7 @@
       });
       document.getElementById('ap_signout').addEventListener('click', ()=>{
         localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(LEGACY_TOKEN_KEY);
         resetComposer();
         showSignin();
       });
@@ -2031,7 +2039,7 @@
 
       // Attempt auto sign-in by token
       (async () => {
-        const tok = localStorage.getItem(TOKEN_KEY);
+        const tok = readToken();
         if (!tok) return;
         try {
           const res = await fetchWithAuth('/api/me', {});
@@ -2040,6 +2048,7 @@
           showPortalForUser(user.display_name || user.username || 'admin');
         } catch (err) {
           localStorage.removeItem(TOKEN_KEY);
+          localStorage.removeItem(LEGACY_TOKEN_KEY);
         }
       })();
     </script>

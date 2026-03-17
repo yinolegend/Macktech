@@ -1079,3 +1079,30 @@ small,
     justify-content: flex-start;
   }
 }
+
+@media (max-width: 480px) {
+  .tactical-shell,
+  .viewport {
+    padding: 10px;
+  }
+
+  .viewport-header {
+    gap: 8px;
+  }
+
+  .btn,
+  button[type='submit'],
+  .top-button {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .section-toolbar {
+    gap: 6px;
+  }
+
+  table {
+    font-size: 13px;
+  }
+}

@@ -1,6 +1,8 @@
 (function commandCenterPortal() {
-  const TOKEN_KEY = 'mack_token';
-  const VIEW_STORAGE_KEY = 'mack_command_center_view';
+  const TOKEN_KEY = 'command_center_token';
+  const LEGACY_TOKEN_KEY = 'mack_token';
+  const VIEW_STORAGE_KEY = 'command_center_view';
+  const LEGACY_VIEW_STORAGE_KEY = 'mack_command_center_view';
   const VALID_VIEWS = new Set(['inventory', 'calibration']);
   const state = {
     user: null,
@@ -506,7 +508,7 @@
 
   function readStoredView() {
     try {
-      const storedView = localStorage.getItem(VIEW_STORAGE_KEY);
+      const storedView = localStorage.getItem(VIEW_STORAGE_KEY) || localStorage.getItem(LEGACY_VIEW_STORAGE_KEY);
       return VALID_VIEWS.has(storedView) ? storedView : null;
     } catch (error) {
       return null;
@@ -516,6 +518,7 @@
   function persistView(view) {
     try {
       localStorage.setItem(VIEW_STORAGE_KEY, normalizeView(view));
+      localStorage.removeItem(LEGACY_VIEW_STORAGE_KEY);
     } catch (error) {
       // Ignore storage failures in locked-down browsers.
     }
@@ -939,6 +942,7 @@
     } catch (error) {
     }
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(LEGACY_TOKEN_KEY);
     window.location.href = '/admin.html#signin';
   }
 
@@ -949,7 +953,7 @@
       headers.set('Content-Type', 'application/json');
     }
 
-    const token = localStorage.getItem(TOKEN_KEY);
+    const token = localStorage.getItem(TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY);
     if (token && !headers.has('Authorization')) {
       headers.set('Authorization', `Bearer ${token}`);
     }

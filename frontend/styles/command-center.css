@@ -1088,3 +1088,32 @@ body[data-portal-mode='calibration'] .modal {
     width: 100%;
   }
 }
+@media (max-width: 480px) {
+  .cc-layout {
+    padding: 10px;
+  }
+
+  .cc-topbar {
+    padding: 12px 10px;
+    gap: 8px;
+  }
+
+  .nav-tab,
+  .quick-action-btn,
+  .action-slider-button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .action-slider {
+    flex-direction: column;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar-title {
+    font-size: 16px;
+  }
+}

@@ -17,6 +17,9 @@
   --ok: #45c97d;
   --shadow: 0 24px 60px rgba(0, 0, 0, 0.34);
   --radius: 18px;
+  --page-scrollbar-track: rgba(255, 255, 255, 0.05);
+  --page-scrollbar-thumb: rgba(255, 180, 0, 0.42);
+  --page-scrollbar-thumb-hover: rgba(255, 180, 0, 0.62);
 }
 
 * {
@@ -32,6 +35,8 @@ html {
 html,
 body {
   min-height: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: var(--page-scrollbar-thumb) var(--page-scrollbar-track);
 }
 
 body {
@@ -49,6 +54,34 @@ body::before {
   background:
     radial-gradient(circle at top left, rgba(33, 75, 120, 0.22), transparent 26%),
     radial-gradient(circle at bottom right, rgba(255, 180, 0, 0.08), transparent 28%);
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track {
+  background: var(--page-scrollbar-track);
+}
+
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb {
+  background: var(--page-scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid rgba(18, 18, 18, 0.9);
+}
+
+html::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb:hover {
+  background: var(--page-scrollbar-thumb-hover);
+}
+
+html::-webkit-scrollbar-corner,
+body::-webkit-scrollbar-corner {
+  background: var(--page-scrollbar-track);
 }
 
 button,
@@ -99,6 +132,10 @@ button {
   --accent-table-header: #0c1623;
   --accent-row: #16283d;
   --accent-row-hover: rgba(60, 116, 176, 0.3);
+  --scrollbar-track: rgba(255, 255, 255, 0.05);
+  --scrollbar-thumb: rgba(60, 116, 176, 0.58);
+  --scrollbar-thumb-hover: rgba(86, 146, 214, 0.82);
+  --scrollbar-border: rgba(8, 12, 18, 0.78);
 }
 
 .tactical-shell[data-view='calibration'] {
@@ -113,6 +150,9 @@ button {
   --accent-table-header: #191308;
   --accent-row: #2a2110;
   --accent-row-hover: rgba(255, 180, 0, 0.24);
+  --scrollbar-thumb: rgba(255, 180, 0, 0.52);
+  --scrollbar-thumb-hover: rgba(255, 198, 64, 0.8);
+  --scrollbar-border: rgba(24, 18, 6, 0.78);
 }
 
 .tactical-shell[data-view='debug'] {
@@ -127,6 +167,43 @@ button {
   --accent-table-header: #1b0d0d;
   --accent-row: #2c1414;
   --accent-row-hover: rgba(204, 51, 51, 0.26);
+  --scrollbar-thumb: rgba(204, 51, 51, 0.58);
+  --scrollbar-thumb-hover: rgba(230, 82, 82, 0.84);
+  --scrollbar-border: rgba(24, 8, 8, 0.82);
+}
+
+.tactical-shell,
+.tactical-shell * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+.tactical-shell::-webkit-scrollbar,
+.tactical-shell *::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.tactical-shell::-webkit-scrollbar-track,
+.tactical-shell *::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+.tactical-shell::-webkit-scrollbar-thumb,
+.tactical-shell *::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid var(--scrollbar-border);
+}
+
+.tactical-shell::-webkit-scrollbar-thumb:hover,
+.tactical-shell *::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+.tactical-shell::-webkit-scrollbar-corner,
+.tactical-shell *::-webkit-scrollbar-corner {
+  background: var(--scrollbar-track);
 }
 
 .tactical-sidebar {
@@ -690,7 +767,8 @@ small,
 }
 
 .tabulator .tabulator-header .tabulator-col,
-.tabulator .tabulator-tableHolder .tabulator-table,
+.tabulator .tabulator-tableholder,
+.tabulator .tabulator-tableholder .tabulator-table,
 .tabulator .tabulator-footer,
 .tabulator .tabulator-col-content {
   background: transparent;
@@ -722,6 +800,20 @@ small,
 .tabulator .tabulator-row .tabulator-cell {
   padding-top: 9px;
   padding-bottom: 9px;
+  background: transparent !important;
+}
+
+.tabulator .tabulator-row.tabulator-selected,
+.tabulator .tabulator-row.tabulator-selected:hover,
+.tabulator .tabulator-row.tabulator-selectable.tabulator-selected,
+.tabulator .tabulator-row.tabulator-selectable.tabulator-selected:hover {
+  background: var(--accent-row-hover) !important;
+  color: var(--text);
+}
+
+.tabulator .tabulator-row.tabulator-selected .tabulator-cell,
+.tabulator .tabulator-row.tabulator-selectable.tabulator-selected .tabulator-cell {
+  color: var(--text);
 }
 
 .tabulator .tabulator-row.row-danger {
@@ -1146,6 +1238,24 @@ small,
 
 .compact-filter-field input {
   width: 88px;
+}
+
+.debug-queue-toolbar .compact-filter-field:first-child {
+  flex: 1 1 280px;
+  min-width: 220px;
+}
+
+.debug-queue-toolbar .compact-filter-field input[type='search'] {
+  width: 100%;
+  min-width: 220px;
+}
+
+.debug-queue-toolbar .compact-filter-field select {
+  min-width: 170px;
+}
+
+.debug-queue-toolbar .table-button {
+  min-height: 38px;
 }
 
 .advanced-filter-panel {
@@ -1926,6 +2036,37 @@ small,
 .debug-form select,
 .debug-form textarea {
   width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  outline: 0;
+  background: linear-gradient(180deg, rgba(22, 22, 22, 0.98), rgba(12, 12, 12, 0.98));
+  color: var(--text);
+}
+
+.debug-form textarea {
+  min-height: 84px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  resize: vertical;
+}
+
+.debug-form input::placeholder,
+.debug-form textarea::placeholder {
+  color: #8c8c8c;
+}
+
+.debug-form select option {
+  background: #1a1a1a;
+  color: var(--text);
+}
+
+.debug-form input:focus,
+.debug-form select:focus,
+.debug-form textarea:focus {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 .debug-component-shell,

@@ -1,4 +1,5 @@
 const path = require('path');
+const crypto = require('crypto');
 const { createRequire } = require('module');
 
 const backendRequire = createRequire(path.join(__dirname, '..', '..', 'backend', 'package.json'));
@@ -32,6 +33,7 @@ const {
 
 const HIGH_HAZARD_CODES = new Set(['explosive', 'flammable', 'oxidizing', 'toxic', 'corrosive', 'health_hazard']);
 const DEBUG_TICKET_STATUSES = new Set(['OPEN', 'BENCH', 'FIXED', 'SCRAP']);
+const CLOSED_DEBUG_STATUSES = new Set(['FIXED', 'SCRAP']);
 
 function normalizeSymbol(value) {
   return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
@@ -509,6 +511,176 @@ function normalizeFailureStatus(value) {
   return DEBUG_TICKET_STATUSES.has(normalized) ? normalized : 'OPEN';
 }
 
+function normalizeCompactText(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ');
+}
+
+function normalizeFingerprintToken(value) {
+  return normalizeCompactText(value).toLowerCase();
+}
+
+function splitDelimitedValues(value) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  const raw = String(value || '').trim();
+  if (!raw) return [];
+  return raw.split(/[;,|]+/);
+}
+
+function normalizeTechnicianValues(value) {
+  const unique = new Map();
+  splitDelimitedValues(value)
+    .map((entry) => normalizeCompactText(entry))
+    .filter(Boolean)
+    .forEach((entry) => {
+      const key = entry.toLowerCase();
+      if (!unique.has(key)) {
+        unique.set(key, entry);
+      }
+    });
+  return Array.from(unique.values());
+}
+
+function mergeTechnicianValues(...sources) {
+  const unique = new Map();
+  sources.forEach((source) => {
+    normalizeTechnicianValues(source).forEach((entry) => {
+      const key = entry.toLowerCase();
+      if (!unique.has(key)) {
+        unique.set(key, entry);
+      }
+    });
+  });
+  return Array.from(unique.values());
+}
+
+function compactTechnicianText(values, maxLength = 240) {
+  const normalized = normalizeTechnicianValues(values);
+  if (!normalized.length) return '';
+
+  const output = [];
+  for (const value of normalized) {
+    const next = output.length ? `${output.join(', ')}, ${value}` : value;
+    if (next.length > maxLength) break;
+    output.push(value);
+  }
+  return output.join(', ');
+}
+
+function normalizeImportStatus(value) {
+  const raw = String(value || '').trim().toUpperCase();
+  if (!raw) return '';
+  return DEBUG_TICKET_STATUSES.has(raw) ? raw : '';
+}
+
+function buildDebugImportNotes(payload) {
+  const noteRows = [
+    ['Failure Notes', payload && (payload.failure_notes || payload.failure_note)],
+    ['Repair Notes', payload && (payload.repair_notes || payload.repair_note || payload.rework_notes)],
+    ['Verification Notes', payload && (payload.verification_notes || payload.verification_note)],
+    ['Comments', payload && (payload.comments || payload.comment)],
+    ['General Notes', payload && payload.notes],
+  ];
+
+  return noteRows
+    .map(([label, value]) => {
+      const normalized = normalizeCompactText(value);
+      return normalized ? `${label}: ${normalized}` : '';
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
+function buildDebugImportFingerprint(payload) {
+  const source = [
+    normalizeFingerprintToken(payload && payload.serial_number),
+    normalizeFingerprintToken(payload && payload.failure_signature),
+    normalizeFingerprintToken(payload && payload.note_text),
+    normalizeTechnicianValues(payload && payload.technicians).map((entry) => entry.toLowerCase()).sort().join('|'),
+    normalizeFingerprintToken(payload && payload.source_reference),
+  ].join('::');
+
+  return crypto.createHash('sha1').update(source).digest('hex');
+}
+
+function appendImportVerification(existingValue, importPayload) {
+  const current = normalizeCompactText(existingValue);
+  const noteText = normalizeCompactText(importPayload && importPayload.note_text);
+  const technicians = normalizeTechnicianValues(importPayload && importPayload.technicians);
+  const sourceFile = normalizeCompactText(importPayload && importPayload.source_file);
+
+  const details = [];
+  if (noteText) details.push(noteText);
+  if (technicians.length) details.push(`Technicians: ${technicians.join(', ')}`);
+  if (sourceFile) details.push(`Source: ${sourceFile}`);
+  if (!details.length) return current;
+
+  const block = `[Import ${new Date().toISOString()}] ${details.join(' | ')}`;
+  return current ? `${current}\n\n${block}` : block;
+}
+
+function formatDebugTimelineEntry(entry) {
+  const payload = entry && typeof entry.toJSON === 'function' ? entry.toJSON() : (entry || {});
+  return {
+    id: payload.id,
+    ticket_id: payload.ticket_id,
+    event_type: payload.event_type || '',
+    source_file: payload.source_file || '',
+    source_row_number: Number(payload.source_row_number) || null,
+    source_reference: payload.source_reference || '',
+    technician_list: normalizeTechnicianValues(payload.technician_list),
+    note_text: payload.note_text || '',
+    failure_signature_before: payload.failure_signature_before || '',
+    failure_signature_after: payload.failure_signature_after || '',
+    fingerprint_hash: payload.fingerprint_hash || '',
+    metadata: payload.metadata || {},
+    created_at: payload.created_at || null,
+  };
+}
+
+function normalizeDebugImportPayload(payload, index = 0) {
+  const serialNumber = normalizeDebugSerial(payload && (payload.serial_number || payload.serial || payload.sn || payload.board_serial));
+  const failureSignature = normalizeText(payload && (payload.failure_signature || payload.failure || payload.symptom || payload.issue));
+  if (!serialNumber || !failureSignature) {
+    throw new Error('serial_number and failure_signature are required');
+  }
+
+  const benchTime = Number(payload && (payload.total_bench_time || payload.bench_hours || payload.bench_time));
+  const rowNumber = Number(payload && (payload.source_row_number || payload.row_number || payload.row));
+  const noteText = buildDebugImportNotes(payload || {});
+  const verificationFromRow = normalizeCompactText(payload && payload.verification_pass);
+  const technicians = mergeTechnicianValues(
+    payload && payload.technicians,
+    payload && payload.technician_id,
+    payload && payload.technician,
+    payload && payload.tech,
+    payload && payload.techs,
+    payload && payload.worked_by
+  );
+
+  const normalized = {
+    serial_number: serialNumber,
+    model_rev: normalizeText(payload && payload.model_rev),
+    failure_signature: failureSignature,
+    technician_id: compactTechnicianText(technicians),
+    technicians,
+    department_id: normalizeNumericId(payload && payload.department_id) || null,
+    department_name: normalizeDepartmentName(payload && (payload.department_name || payload.department || payload.dept)),
+    status: normalizeImportStatus(payload && payload.status),
+    total_bench_time: Number.isFinite(benchTime) && benchTime >= 0 ? benchTime : 0,
+    verification_pass: verificationFromRow,
+    note_text: noteText,
+    source_file: normalizeCompactText(payload && (payload.source_file || payload.file_name || payload.filename)),
+    source_row_number: Number.isInteger(rowNumber) && rowNumber > 0 ? rowNumber : (index + 2),
+    source_reference: normalizeText(payload && (payload.source_reference || payload.reference || payload.rma || payload.rma_number || payload.ticket_reference)),
+  };
+
+  normalized.fingerprint_hash = buildDebugImportFingerprint(normalized);
+  return normalized;
+}
+
 function normalizeDebugTicketPayload(payload) {
   const serialNumber = normalizeDebugSerial(payload && payload.serial_number);
   const failureSignature = normalizeText(payload && payload.failure_signature);
@@ -592,6 +764,7 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
   const {
     FailureTicket,
     FaultyComponent,
+    DebugTicketHistory,
     CommandLog: DebugLog,
     sequelize: debugSequelize,
   } = debugDb || {};
@@ -622,6 +795,48 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
       ...actor,
       timestamp: new Date().toISOString(),
     }, { transaction });
+  }
+
+  async function recordDebugTimeline(payload, transaction) {
+    if (!DebugTicketHistory) return null;
+    return DebugTicketHistory.create(payload, { transaction });
+  }
+
+  async function resolveDebugImportDepartmentId(payload) {
+    const departmentId = normalizeNumericId(payload && payload.department_id);
+    if (departmentId > 0) {
+      await ensureDepartmentExists(departmentId);
+      return departmentId;
+    }
+
+    const departmentName = normalizeDepartmentName(payload && payload.department_name);
+    if (!departmentName) return null;
+
+    const department = await findDepartmentByName(departmentName);
+    return department ? department.id : null;
+  }
+
+  async function findMasterTicketBySerial(serialNumber, transaction) {
+    return FailureTicket.findOne({
+      where: { serial_number: serialNumber },
+      order: [
+        ['updated_at', 'DESC'],
+        ['id', 'DESC'],
+      ],
+      transaction,
+    });
+  }
+
+  async function isDebugImportDuplicate(ticketId, fingerprintHash, transaction) {
+    if (!DebugTicketHistory || !ticketId || !fingerprintHash) return false;
+    const existing = await DebugTicketHistory.findOne({
+      where: {
+        ticket_id: ticketId,
+        fingerprint_hash: fingerprintHash,
+      },
+      transaction,
+    });
+    return Boolean(existing);
   }
 
   async function buildDepartmentNameMap(transaction) {
@@ -695,6 +910,16 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
         ? payload.faulty_components.map(formatDebugComponent)
         : [],
     };
+  }
+
+  function collectDebugTechnicianRoster(ticket, timelineEntries) {
+    const list = mergeTechnicianValues(
+      ticket && ticket.technician_id,
+      ...(Array.isArray(timelineEntries)
+        ? timelineEntries.map((entry) => entry && entry.technician_list)
+        : [])
+    );
+    return list;
   }
 
   async function listSystemicIssueAlerts(transaction) {
@@ -1037,7 +1262,7 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
 
     logout: async (req, res) => {
       res.clearCookie('command_center_access', { path: '/' });
-      if (req.session && req.session.commandCenterUserId) {
+      if (req.session) {
         return req.session.destroy(() => {
           res.clearCookie('mack_session', { path: '/' });
           return res.json({ ok: true });
@@ -1925,6 +2150,197 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
       }
     },
 
+    importDebugTickets: async (req, res) => {
+      if (!ensureDebugLabAvailable(res)) return null;
+
+      const rows = Array.isArray(req.body && req.body.tickets)
+        ? req.body.tickets
+        : (Array.isArray(req.body && req.body.rows) ? req.body.rows : []);
+
+      if (!rows.length) {
+        return res.status(400).json({ error: 'tickets array is required' });
+      }
+
+      try {
+        const summary = {
+          processed: rows.length,
+          created: 0,
+          reopened: 0,
+          updated: 0,
+          duplicate_skipped: 0,
+          errors: 0,
+        };
+        const outcomes = [];
+
+        await debugSequelize.transaction(async (transaction) => {
+          for (let index = 0; index < rows.length; index += 1) {
+            const rawRow = rows[index] || {};
+            let payload;
+
+            try {
+              payload = normalizeDebugImportPayload(rawRow, index);
+            } catch (error) {
+              summary.errors += 1;
+              outcomes.push({
+                row: index + 2,
+                serial_number: normalizeDebugSerial(rawRow.serial_number || rawRow.serial || rawRow.sn),
+                status: 'error',
+                reason: (error && error.message) || 'invalid import row',
+              });
+              continue;
+            }
+
+            try {
+              const departmentId = await resolveDebugImportDepartmentId(payload);
+              const existing = await findMasterTicketBySerial(payload.serial_number, transaction);
+
+              if (!existing) {
+                const created = await FailureTicket.create({
+                  serial_number: payload.serial_number,
+                  model_rev: payload.model_rev,
+                  failure_signature: payload.failure_signature,
+                  technician_id: payload.technician_id,
+                  department_id: departmentId,
+                  status: payload.status || 'OPEN',
+                  total_bench_time: payload.total_bench_time,
+                  verification_pass: appendImportVerification(payload.verification_pass, payload),
+                }, { transaction });
+
+                await recordDebugTimeline({
+                  ticket_id: created.id,
+                  event_type: 'import_created',
+                  source_file: payload.source_file,
+                  source_row_number: payload.source_row_number,
+                  source_reference: payload.source_reference,
+                  technician_list: payload.technicians.join(', '),
+                  note_text: payload.note_text,
+                  failure_signature_before: '',
+                  failure_signature_after: payload.failure_signature,
+                  fingerprint_hash: payload.fingerprint_hash,
+                  metadata: {
+                    status_before: null,
+                    status_after: payload.status || 'OPEN',
+                    reopened: false,
+                    imported: true,
+                  },
+                }, transaction);
+
+                summary.created += 1;
+                outcomes.push({
+                  row: payload.source_row_number,
+                  serial_number: payload.serial_number,
+                  ticket_id: created.id,
+                  status: 'created',
+                });
+                continue;
+              }
+
+              const isDuplicate = await isDebugImportDuplicate(existing.id, payload.fingerprint_hash, transaction);
+              if (isDuplicate) {
+                summary.duplicate_skipped += 1;
+                outcomes.push({
+                  row: payload.source_row_number,
+                  serial_number: payload.serial_number,
+                  ticket_id: existing.id,
+                  status: 'duplicate_skipped',
+                  reason: 'matching import fingerprint already exists',
+                });
+                continue;
+              }
+
+              const statusBefore = normalizeFailureStatus(existing.status);
+              const wasClosed = CLOSED_DEBUG_STATUSES.has(statusBefore);
+              const signatureBefore = normalizeText(existing.failure_signature);
+              const signatureAfter = payload.failure_signature || signatureBefore;
+              const techniciansMerged = mergeTechnicianValues(existing.technician_id, payload.technicians);
+              const statusAfter = payload.status
+                ? (wasClosed && CLOSED_DEBUG_STATUSES.has(payload.status) ? 'OPEN' : payload.status)
+                : (wasClosed ? 'OPEN' : statusBefore);
+              const verificationPass = appendImportVerification(existing.verification_pass, payload);
+              const nextDepartmentId = departmentId || existing.department_id || null;
+              const existingBenchTime = Number(existing.total_bench_time || 0);
+              const benchTimeFromImport = Number(payload.total_bench_time || 0);
+              const totalBenchTime = Number.isFinite(benchTimeFromImport) && benchTimeFromImport > 0
+                ? Math.max(existingBenchTime, benchTimeFromImport)
+                : existingBenchTime;
+
+              await existing.update({
+                model_rev: payload.model_rev || existing.model_rev || '',
+                failure_signature: signatureAfter,
+                technician_id: compactTechnicianText(techniciansMerged),
+                department_id: nextDepartmentId,
+                status: statusAfter,
+                total_bench_time: totalBenchTime,
+                verification_pass: verificationPass,
+              }, { transaction });
+
+              const eventType = wasClosed
+                ? 'import_reopen'
+                : (signatureAfter !== signatureBefore ? 'import_signature_update' : 'import_merge');
+
+              await recordDebugTimeline({
+                ticket_id: existing.id,
+                event_type: eventType,
+                source_file: payload.source_file,
+                source_row_number: payload.source_row_number,
+                source_reference: payload.source_reference,
+                technician_list: techniciansMerged.join(', '),
+                note_text: payload.note_text,
+                failure_signature_before: signatureBefore,
+                failure_signature_after: signatureAfter,
+                fingerprint_hash: payload.fingerprint_hash,
+                metadata: {
+                  status_before: statusBefore,
+                  status_after: statusAfter,
+                  reopened: wasClosed,
+                  imported: true,
+                },
+              }, transaction);
+
+              if (wasClosed) {
+                summary.reopened += 1;
+              }
+              summary.updated += 1;
+
+              outcomes.push({
+                row: payload.source_row_number,
+                serial_number: payload.serial_number,
+                ticket_id: existing.id,
+                status: wasClosed ? 'reopened' : 'updated',
+              });
+            } catch (error) {
+              summary.errors += 1;
+              outcomes.push({
+                row: payload && payload.source_row_number ? payload.source_row_number : (index + 2),
+                serial_number: payload ? payload.serial_number : '',
+                status: 'error',
+                reason: (error && error.message) || 'failed to import row',
+              });
+            }
+          }
+
+          await recordDebugLog(req, {
+            module: 'debug_lab',
+            entity_type: 'failure_ticket',
+            entity_id: null,
+            action: 'imported',
+            detail: `Imported ${rows.length} debug rows`,
+            metadata: {
+              ...summary,
+            },
+          }, transaction);
+        });
+
+        return res.json({
+          ...summary,
+          outcomes,
+        });
+      } catch (error) {
+        console.error('command center import debug tickets', error && error.message ? error.message : error);
+        return res.status(500).json({ error: 'failed to import debug tickets' });
+      }
+    },
+
     listDebugTickets: async (req, res) => {
       if (!ensureDebugLabAvailable(res)) return null;
 
@@ -2405,25 +2821,52 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
           }
 
           const serial = normalizeDebugSerial(ticket.serial_number);
-          const [history, chronicCounts, departmentById, patternAlert] = await Promise.all([
-            FailureTicket.findAll({
-              where: { serial_number: serial },
-              include: [{
-                model: FaultyComponent,
-                as: 'faulty_components',
-                required: false,
-              }],
-              order: [
-                ['created_at', 'DESC'],
-                ['id', 'DESC'],
-              ],
-              limit: 50,
-              transaction,
-            }),
+          const history = await FailureTicket.findAll({
+            where: { serial_number: serial },
+            include: [{
+              model: FaultyComponent,
+              as: 'faulty_components',
+              required: false,
+            }],
+            order: [
+              ['created_at', 'DESC'],
+              ['id', 'DESC'],
+            ],
+            limit: 50,
+            transaction,
+          });
+
+          const [chronicCounts, departmentById, patternAlert] = await Promise.all([
             buildChronicFailureCountMap(transaction),
             buildDepartmentNameMap(transaction),
             buildDebugPatternAlert(ticket.failure_signature, transaction),
           ]);
+
+          let timelineEvents = [];
+          if (DebugTicketHistory) {
+            const ticketIds = Array.from(new Set(history
+              .map((entry) => Number(entry && entry.id))
+              .filter((entryId) => Number.isInteger(entryId) && entryId > 0)));
+
+            if (ticketIds.length) {
+              const timelineRows = await DebugTicketHistory.findAll({
+                where: {
+                  ticket_id: {
+                    [Op.in]: ticketIds,
+                  },
+                },
+                order: [
+                  ['created_at', 'DESC'],
+                  ['id', 'DESC'],
+                ],
+                limit: 300,
+                transaction,
+              });
+              timelineEvents = timelineRows.map(formatDebugTimelineEntry);
+            }
+          }
+
+          const technicianRoster = collectDebugTechnicianRoster(ticket, timelineEvents);
 
           return {
             ticket: formatDebugTicket(ticket, {
@@ -2434,6 +2877,8 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
               chronicCounts,
               departmentById,
             })),
+            timeline_events: timelineEvents,
+            technician_roster: technicianRoster,
             pattern_alert: patternAlert,
           };
         });

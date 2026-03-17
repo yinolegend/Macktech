@@ -1,8 +1,15 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0b74ff" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Command Center" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
     <title>Command Center</title>
     <link rel="stylesheet" href="/public/css/tabulator.min.css" />
     <link rel="stylesheet" href="/public/css/Style.css" />
@@ -346,7 +353,6 @@
             <div class="panel-card tactical-panel view-panel" data-view-panel="calibration" aria-hidden="true">
               <div class="panel-header-row section-toolbar">
                 <div>
-                  <p class="eyebrow">Calibration Database</p>
                   <h3>New Asset + Midnight Grid</h3>
                 </div>
                 <div class="toolbar-actions">
@@ -368,7 +374,7 @@
                         <path d="M5 12h14"></path>
                       </svg>
                     </span>
-                    <span>Add Asset</span>
+                    <span>New Asset (+)</span>
                   </button>
                 </div>
               </div>
@@ -803,5 +809,10 @@
     <script src="/public/js/jspdf.min.js"></script>
     <script src="/public/js/Auth_Redirect.js"></script>
     <script src="/public/js/Assets_Logic.js"></script>
-  </body>
+    <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(function(){});
+    }
+  </script>
+</body>
 </html>
