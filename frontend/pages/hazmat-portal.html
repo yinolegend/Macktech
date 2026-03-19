@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -9,9 +9,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Command Center" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+    <link rel="apple-touch-icon" href="/assets/icons/icon-192.svg" />
     <title>Hazardous Material Tracking Portal</title>
-    <link rel="stylesheet" href="/public/css/tabulator_midnight.min.css" />
+    <link rel="stylesheet" href="/styles/tabulator.min.css" />
     <style>
       :root {
         --navy-950: #08101d;
@@ -615,6 +615,90 @@
         border-color: rgba(255, 93, 93, 0.28);
       }
 
+      .mini-link {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        text-decoration: none;
+        border: 1px solid rgba(255, 139, 43, 0.32);
+        background: rgba(255, 139, 43, 0.12);
+        color: #ffd9b5;
+        font-size: 12px;
+      }
+
+      .mini-link:hover {
+        border-color: rgba(255, 139, 43, 0.5);
+        background: rgba(255, 139, 43, 0.2);
+      }
+
+      .attachment-stack {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .attachment-summary {
+        min-height: 20px;
+        color: var(--text-dim);
+        font-size: 12px;
+      }
+
+      .attachment-summary .attachment-stack {
+        margin-top: 4px;
+      }
+
+      .input-inline {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .input-inline input {
+        flex: 1;
+      }
+
+      .scanner-card {
+        width: min(560px, calc(100vw - 32px));
+      }
+
+      .scanner-video {
+        width: 100%;
+        max-height: 420px;
+        border-radius: 12px;
+        border: 1px solid rgba(132, 154, 184, 0.18);
+        background: #02060c;
+        object-fit: cover;
+      }
+
+      .scanner-status {
+        margin-top: 10px;
+        text-align: center;
+        font-size: 13px;
+        color: var(--text-dim);
+      }
+
+      .scanner-status.ok {
+        color: var(--ok);
+      }
+
+      .scanner-status.warn {
+        color: var(--warn);
+      }
+
+      .scanner-status.error {
+        color: var(--danger);
+      }
+
+      .scanner-help {
+        margin-top: 10px;
+        text-align: center;
+        font-size: 12px;
+        color: var(--text-dim);
+      }
+
       .activity-feed {
         display: grid;
         gap: 12px;
@@ -818,7 +902,10 @@
 
               <div class="field">
                 <label for="batchId">Batch ID</label>
-                <input id="batchId" type="text" required />
+                <div class="input-inline">
+                  <input id="batchId" type="text" required />
+                  <button id="btnOpenScanner" class="mini-button" type="button">Scan</button>
+                </div>
               </div>
 
               <div class="field-grid">
@@ -844,6 +931,20 @@
                   <input id="minThreshold" type="number" min="0" step="0.01" required />
                 </div>
               </div>
+
+              <div class="field-grid">
+                <div class="field">
+                  <label for="sdsFile">SDS PDF</label>
+                  <input id="sdsFile" type="file" accept=".pdf,application/pdf" />
+                </div>
+
+                <div class="field">
+                  <label for="imageFiles">Material Images</label>
+                  <input id="imageFiles" type="file" accept="image/*" multiple />
+                </div>
+              </div>
+
+              <div id="attachmentSummary" class="attachment-summary">No attachments uploaded yet.</div>
 
               <div class="field">
                 <label>GHS Hazards</label>
@@ -917,6 +1018,25 @@
       </div>
     </div>
 
+    <div id="scannerModal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" data-close="scanner"></div>
+
+      <div class="modal-card scanner-card" role="dialog" aria-modal="true" aria-labelledby="scannerTitle">
+        <div class="modal-header">
+          <div>
+            <h2 id="scannerTitle">Batch Scanner</h2>
+            <p class="muted">Use camera barcode scan or USB scanner keyboard input while this window is open.</p>
+          </div>
+
+          <button id="btnCloseScanner" class="ghost-button" type="button">Close</button>
+        </div>
+
+        <video id="scannerVideo" class="scanner-video" autoplay playsinline muted></video>
+        <div id="scannerStatus" class="scanner-status">Scanner ready.</div>
+        <div class="scanner-help">No cloud services are used. All scan processing remains local in your browser session.</div>
+      </div>
+    </div>
+
     <div id="checkoutModal" class="modal hidden" aria-hidden="true">
       <div class="modal-backdrop" data-close="modal"></div>
 
@@ -971,9 +1091,9 @@
       </div>
     </div>
 
-    <script src="/public/js/luxon.min.js"></script>
-    <script src="/public/js/xlsx.full.min.js"></script>
-    <script src="/public/js/tabulator.min.js"></script>
+    <script src="/assets/vendor/luxon.min.js"></script>
+    <script src="/assets/vendor/xlsx.full.min.js"></script>
+    <script src="/assets/vendor/tabulator.min.js"></script>
     <script>
       (() => {
         const TOKEN_KEY = 'command_center_token';
@@ -1052,6 +1172,14 @@
           usageLogs: [],
           table: null,
           activeFilter: 'all',
+          searchTimer: null,
+          scannerStream: null,
+          scannerPollTimer: null,
+          scannerDetectBusy: false,
+          scannerBarcodeDetector: null,
+          scannerKeyboardBuffer: '',
+          scannerKeyboardStamp: 0,
+          scannerLastDetected: '',
         };
 
         const refs = {
@@ -1072,10 +1200,14 @@
           materialId: document.getElementById('materialId'),
           materialName: document.getElementById('materialName'),
           batchId: document.getElementById('batchId'),
+          btnOpenScanner: document.getElementById('btnOpenScanner'),
           receivedDate: document.getElementById('receivedDate'),
           expirationDate: document.getElementById('expirationDate'),
           currentStock: document.getElementById('currentStock'),
           minThreshold: document.getElementById('minThreshold'),
+          sdsFile: document.getElementById('sdsFile'),
+          imageFiles: document.getElementById('imageFiles'),
+          attachmentSummary: document.getElementById('attachmentSummary'),
           formMessage: document.getElementById('formMessage'),
           materialsTable: document.getElementById('materialsTable'),
           activityFeed: document.getElementById('activityFeed'),
@@ -1093,6 +1225,10 @@
           checkoutMessage: document.getElementById('checkoutMessage'),
           btnCloseCheckout: document.getElementById('btnCloseCheckout'),
           btnCancelCheckout: document.getElementById('btnCancelCheckout'),
+          scannerModal: document.getElementById('scannerModal'),
+          scannerVideo: document.getElementById('scannerVideo'),
+          scannerStatus: document.getElementById('scannerStatus'),
+          btnCloseScanner: document.getElementById('btnCloseScanner'),
         };
 
         function escapeHtml(value) {
@@ -1119,6 +1255,43 @@
         function hideAssetWarning() {
           refs.assetWarning.classList.add('hidden');
           refs.assetWarning.textContent = '';
+        }
+
+        function setScannerStatus(message, tone) {
+          if (!refs.scannerStatus) return;
+          refs.scannerStatus.className = 'scanner-status';
+          if (tone) {
+            refs.scannerStatus.classList.add(tone);
+          }
+          refs.scannerStatus.textContent = message || 'Scanner ready.';
+        }
+
+        function getAttachmentPaths(material) {
+          const sdsPath = material && material.sds_file_path ? String(material.sds_file_path) : '';
+          const imagePaths = material && Array.isArray(material.image_paths)
+            ? material.image_paths.map((item) => String(item || '').trim()).filter(Boolean)
+            : [];
+          return { sdsPath, imagePaths };
+        }
+
+        function renderAttachmentMarkup(material, compact) {
+          const { sdsPath, imagePaths } = getAttachmentPaths(material);
+          const links = [];
+
+          if (sdsPath) {
+            links.push('<a class="mini-link" href="' + escapeHtml(sdsPath) + '" target="_blank" rel="noreferrer">SDS PDF</a>');
+          }
+
+          if (imagePaths.length) {
+            const imageLabel = imagePaths.length > 1 ? ('Images (' + imagePaths.length + ')') : 'Image';
+            links.push('<a class="mini-link" href="' + escapeHtml(imagePaths[0]) + '" target="_blank" rel="noreferrer">' + escapeHtml(imageLabel) + '</a>');
+          }
+
+          if (!links.length) {
+            return compact ? '<span class="muted">None</span>' : 'No attachments uploaded yet.';
+          }
+
+          return '<div class="attachment-stack">' + links.join('') + '</div>';
         }
 
         function normalizeSymbols(value) {
@@ -1238,17 +1411,6 @@
         }
 
         function materialMatchesFilters(material) {
-          const query = String(refs.searchBox.value || '').trim().toLowerCase();
-          const haystack = [
-            material.name,
-            material.batch_id,
-            normalizeSymbols(material.ghs_symbols).join(' '),
-          ].join(' ').toLowerCase();
-
-          if (query && !haystack.includes(query)) {
-            return false;
-          }
-
           if (state.activeFilter === 'expired') {
             return getExpirationStatus(material).code === 'expired';
           }
@@ -1292,6 +1454,11 @@
           refs.materialForm.reset();
           refs.materialId.value = '';
           setSelectedHazards([]);
+          if (refs.sdsFile) refs.sdsFile.value = '';
+          if (refs.imageFiles) refs.imageFiles.value = '';
+          if (refs.attachmentSummary) {
+            refs.attachmentSummary.innerHTML = 'No attachments uploaded yet.';
+          }
           setMessage(refs.formMessage, '', null);
         }
 
@@ -1303,6 +1470,9 @@
           refs.expirationDate.value = material.expiration_date || '';
           refs.currentStock.value = material.current_stock;
           refs.minThreshold.value = material.min_threshold;
+          if (refs.attachmentSummary) {
+            refs.attachmentSummary.innerHTML = renderAttachmentMarkup(material, false);
+          }
           setSelectedHazards(material.ghs_symbols || []);
           setMessage(refs.formMessage, 'Editing batch ' + material.batch_id + '.', 'warn');
           window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1457,6 +1627,15 @@
                 },
               },
               {
+                title: 'Attachments',
+                field: 'sds_file_path',
+                minWidth: 170,
+                headerSort: false,
+                formatter(cell) {
+                  return renderAttachmentMarkup(cell.getRow().getData(), true);
+                },
+              },
+              {
                 title: 'Actions',
                 field: 'id',
                 minWidth: 210,
@@ -1509,8 +1688,16 @@
           });
         }
 
+        function buildMaterialsEndpoint() {
+          const query = String(refs.searchBox.value || '').trim();
+          if (!query) {
+            return '/api/hazmat/materials';
+          }
+          return '/api/hazmat/materials/search?q=' + encodeURIComponent(query);
+        }
+
         async function loadMaterials() {
-          const response = await apiFetch('/api/hazmat/materials');
+          const response = await apiFetch(buildMaterialsEndpoint());
           const payload = await readJson(response);
           if (!response.ok) {
             throw new Error((payload && payload.error) || 'failed to load materials');
@@ -1542,6 +1729,204 @@
           markSyncStamp();
         }
 
+        async function uploadMaterialAttachments(materialId) {
+          if (!materialId) return;
+
+          if (refs.sdsFile && refs.sdsFile.files && refs.sdsFile.files[0]) {
+            const sdsFormData = new FormData();
+            sdsFormData.append('file', refs.sdsFile.files[0]);
+            const sdsResponse = await apiFetch('/api/hazmat/materials/' + encodeURIComponent(materialId) + '/sds', {
+              method: 'POST',
+              body: sdsFormData,
+            });
+            const sdsPayload = await readJson(sdsResponse);
+            if (!sdsResponse.ok) {
+              throw new Error((sdsPayload && sdsPayload.error) || 'failed to upload sds');
+            }
+          }
+
+          if (refs.imageFiles && refs.imageFiles.files && refs.imageFiles.files.length) {
+            const imageFormData = new FormData();
+            Array.from(refs.imageFiles.files).forEach((file) => imageFormData.append('files', file));
+            const imageResponse = await apiFetch('/api/hazmat/materials/' + encodeURIComponent(materialId) + '/images', {
+              method: 'POST',
+              body: imageFormData,
+            });
+            const imagePayload = await readJson(imageResponse);
+            if (!imageResponse.ok) {
+              throw new Error((imagePayload && imagePayload.error) || 'failed to upload images');
+            }
+          }
+        }
+
+        function hasPendingAttachments() {
+          const hasSds = !!(refs.sdsFile && refs.sdsFile.files && refs.sdsFile.files.length);
+          const hasImages = !!(refs.imageFiles && refs.imageFiles.files && refs.imageFiles.files.length);
+          return hasSds || hasImages;
+        }
+
+        function renderPendingAttachmentSummary() {
+          if (!refs.attachmentSummary) return;
+
+          const hasSds = !!(refs.sdsFile && refs.sdsFile.files && refs.sdsFile.files.length);
+          const imageCount = refs.imageFiles && refs.imageFiles.files ? refs.imageFiles.files.length : 0;
+
+          const parts = [];
+          if (hasSds) parts.push('SDS selected');
+          if (imageCount) parts.push(imageCount + ' image' + (imageCount === 1 ? '' : 's') + ' selected');
+
+          if (!parts.length) {
+            refs.attachmentSummary.innerHTML = 'No attachments uploaded yet.';
+            return;
+          }
+
+          refs.attachmentSummary.innerHTML = '<span class="muted">Pending upload:</span> ' + escapeHtml(parts.join(' | '));
+        }
+
+        function handleSearchInput() {
+          if (state.searchTimer) {
+            window.clearTimeout(state.searchTimer);
+          }
+
+          state.searchTimer = window.setTimeout(() => {
+            refreshPortal().catch((error) => {
+              showAssetWarning(error && error.message ? error.message : 'Search refresh failed.');
+            });
+          }, 250);
+        }
+
+        function closeScanner() {
+          if (state.scannerPollTimer) {
+            window.clearInterval(state.scannerPollTimer);
+            state.scannerPollTimer = null;
+          }
+
+          if (refs.scannerVideo) {
+            refs.scannerVideo.srcObject = null;
+          }
+
+          if (state.scannerStream) {
+            state.scannerStream.getTracks().forEach((track) => track.stop());
+            state.scannerStream = null;
+          }
+
+          if (refs.scannerModal) {
+            refs.scannerModal.classList.add('hidden');
+            refs.scannerModal.setAttribute('aria-hidden', 'true');
+          }
+
+          state.scannerDetectBusy = false;
+          state.scannerKeyboardBuffer = '';
+          state.scannerKeyboardStamp = 0;
+          setScannerStatus('Scanner ready.');
+        }
+
+        function applyDetectedBatchId(rawValue) {
+          const value = String(rawValue || '').trim();
+          if (!value) return;
+          if (value === state.scannerLastDetected) return;
+
+          state.scannerLastDetected = value;
+          refs.batchId.value = value;
+          setScannerStatus('Detected batch ID: ' + value, 'ok');
+          closeScanner();
+          refreshPortal().catch(() => null);
+        }
+
+        function pollScannerDetection() {
+          if (!refs.scannerVideo || !state.scannerBarcodeDetector || state.scannerDetectBusy) {
+            return;
+          }
+
+          if (!refs.scannerVideo.videoWidth || !refs.scannerVideo.videoHeight) {
+            return;
+          }
+
+          state.scannerDetectBusy = true;
+          state.scannerBarcodeDetector.detect(refs.scannerVideo)
+            .then((codes) => {
+              if (!Array.isArray(codes) || !codes.length) return;
+              const value = String((codes[0] && codes[0].rawValue) || '').trim();
+              if (value) {
+                applyDetectedBatchId(value);
+              }
+            })
+            .catch(() => null)
+            .finally(() => {
+              state.scannerDetectBusy = false;
+            });
+        }
+
+        async function openScanner() {
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            setScannerStatus('Camera API unavailable. Use USB scanner or manual entry.', 'warn');
+            return;
+          }
+
+          try {
+            if (refs.scannerModal) {
+              refs.scannerModal.classList.remove('hidden');
+              refs.scannerModal.setAttribute('aria-hidden', 'false');
+            }
+
+            state.scannerStream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: 'environment' },
+              audio: false,
+            });
+
+            if (refs.scannerVideo) {
+              refs.scannerVideo.srcObject = state.scannerStream;
+              await refs.scannerVideo.play().catch(() => null);
+            }
+
+            if ('BarcodeDetector' in window) {
+              try {
+                state.scannerBarcodeDetector = new window.BarcodeDetector({
+                  formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'upc_a', 'upc_e'],
+                });
+              } catch (error) {
+                state.scannerBarcodeDetector = new window.BarcodeDetector();
+              }
+              setScannerStatus('Camera active. Point barcode at the frame.', 'warn');
+              state.scannerPollTimer = window.setInterval(pollScannerDetection, 220);
+            } else {
+              state.scannerBarcodeDetector = null;
+              setScannerStatus('Camera active. BarcodeDetector unsupported; use USB scanner input.', 'warn');
+            }
+          } catch (error) {
+            setScannerStatus('Unable to access camera. Use USB scanner or manual entry.', 'error');
+            closeScanner();
+          }
+        }
+
+        function handleScannerKeyboard(event) {
+          if (!refs.scannerModal || refs.scannerModal.classList.contains('hidden')) return;
+
+          if (event.key === 'Escape') {
+            closeScanner();
+            return;
+          }
+
+          if (event.key === 'Enter' || event.key === 'Tab') {
+            const value = state.scannerKeyboardBuffer.trim();
+            state.scannerKeyboardBuffer = '';
+            if (value) {
+              event.preventDefault();
+              applyDetectedBatchId(value);
+            }
+            return;
+          }
+
+          if (event.key.length === 1) {
+            const now = Date.now();
+            if (now - state.scannerKeyboardStamp > 120) {
+              state.scannerKeyboardBuffer = '';
+            }
+            state.scannerKeyboardStamp = now;
+            state.scannerKeyboardBuffer += event.key;
+          }
+        }
+
         function openCheckoutModal(material) {
           refs.checkoutMaterialId.value = String(material.id);
           refs.checkoutMaterialName.value = material.name + ' | Batch ' + material.batch_id;
@@ -1565,6 +1950,7 @@
           event.preventDefault();
           const payload = materialPayloadFromForm();
           const id = refs.materialId.value;
+          const hadPendingAttachments = hasPendingAttachments();
 
           setMessage(refs.formMessage, 'Saving material record...', 'warn');
 
@@ -1580,9 +1966,24 @@
             return;
           }
 
+          const savedMaterialId = data && data.id ? data.id : Number(id);
+          if (hadPendingAttachments) {
+            try {
+              await uploadMaterialAttachments(savedMaterialId);
+            } catch (attachmentError) {
+              await refreshPortal();
+              setMessage(
+                refs.formMessage,
+                'Material saved, but attachment upload failed: ' + (attachmentError && attachmentError.message ? attachmentError.message : 'unknown error'),
+                'error'
+              );
+              return;
+            }
+          }
+
           resetMaterialForm();
           await refreshPortal();
-          setMessage(refs.formMessage, 'Material saved successfully.', 'ok');
+          setMessage(refs.formMessage, hadPendingAttachments ? 'Material and attachments saved successfully.' : 'Material saved successfully.', 'ok');
         }
 
         async function deleteMaterial(material) {
@@ -1626,7 +2027,7 @@
 
         async function importWorkbook(file) {
           if (!window.XLSX) {
-            showAssetWarning('SheetJS is missing from /public/js/xlsx.full.min.js. Import is unavailable until the offline file is added.');
+            showAssetWarning('SheetJS is missing from /assets/vendor/xlsx.full.min.js. Import is unavailable until the local file is added.');
             return;
           }
 
@@ -1659,7 +2060,7 @@
 
         function exportWorkbook() {
           if (!window.XLSX) {
-            showAssetWarning('SheetJS is missing from /public/js/xlsx.full.min.js. Export is unavailable until the offline file is added.');
+            showAssetWarning('SheetJS is missing from /assets/vendor/xlsx.full.min.js. Export is unavailable until the local file is added.');
             return;
           }
 
@@ -1751,7 +2152,14 @@
             applyFilters();
           });
 
-          refs.searchBox.addEventListener('input', applyFilters);
+          refs.searchBox.addEventListener('input', handleSearchInput);
+
+          if (refs.sdsFile) {
+            refs.sdsFile.addEventListener('change', renderPendingAttachmentSummary);
+          }
+          if (refs.imageFiles) {
+            refs.imageFiles.addEventListener('change', renderPendingAttachmentSummary);
+          }
 
           refs.ghsPicker.addEventListener('click', (event) => {
             const button = event.target.closest('[data-ghs]');
@@ -1773,6 +2181,23 @@
           refs.btnRefresh.addEventListener('click', () => refreshPortal().catch((error) => showAssetWarning(error && error.message ? error.message : 'Refresh failed.')));
           refs.btnExport.addEventListener('click', exportWorkbook);
           refs.btnSignOut.addEventListener('click', signOut);
+          if (refs.btnOpenScanner) {
+            refs.btnOpenScanner.addEventListener('click', openScanner);
+          }
+          if (refs.btnCloseScanner) {
+            refs.btnCloseScanner.addEventListener('click', closeScanner);
+          }
+
+          if (refs.scannerModal) {
+            refs.scannerModal.addEventListener('click', (event) => {
+              if (event.target && event.target.dataset && event.target.dataset.close === 'scanner') {
+                closeScanner();
+              }
+            });
+          }
+
+          document.addEventListener('keydown', handleScannerKeyboard);
+          window.addEventListener('beforeunload', closeScanner);
 
           refs.importFile.addEventListener('change', (event) => {
             const file = event.target.files && event.target.files[0];
@@ -1804,7 +2229,7 @@
           bindEvents();
 
           if (!window.Tabulator || !window.XLSX || !DateTime) {
-            showAssetWarning('Offline vendor files are missing. Place tabulator.min.js, xlsx.full.min.js, luxon.min.js, and a Tabulator CSS file in /public/js and /public/css before using the portal.');
+            showAssetWarning('Offline vendor files are missing. Place tabulator.min.js, xlsx.full.min.js, luxon.min.js, and tabulator.min.css under local /assets/vendor and /styles before using the portal.');
           } else {
             hideAssetWarning();
           }
@@ -1819,9 +2244,9 @@
       })();
     </script>
     <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(function(){});
-    }
-  </script>
-</body>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(function(){});
+      }
+    </script>
+  </body>
 </html>

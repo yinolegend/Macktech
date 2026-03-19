@@ -568,13 +568,13 @@
 
       return [
         `<tr data-user-id="${escapeHtml(String(user.id))}">`,
-        `<td><strong>${escapeHtml(user.display_name || user.username)}</strong><br /><small>${escapeHtml(user.username)}</small></td>`,
-        `<td>${escapeHtml(user.department || 'Unassigned')}</td>`,
-        `<td>${escapeHtml(user.role_label || user.role)}</td>`,
-        `<td><span class="status-pill ${escapeHtml(user.account_status)}">${escapeHtml(user.account_status)}</span></td>`,
-        `<td><span class="access-pill ${escapeHtml(accessClass)}">${escapeHtml(accessLabel)}</span></td>`,
-        `<td>${moduleBadges || '<span class="module-pill">No modules</span>'}</td>`,
-        '<td>',
+        `<td data-label="User"><strong>${escapeHtml(user.display_name || user.username)}</strong><br /><small>${escapeHtml(user.username)}</small></td>`,
+        `<td data-label="Department">${escapeHtml(user.department || 'Unassigned')}</td>`,
+        `<td data-label="Role">${escapeHtml(user.role_label || user.role)}</td>`,
+        `<td data-label="Status"><span class="status-pill ${escapeHtml(user.account_status)}">${escapeHtml(user.account_status)}</span></td>`,
+        `<td data-label="Access"><span class="access-pill ${escapeHtml(accessClass)}">${escapeHtml(accessLabel)}</span></td>`,
+        `<td data-label="Modules">${moduleBadges || '<span class="module-pill">No modules</span>'}</td>`,
+        '<td data-label="Actions">',
         '<div class="table-actions">',
         `<button class="table-button-lite" type="button" data-action="edit"${disabledAttr}>Edit</button>`,
         `<button class="table-button-lite" type="button" data-action="toggle-status"${disabledAttr}>${user.account_status === 'disabled' ? 'Enable' : 'Disable'}</button>`,
@@ -586,7 +586,7 @@
       ].join('');
     });
 
-    refs.userTableBody.innerHTML = rows.join('') || '<tr><td colspan="7">No users found.</td></tr>';
+    refs.userTableBody.innerHTML = rows.join('') || '<tr class="table-empty-row"><td colspan="7">No users found.</td></tr>';
   }
 
   function roleInputId(prefix, roleKey, itemKey) {
@@ -769,9 +769,9 @@
     refs.departmentTableBody.innerHTML = state.departments.map((department) => {
       return [
         `<tr data-department-id="${escapeHtml(String(department.id))}">`,
-        `<td>${escapeHtml(department.name)}</td>`,
-        `<td>${escapeHtml(department.supervisor || 'Unassigned')}</td>`,
-        '<td>',
+        `<td data-label="Name">${escapeHtml(department.name)}</td>`,
+        `<td data-label="Supervisor">${escapeHtml(department.supervisor || 'Unassigned')}</td>`,
+        '<td data-label="Actions">',
         '<div class="table-actions">',
         `<button class="table-button-lite" type="button" data-action="edit"${disabledAttr}>Edit</button>`,
         `<button class="table-button-lite" type="button" data-action="delete"${disabledAttr}>Delete</button>`,
@@ -779,7 +779,7 @@
         '</td>',
         '</tr>',
       ].join('');
-    }).join('') || '<tr><td colspan="3">No departments found.</td></tr>';
+    }).join('') || '<tr class="table-empty-row"><td colspan="3">No departments found.</td></tr>';
   }
 
   function clearUserForm(options = {}) {

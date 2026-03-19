@@ -1,4 +1,8 @@
 const path = require('path');
+const { createRequire } = require('module');
+
+const backendRequire = createRequire(path.join(__dirname, '..', '..', 'backend', 'package.json'));
+const { Op } = backendRequire('sequelize');
 
 const HIGH_HAZARD_CODES = new Set(['explosive', 'flammable', 'oxidizing', 'toxic', 'corrosive', 'health_hazard']);
 
@@ -36,18 +40,84 @@ function normalizeNumber(value, fallback = 0) {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
+function normalizeCasNumber(value) {
+  const text = String(value || '').trim();
+  if (!text) return null;
+  const match = text.match(/^(\d{2,7})-(\d{2})-(\d)$/);
+  return match ? `${match[1]}-${match[2]}-${match[3]}` : null;
+}
+
+function normalizeManualOverrides(value) {
+  let source = value;
+  if (typeof source === 'string') {
+    try {
+      source = JSON.parse(source);
+    } catch (error) {
+      source = {};
+    }
+  }
+
+  const on = normalizeSymbols(source && source.on);
+  const off = normalizeSymbols(source && source.off);
+  const offSet = new Set(off);
+
+  return {
+    on: on.filter((symbol) => !offSet.has(symbol)),
+    off,
+  };
+}
+
+function normalizeContainerSize(payload) {
+  const source = payload && payload.container_size && typeof payload.container_size === 'object'
+    ? payload.container_size
+    : payload;
+
+  const unit = String((source && (source.unit || source.container_unit)) || '').trim();
+  const numericValue = Number(source && (source.value != null ? source.value : source.container_value));
+  if (!unit || !Number.isFinite(numericValue) || numericValue <= 0) {
+    return null;
+  }
+
+  const type = String((source && source.type) || 'unknown').trim() || 'unknown';
+  const normalized = source && source.normalized && typeof source.normalized === 'object'
+    ? {
+      value: Number(source.normalized.value),
+      unit: String(source.normalized.unit || '').trim(),
+      type: String(source.normalized.type || type).trim() || type,
+    }
+    : null;
+
+  return {
+    value: numericValue,
+    unit,
+    type,
+    normalized,
+  };
+}
+
 function formatMaterial(material) {
   const payload = material && typeof material.toJSON === 'function' ? material.toJSON() : material;
   const symbols = normalizeSymbols(payload.ghs_symbols);
+  const autoSymbols = normalizeSymbols(payload.ghs_auto_symbols);
+  const manualOverrides = normalizeManualOverrides(payload.ghs_manual_overrides);
+  const imagePaths = Array.isArray(payload.image_paths)
+    ? payload.image_paths.map((item) => String(item || '').trim()).filter(Boolean)
+    : [];
   return {
     id: payload.id,
     name: payload.name,
     batch_id: payload.batch_id,
+    cas_number: normalizeCasNumber(payload.cas_number),
     ghs_symbols: symbols,
+    ghs_auto_symbols: autoSymbols,
+    ghs_manual_overrides: manualOverrides,
+    container_size: normalizeContainerSize(payload),
     received_date: payload.received_date,
     expiration_date: payload.expiration_date,
     current_stock: normalizeNumber(payload.current_stock),
     min_threshold: normalizeNumber(payload.min_threshold),
+    sds_file_path: payload.sds_file_path || null,
+    image_paths: imagePaths,
     high_hazard: symbols.some((symbol) => HIGH_HAZARD_CODES.has(symbol)) || symbols.length >= 3,
   };
 }
@@ -72,6 +142,25 @@ function formatUsageLog(entry) {
 function normalizeMaterialPayload(payload) {
   const name = String((payload && payload.name) || '').trim();
   const batchId = String((payload && payload.batch_id) || '').trim();
+  const casNumber = normalizeCasNumber(payload && payload.cas_number);
+  if (payload && payload.cas_number && !casNumber) {
+    throw new Error('cas_number must match XXX-XX-X format');
+  }
+
+  const autoSymbols = normalizeSymbols(payload && payload.ghs_auto_symbols);
+  const manualOverrides = normalizeManualOverrides(payload && payload.ghs_manual_overrides);
+  let selectedSymbols = normalizeSymbols(payload && payload.ghs_symbols);
+  const hasManualOverrides = payload && Object.prototype.hasOwnProperty.call(payload, 'ghs_manual_overrides');
+  if (!hasManualOverrides && !autoSymbols.length && selectedSymbols.length) {
+    manualOverrides.on = selectedSymbols.slice();
+    manualOverrides.off = [];
+  }
+  if (autoSymbols.length || hasManualOverrides) {
+    const selectedSet = new Set(autoSymbols);
+    manualOverrides.off.forEach((symbol) => selectedSet.delete(symbol));
+    manualOverrides.on.forEach((symbol) => selectedSet.add(symbol));
+    selectedSymbols = Array.from(selectedSet);
+  }
 
   if (!name || !batchId) {
     throw new Error('name and batch_id are required');
@@ -80,7 +169,11 @@ function normalizeMaterialPayload(payload) {
   return {
     name,
     batch_id: batchId,
-    ghs_symbols: normalizeSymbols(payload.ghs_symbols),
+    cas_number: casNumber,
+    ghs_symbols: selectedSymbols,
+    ghs_auto_symbols: autoSymbols,
+    ghs_manual_overrides: manualOverrides,
+    container_size: normalizeContainerSize(payload || {}),
     received_date: normalizeDate(payload.received_date),
     expiration_date: normalizeDate(payload.expiration_date),
     current_stock: normalizeNumber(payload.current_stock),
@@ -108,7 +201,37 @@ function normalizeUsagePayload(payload) {
   };
 }
 
-function createHazmatController({ Material, UsageLog, sequelize, paths }) {
+function createHazmatController({ Material, UsageLog, sequelize, paths, hazmatSdsUpload, hazmatImageUpload }) {
+  function runSingleUpload(uploadHandler, req, res) {
+    return new Promise((resolve, reject) => {
+      if (!uploadHandler || typeof uploadHandler.single !== 'function') {
+        return reject(new Error('upload handler is not configured'));
+      }
+      uploadHandler.single('file')(req, res, (error) => {
+        if (error) return reject(error);
+        return resolve(req.file || null);
+      });
+    });
+  }
+
+  function runArrayUpload(uploadHandler, req, res) {
+    return new Promise((resolve, reject) => {
+      if (!uploadHandler || typeof uploadHandler.array !== 'function') {
+        return reject(new Error('upload handler is not configured'));
+      }
+      uploadHandler.array('files', 12)(req, res, (error) => {
+        if (error) return reject(error);
+        return resolve(Array.isArray(req.files) ? req.files : []);
+      });
+    });
+  }
+
+  function buildRelativeUploadPath(folderName, fileName) {
+    const safeFolder = String(folderName || '').replace(/^\/+|\/+$/g, '');
+    const safeFile = encodeURIComponent(String(fileName || '').trim());
+    return `/uploads/${safeFolder}/${safeFile}`;
+  }
+
   return {
     servePortal: (req, res) => {
       return res.sendFile(path.join(paths.LEGACY_PUBLIC_DIR, 'hazmat-portal.html'));
@@ -117,6 +240,7 @@ function createHazmatController({ Material, UsageLog, sequelize, paths }) {
     session: async (req, res) => {
       return res.json({
         user: req.user,
+        offline_sync_enabled: false,
       });
     },
 
@@ -143,6 +267,34 @@ function createHazmatController({ Material, UsageLog, sequelize, paths }) {
       } catch (error) {
         console.error('hazmat list materials', error && error.message ? error.message : error);
         return res.status(500).json({ error: 'failed to load materials' });
+      }
+    },
+
+    searchMaterials: async (req, res) => {
+      try {
+        const query = String(req.query.q || '').trim();
+        if (!query) {
+          return res.json([]);
+        }
+
+        const materials = await Material.findAll({
+          where: {
+            [Op.or]: [
+              { name: { [Op.like]: `%${query}%` } },
+              { batch_id: { [Op.like]: `%${query}%` } },
+            ],
+          },
+          order: [
+            ['name', 'ASC'],
+            ['batch_id', 'ASC'],
+          ],
+          limit: 100,
+        });
+
+        return res.json(materials.map(formatMaterial));
+      } catch (error) {
+        console.error('hazmat search materials', error && error.message ? error.message : error);
+        return res.status(500).json({ error: 'failed to search materials' });
       }
     },
 
@@ -217,6 +369,70 @@ function createHazmatController({ Material, UsageLog, sequelize, paths }) {
       } catch (error) {
         const message = (error && error.message) || 'failed to import materials';
         return res.status(400).json({ error: message });
+      }
+    },
+
+    uploadSds: async (req, res) => {
+      try {
+        const id = Number(req.params.id);
+        const material = await Material.findByPk(id);
+        if (!material) return res.status(404).json({ error: 'material not found' });
+
+        if (!paths || !paths.SDS_UPLOADS_DIR) {
+          return res.status(500).json({ error: 'sds uploads path is not configured' });
+        }
+
+        const file = await runSingleUpload(hazmatSdsUpload, req, res);
+        if (!file) {
+          return res.status(400).json({ error: 'file is required' });
+        }
+
+        const publicPath = buildRelativeUploadPath('sds', file.filename);
+        await material.update({ sds_file_path: publicPath });
+
+        return res.json({
+          ok: true,
+          material: formatMaterial(material),
+          sds_file_path: publicPath,
+        });
+      } catch (error) {
+        const message = (error && error.message) || 'failed to upload sds';
+        const status = /only|file|required/i.test(message) ? 400 : 500;
+        return res.status(status).json({ error: message });
+      }
+    },
+
+    uploadImages: async (req, res) => {
+      try {
+        const id = Number(req.params.id);
+        const material = await Material.findByPk(id);
+        if (!material) return res.status(404).json({ error: 'material not found' });
+
+        if (!paths || !paths.HAZMAT_IMAGE_UPLOADS_DIR) {
+          return res.status(500).json({ error: 'hazmat image uploads path is not configured' });
+        }
+
+        const files = await runArrayUpload(hazmatImageUpload, req, res);
+        if (!files.length) {
+          return res.status(400).json({ error: 'at least one image file is required' });
+        }
+
+        const existingImages = Array.isArray(material.image_paths) ? material.image_paths : [];
+        const uploaded = files.map((file) => buildRelativeUploadPath('hazmat-images', file.filename));
+        const merged = Array.from(new Set(existingImages.concat(uploaded)));
+
+        await material.update({ image_paths: merged });
+
+        return res.json({
+          ok: true,
+          material: formatMaterial(material),
+          image_paths: merged,
+          added: uploaded,
+        });
+      } catch (error) {
+        const message = (error && error.message) || 'failed to upload images';
+        const status = /only|file|required|image/i.test(message) ? 400 : 500;
+        return res.status(status).json({ error: message });
       }
     },
 

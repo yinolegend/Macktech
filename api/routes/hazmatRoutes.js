@@ -7,8 +7,11 @@ function registerHazmatRoutes(app, controller, authMiddleware, requireRole) {
   app.post('/api/hazmat/logout', authMiddleware, warehouseAdminOnly, controller.logout);
 
   app.get('/api/hazmat/materials', authMiddleware, warehouseAdminOnly, controller.listMaterials);
+  app.get('/api/hazmat/materials/search', authMiddleware, warehouseAdminOnly, controller.searchMaterials);
   app.post('/api/hazmat/materials', authMiddleware, warehouseAdminOnly, controller.createMaterial);
   app.post('/api/hazmat/materials/import', authMiddleware, warehouseAdminOnly, controller.importMaterials);
+  app.post('/api/hazmat/materials/:id/sds', authMiddleware, warehouseAdminOnly, controller.uploadSds);
+  app.post('/api/hazmat/materials/:id/images', authMiddleware, warehouseAdminOnly, controller.uploadImages);
   app.put('/api/hazmat/materials/:id', authMiddleware, warehouseAdminOnly, controller.updateMaterial);
   app.delete('/api/hazmat/materials/:id', authMiddleware, warehouseAdminOnly, controller.deleteMaterial);
 

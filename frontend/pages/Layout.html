@@ -9,10 +9,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Command Center" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+    <link rel="apple-touch-icon" href="/assets/icons/icon-192.svg" />
     <title>Command Center</title>
     <link rel="stylesheet" href="/public/css/tabulator.min.css" />
-    <link rel="stylesheet" href="/public/css/Style.css" />
+    <link rel="stylesheet" href="/public/css/Style.css?v=20260319-label-id-ui-2" />
   </head>
   <body>
     <div class="tactical-shell" data-view="hazmat" data-section="dashboard">
@@ -345,7 +345,7 @@
                     <path d="m20 20-3.5-3.5"></path>
                   </svg>
                 </span>
-                <input id="inventory-search" type="search" placeholder="Search by material, batch, or hazard symbol" />
+                <input id="inventory-search" type="search" placeholder="Search by material, label ID, class, or hazard symbol" />
               </label>
               <div id="inventory-table" class="table-frame"></div>
             </div>
@@ -576,13 +576,54 @@
             <input name="name" type="text" required />
           </label>
           <label>
-            Batch ID
-            <input name="batch_id" type="text" required />
+            CAS Number
+            <input name="cas_number" type="text" placeholder="XXX-XX-X" data-format="cas" />
+            <small id="cas-lookup-status" style="display: none; margin-top: 4px; font-size: 0.85em;"></small>
           </label>
-          <label>
-            Expiration Date
-            <input name="expiration_date" type="date" />
-          </label>
+          <div class="field-grid compact-row material-label-grid">
+            <label class="label-id-field">
+              Label ID
+              <input name="label_id" type="text" readonly aria-readonly="true" />
+              <small class="label-id-meta">Auto-generated from class, division, and expiration date.</small>
+            </label>
+            <label>
+              Primary Class
+              <select name="primary_class" required>
+                <option value="">Select class</option>
+                <option value="0">C0</option>
+                <option value="1">C1</option>
+                <option value="2">C2</option>
+                <option value="3">C3</option>
+                <option value="4">C4</option>
+                <option value="5">C5</option>
+                <option value="6">C6</option>
+                <option value="7">C7</option>
+                <option value="8">C8</option>
+                <option value="9">C9</option>
+              </select>
+            </label>
+            <label>
+              Division
+              <input name="division" type="text" placeholder="Auto from CAS or manual override" />
+            </label>
+          </div>
+          <div class="label-id-tooltip-wrap">
+            <button id="label-id-tooltip-toggle" class="label-id-tooltip-button" type="button" aria-expanded="false" aria-controls="label-id-tooltip-panel">Label ID Decoder</button>
+            <div id="label-id-tooltip-panel" class="label-id-tooltip-panel hidden" role="tooltip">
+              <strong>C[class][division]-[RANDOM]-[MMDDYY]</strong>
+              <small>Example: C23-7F3Q1A-031926 means Class 2, Division 3, random serial, and date code.</small>
+            </div>
+          </div>
+          <div class="field-grid compact-row">
+            <label>
+              Expiration Date
+              <input name="expiration_date" type="date" />
+            </label>
+            <label>
+              Added On (Auto)
+              <input name="created_date" type="date" readonly />
+            </label>
+          </div>
           <div class="field-grid">
             <label>
               Stock Level
@@ -593,8 +634,35 @@
               <input name="min_threshold" type="number" min="0" step="0.01" required />
             </label>
           </div>
+          <label class="container-label">
+            Container Size (Optional)
+            <div class="container-size-grid">
+              <input name="container_value" type="number" min="0" step="0.01" placeholder="Amount" class="container-input" />
+              <select name="container_unit" class="container-select">
+                <option value="">-- Select Unit --</option>
+                <optgroup label="Mass">
+                  <option value="mg">mg</option>
+                  <option value="g" selected>g</option>
+                  <option value="kg">kg</option>
+                  <option value="lb">lb</option>
+                  <option value="oz">oz</option>
+                </optgroup>
+                <optgroup label="Volume">
+                  <option value="mL">mL</option>
+                  <option value="L">L</option>
+                  <option value="gal">gal</option>
+                </optgroup>
+                <optgroup label="Industrial">
+                  <option value="drum">drum</option>
+                  <option value="IBC">IBC</option>
+                  <option value="tank">tank</option>
+                </optgroup>
+              </select>
+            </div>
+            <small class="field-help-text">Leave blank if container size tracking is not required.</small>
+          </label>
           <div>
-            <span class="field-label">Hazard DNA (GHS Symbols)</span>
+            <span class="field-label" id="ghs-label">Hazard DNA (Auto-detected + Manual)</span>
             <div id="ghs-selector" class="ghs-selector"></div>
           </div>
           <div class="modal-actions">
@@ -808,7 +876,7 @@
     <script src="/public/js/xlsx.full.min.js"></script>
     <script src="/public/js/jspdf.min.js"></script>
     <script src="/public/js/Auth_Redirect.js"></script>
-    <script src="/public/js/Assets_Logic.js"></script>
+    <script src="/public/js/Assets_Logic.js?v=20260319-cas-live-1"></script>
     <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(function(){});

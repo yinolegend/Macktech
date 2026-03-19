@@ -34,9 +34,183 @@ const {
 const HIGH_HAZARD_CODES = new Set(['explosive', 'flammable', 'oxidizing', 'toxic', 'corrosive', 'health_hazard']);
 const DEBUG_TICKET_STATUSES = new Set(['OPEN', 'BENCH', 'FIXED', 'SCRAP']);
 const CLOSED_DEBUG_STATUSES = new Set(['FIXED', 'SCRAP']);
+const MATERIAL_CLASS_RULES = [
+  { symbol: 'explosive', classCode: '1', division: '1.1' },
+  { symbol: 'flammable', classCode: '2', division: '3' },
+  { symbol: 'oxidizing', classCode: '3', division: '5.1' },
+  { symbol: 'gas_cylinder', classCode: '4', division: '2.2' },
+  { symbol: 'corrosive', classCode: '5', division: '8' },
+  { symbol: 'toxic', classCode: '6', division: '6.1' },
+  { symbol: 'health_hazard', classCode: '7', division: '6.2' },
+  { symbol: 'exclamation_mark', classCode: '8', division: '9' },
+  { symbol: 'environmental_hazard', classCode: '9', division: '9.1' },
+];
 
 function normalizeSymbol(value) {
   return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
+}
+
+function normalizePrimaryClass(value, fallback = '') {
+  const text = String(value || '').trim().toUpperCase();
+  if (!text) return fallback;
+  const compact = text.startsWith('C') ? text.slice(1) : text;
+  const match = compact.match(/[0-9]/);
+  return match ? match[0] : fallback;
+}
+
+function normalizeDivision(value) {
+  const text = String(value || '').trim();
+  return text || '';
+}
+
+function normalizeLabelId(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
+function normalizeLabelDivisionSegment(value) {
+  const compact = normalizeDivision(value).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return compact || '0';
+}
+
+function formatLabelDateSegment(value) {
+  const parsed = value ? new Date(value) : new Date();
+  const date = Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(date.getUTCDate()).padStart(2, '0');
+  const yy = String(date.getUTCFullYear()).slice(-2);
+  return `${mm}${dd}${yy}`;
+}
+
+function buildBase36Segment(length = 6) {
+  let token = '';
+  while (token.length < length) {
+    token += Math.floor(Math.random() * 36).toString(36);
+  }
+  return token.slice(0, length).toUpperCase();
+}
+
+function buildSmartLabelId(primaryClass, division, expirationDate) {
+  const classCode = normalizePrimaryClass(primaryClass, '0');
+  const divisionCode = normalizeLabelDivisionSegment(division);
+  return `C${classCode}${divisionCode}-${buildBase36Segment(6)}-${formatLabelDateSegment(expirationDate)}`;
+}
+
+function decodeLabelId(labelId) {
+  const normalized = normalizeLabelId(labelId);
+  if (!normalized) {
+    return {
+      class_code: '',
+      division_code: '',
+      random_code: '',
+      date_code: '',
+    };
+  }
+
+  const match = normalized.match(/^C([0-9])([A-Z0-9]+)-([A-Z0-9]{6})-(\d{6})$/);
+  if (!match) {
+    return {
+      class_code: '',
+      division_code: '',
+      random_code: '',
+      date_code: '',
+    };
+  }
+
+  return {
+    class_code: match[1],
+    division_code: match[2],
+    random_code: match[3],
+    date_code: match[4],
+  };
+}
+
+function deriveClassDivisionFromSymbols(symbols) {
+  const normalized = normalizeSymbols(symbols);
+  if (!normalized.length) {
+    return { primary_class: '0', division: '0' };
+  }
+
+  const symbolSet = new Set(normalized);
+  const hasNonHazardous = symbolSet.has('non_hazardous');
+  const hasOtherHazards = normalized.some((symbol) => symbol !== 'non_hazardous');
+
+  if (hasNonHazardous && !hasOtherHazards) {
+    return { primary_class: '0', division: '0' };
+  }
+
+  for (const rule of MATERIAL_CLASS_RULES) {
+    if (symbolSet.has(rule.symbol)) {
+      return { primary_class: rule.classCode, division: rule.division };
+    }
+  }
+
+  return { primary_class: '0', division: '0' };
+}
+
+async function materialLabelIdExists(Material, labelId, excludeId, transaction) {
+  if (!labelId) return false;
+
+  const whereClause = excludeId
+    ? { label_id: labelId, id: { [Op.ne]: excludeId } }
+    : { label_id: labelId };
+
+  const existing = await Material.findOne({ where: whereClause, transaction });
+  return Boolean(existing);
+}
+
+async function generateUniqueMaterialLabelId(Material, payload, excludeId, transaction) {
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const candidate = buildSmartLabelId(payload.primary_class, payload.division, payload.expiration_date);
+    const inUse = await materialLabelIdExists(Material, candidate, excludeId, transaction);
+    if (!inUse) return candidate;
+  }
+
+  const fallback = normalizeLabelId(
+    `C${normalizePrimaryClass(payload.primary_class, '0')}${normalizeLabelDivisionSegment(payload.division)}-${Date.now().toString(36).slice(-6).toUpperCase().padStart(6, '0')}-${formatLabelDateSegment(payload.expiration_date)}`
+  );
+  return fallback;
+}
+
+function shouldRegenerateMaterialLabel(existingMaterial, payload) {
+  if (!existingMaterial) return true;
+
+  const existingPayload = existingMaterial && typeof existingMaterial.toJSON === 'function'
+    ? existingMaterial.toJSON()
+    : existingMaterial;
+
+  const existingClass = normalizePrimaryClass(existingPayload.primary_class, '0');
+  const existingDivision = normalizeDivision(existingPayload.division);
+  const existingExpiration = normalizeDate(existingPayload.expiration_date);
+
+  const incomingClass = normalizePrimaryClass(payload.primary_class, '0');
+  const incomingDivision = normalizeDivision(payload.division);
+  const incomingExpiration = normalizeDate(payload.expiration_date);
+
+  return existingClass !== incomingClass
+    || existingDivision !== incomingDivision
+    || existingExpiration !== incomingExpiration;
+}
+
+async function finalizeMaterialLabelId(Material, payload, options = {}) {
+  const excludeId = options.excludeId || null;
+  const forceRegenerate = Boolean(options.forceRegenerate);
+  const transaction = options.transaction;
+  let labelId = normalizeLabelId(payload.label_id || payload.batch_id);
+
+  if (!labelId || forceRegenerate) {
+    labelId = await generateUniqueMaterialLabelId(Material, payload, excludeId, transaction);
+  } else {
+    const exists = await materialLabelIdExists(Material, labelId, excludeId, transaction);
+    if (exists) {
+      labelId = await generateUniqueMaterialLabelId(Material, payload, excludeId, transaction);
+    }
+  }
+
+  return {
+    ...payload,
+    label_id: labelId,
+    batch_id: labelId,
+  };
 }
 
 function normalizeSymbols(value) {
@@ -67,6 +241,116 @@ function normalizeDate(value) {
 function normalizeNumber(value, fallback = 0) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function normalizeCasNumber(value) {
+  const text = String(value || '').trim();
+  if (!text) return null;
+  const match = text.match(/^(\d{2,7})-(\d{2})-(\d)$/);
+  return match ? `${match[1]}-${match[2]}-${match[3]}` : null;
+}
+
+function normalizeContainerSize(payload) {
+  const source = payload && payload.container_size && typeof payload.container_size === 'object'
+    ? payload.container_size
+    : payload;
+
+  const unit = String((source && (source.unit || source.container_unit)) || '').trim();
+  const numericValue = Number(source && (source.value != null ? source.value : source.container_value));
+
+  if (!unit || !Number.isFinite(numericValue) || numericValue <= 0) {
+    return null;
+  }
+
+  const massUnits = {
+    mg: 0.001,
+    g: 1,
+    kg: 1000,
+    lb: 453.592,
+    oz: 28.3495,
+  };
+  const volumeUnits = {
+    mL: 1,
+    L: 1000,
+    gal: 3785.41,
+  };
+  const industrialUnits = {
+    drum: 207964,
+    IBC: 1000000,
+    tank: null,
+  };
+
+  if (Object.prototype.hasOwnProperty.call(massUnits, unit)) {
+    return {
+      value: numericValue,
+      unit,
+      type: 'mass',
+      normalized: {
+        value: numericValue * massUnits[unit],
+        unit: 'g',
+        type: 'mass',
+      },
+    };
+  }
+
+  if (Object.prototype.hasOwnProperty.call(volumeUnits, unit)) {
+    return {
+      value: numericValue,
+      unit,
+      type: 'volume',
+      normalized: {
+        value: numericValue * volumeUnits[unit],
+        unit: 'mL',
+        type: 'volume',
+      },
+    };
+  }
+
+  if (Object.prototype.hasOwnProperty.call(industrialUnits, unit)) {
+    const normalizedValue = industrialUnits[unit] == null ? numericValue : industrialUnits[unit];
+    return {
+      value: numericValue,
+      unit,
+      type: 'industrial',
+      normalized: {
+        value: normalizedValue,
+        unit,
+        type: 'industrial',
+      },
+    };
+  }
+
+  return {
+    value: numericValue,
+    unit,
+    type: 'unknown',
+    normalized: {
+      value: numericValue,
+      unit,
+      type: 'unknown',
+    },
+  };
+}
+
+function normalizeManualOverrides(value) {
+  let source = value;
+
+  if (typeof source === 'string') {
+    try {
+      source = JSON.parse(source);
+    } catch (error) {
+      source = {};
+    }
+  }
+
+  const on = normalizeSymbols(source && source.on);
+  const off = normalizeSymbols(source && source.off);
+  const offSet = new Set(off);
+
+  return {
+    on: on.filter((symbol) => !offSet.has(symbol)),
+    off,
+  };
 }
 
 function dateOnlyKey(value) {
@@ -120,17 +404,31 @@ function buildCfeUid(moduleName, id) {
 function formatMaterial(material) {
   const payload = material && typeof material.toJSON === 'function' ? material.toJSON() : material;
   const ghsSymbols = normalizeSymbols(payload.ghs_symbols);
+  const ghsAutoSymbols = normalizeSymbols(payload.ghs_auto_symbols);
+  const ghsManualOverrides = normalizeManualOverrides(payload.ghs_manual_overrides);
+  const containerSize = normalizeContainerSize(payload);
   const daysRemaining = daysUntil(payload.expiration_date);
   const stockLevel = normalizeNumber(payload.stock_level, normalizeNumber(payload.current_stock));
   const minThreshold = normalizeNumber(payload.min_threshold);
+  const labelId = normalizeLabelId(payload.label_id || payload.batch_id);
+  const primaryClass = normalizePrimaryClass(payload.primary_class, '0');
+  const division = normalizeDivision(payload.division) || deriveClassDivisionFromSymbols(ghsSymbols).division;
 
   return {
     id: payload.id,
     asset_uid: payload.asset_uid || buildAssetUid('hazmat', payload.id),
     cfe_uid: null,
     name: payload.name,
-    batch_id: payload.batch_id,
+    label_id: labelId,
+    batch_id: labelId,
+    primary_class: primaryClass,
+    division,
+    label_decoder: decodeLabelId(labelId),
+    cas_number: normalizeCasNumber(payload.cas_number),
     ghs_symbols: ghsSymbols,
+    ghs_auto_symbols: ghsAutoSymbols,
+    ghs_manual_overrides: ghsManualOverrides,
+    container_size: containerSize,
     expiration_date: payload.expiration_date,
     stock_level: stockLevel,
     min_threshold: minThreshold,
@@ -283,15 +581,65 @@ function normalizePositiveLimit(value, fallback, max) {
 
 function normalizeMaterialPayload(payload) {
   const name = String((payload && payload.name) || '').trim();
-  const batchId = String((payload && payload.batch_id) || '').trim();
-  if (!name || !batchId) {
-    throw new Error('name and batch_id are required');
+  const rawLabelId = normalizeLabelId(payload && (payload.label_id || payload.batch_id));
+  const casNumber = normalizeCasNumber(payload && payload.cas_number);
+
+  if (payload && payload.cas_number && !casNumber) {
+    throw new Error('cas_number must match XXX-XX-X format');
+  }
+
+  const autoSymbols = normalizeSymbols(payload && payload.ghs_auto_symbols);
+  const manualOverrides = normalizeManualOverrides(payload && payload.ghs_manual_overrides);
+  let selectedSymbols = normalizeSymbols(payload && payload.ghs_symbols);
+
+  const hasManualOverrides = payload && Object.prototype.hasOwnProperty.call(payload, 'ghs_manual_overrides');
+  if (!hasManualOverrides && !autoSymbols.length && selectedSymbols.length) {
+    manualOverrides.on = selectedSymbols.slice();
+    manualOverrides.off = [];
+  }
+
+  if (autoSymbols.length || hasManualOverrides) {
+    const selectedSet = new Set(autoSymbols);
+    manualOverrides.off.forEach((symbol) => selectedSet.delete(symbol));
+    manualOverrides.on.forEach((symbol) => selectedSet.add(symbol));
+    selectedSymbols = Array.from(selectedSet);
+  }
+
+  const derivedClassDivision = deriveClassDivisionFromSymbols(selectedSymbols.length ? selectedSymbols : autoSymbols);
+  const classFromPayload = normalizePrimaryClass(payload && payload.primary_class);
+  const primaryClass = classFromPayload || derivedClassDivision.primary_class;
+  let division = normalizeDivision(payload && payload.division);
+
+  if (!division) {
+    if (classFromPayload && classFromPayload !== derivedClassDivision.primary_class) {
+      const classRule = MATERIAL_CLASS_RULES.find((rule) => rule.classCode === classFromPayload);
+      division = classRule ? classRule.division : '';
+    } else {
+      division = derivedClassDivision.division;
+    }
+  }
+
+  const containerSize = normalizeContainerSize(payload || {});
+
+  if (!name) {
+    throw new Error('name is required');
+  }
+
+  if (!primaryClass) {
+    throw new Error('primary_class is required');
   }
 
   return {
     name,
-    batch_id: batchId,
-    ghs_symbols: normalizeSymbols(payload.ghs_symbols),
+    label_id: rawLabelId || null,
+    batch_id: rawLabelId || null,
+    primary_class: primaryClass,
+    division: division || '0',
+    cas_number: casNumber,
+    ghs_symbols: selectedSymbols,
+    ghs_auto_symbols: autoSymbols,
+    ghs_manual_overrides: manualOverrides,
+    container_size: containerSize,
     expiration_date: normalizeDate(payload.expiration_date),
     stock_level: normalizeNumber(payload.stock_level, normalizeNumber(payload.current_stock)),
     min_threshold: normalizeNumber(payload.min_threshold),
@@ -746,7 +1094,7 @@ function buildLogActor(req) {
   };
 }
 
-function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, calibrationAttachmentUpload }) {
+function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, calibrationAttachmentUpload, casService }) {
   const {
     Material,
     UsageLog,
@@ -1405,11 +1753,87 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
       }
     },
 
+    lookupCas: async (req, res) => {
+      try {
+        if (!casService || typeof casService.lookup !== 'function') {
+          return res.status(503).json({ error: 'local CAS database unavailable' });
+        }
+
+        const requestedCas = String((req.params && req.params.casNumber) || (req.query && req.query.cas_number) || '').trim();
+        const casNumber = normalizeCasNumber(requestedCas);
+        if (!casNumber) {
+          return res.status(400).json({ error: 'invalid cas number format' });
+        }
+
+        const record = await casService.lookup(casNumber);
+        if (!record) {
+          return res.status(404).json({ error: 'cas number not found in local or live database' });
+        }
+
+        return res.json(record);
+      } catch (error) {
+        console.error('command center CAS lookup', error && error.message ? error.message : error);
+        return res.status(500).json({ error: 'failed to query local CAS database' });
+      }
+    },
+
+    listCasIndex: async (req, res) => {
+      try {
+        if (!casService || typeof casService.list !== 'function') {
+          return res.status(503).json({ error: 'local CAS database unavailable' });
+        }
+
+        const primaryClass = normalizePrimaryClass((req.query && (req.query.primary_class || req.query.primaryClass)) || '', '');
+        const division = normalizeDivision((req.query && req.query.division) || '');
+        const hazardStatus = String((req.query && (req.query.hazard_status || req.query.hazardStatus)) || '').trim().toLowerCase();
+        const search = String((req.query && (req.query.search || req.query.q)) || '').trim();
+        const limit = Number.parseInt((req.query && req.query.limit) || '200', 10);
+        const offset = Number.parseInt((req.query && req.query.offset) || '0', 10);
+
+        const result = casService.list({
+          primary_class: primaryClass,
+          division,
+          hazard_status: hazardStatus,
+          search,
+          limit,
+          offset,
+        });
+
+        return res.json({
+          ...result,
+          filters: {
+            primary_class: primaryClass || '',
+            division,
+            hazard_status: hazardStatus,
+            search,
+          },
+        });
+      } catch (error) {
+        console.error('command center CAS index list', error && error.message ? error.message : error);
+        return res.status(500).json({ error: 'failed to query local CAS index' });
+      }
+    },
+
+    casIndexSummary: async (req, res) => {
+      try {
+        if (!casService || typeof casService.getClassSummary !== 'function') {
+          return res.status(503).json({ error: 'local CAS database unavailable' });
+        }
+
+        const summary = casService.getClassSummary();
+        return res.json(summary);
+      } catch (error) {
+        console.error('command center CAS index summary', error && error.message ? error.message : error);
+        return res.status(500).json({ error: 'failed to query local CAS summary' });
+      }
+    },
+
     createMaterial: async (req, res) => {
       try {
         const payload = normalizeMaterialPayload(req.body || {});
         const material = await hazmatSequelize.transaction(async (transaction) => {
-          const created = await Material.create(payload, { transaction });
+          const finalizedPayload = await finalizeMaterialLabelId(Material, payload, { transaction });
+          const created = await Material.create(finalizedPayload, { transaction });
           await recordHazmatLog(req, {
             module: 'inventory',
             entity_type: 'material',
@@ -1417,6 +1841,7 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
             action: 'created',
             detail: `Created material ${created.name}`,
             metadata: {
+              label_id: created.label_id,
               batch_id: created.batch_id,
               asset_uid: buildAssetUid('hazmat', created.id),
             },
@@ -1427,7 +1852,7 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
         return res.status(201).json(formatMaterial(material));
       } catch (error) {
         const message = error && error.name === 'SequelizeUniqueConstraintError'
-          ? 'batch_id already exists'
+          ? 'label_id already exists'
           : (error && error.message) || 'failed to create material';
         return res.status(/required|exists/i.test(message) ? 400 : 500).json({ error: message });
       }
@@ -1440,8 +1865,14 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
         if (!material) return res.status(404).json({ error: 'material not found' });
 
         const payload = normalizeMaterialPayload({ ...material.toJSON(), ...(req.body || {}) });
+        const forceRegenerate = shouldRegenerateMaterialLabel(material, payload);
         await hazmatSequelize.transaction(async (transaction) => {
-          await material.update(payload, { transaction });
+          const finalizedPayload = await finalizeMaterialLabelId(Material, payload, {
+            excludeId: material.id,
+            forceRegenerate,
+            transaction,
+          });
+          await material.update(finalizedPayload, { transaction });
           await recordHazmatLog(req, {
             module: 'inventory',
             entity_type: 'material',
@@ -1449,6 +1880,7 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
             action: 'updated',
             detail: `Updated material ${material.name}`,
             metadata: {
+              label_id: material.label_id,
               batch_id: material.batch_id,
               asset_uid: buildAssetUid('hazmat', material.id),
             },
@@ -1458,7 +1890,7 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
         return res.json(formatMaterial(material));
       } catch (error) {
         const message = error && error.name === 'SequelizeUniqueConstraintError'
-          ? 'batch_id already exists'
+          ? 'label_id already exists'
           : (error && error.message) || 'failed to update material';
         return res.status(/required|exists/i.test(message) ? 400 : 500).json({ error: message });
       }
@@ -1479,6 +1911,7 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
             action: 'deleted',
             detail: `Deleted material ${material.name}`,
             metadata: {
+              label_id: material.label_id,
               batch_id: material.batch_id,
               asset_uid: buildAssetUid('hazmat', material.id),
             },
@@ -1502,12 +1935,35 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
         await hazmatSequelize.transaction(async (transaction) => {
           for (const rawRow of rows) {
             const payload = normalizeMaterialPayload(rawRow || {});
-            const existing = await Material.findOne({ where: { batch_id: payload.batch_id }, transaction });
+            const lookupValues = Array.from(new Set([
+              normalizeLabelId(payload.label_id),
+              normalizeLabelId(payload.batch_id),
+            ].filter(Boolean)));
+
+            const existing = lookupValues.length
+              ? await Material.findOne({
+                where: {
+                  [Op.or]: [
+                    { label_id: { [Op.in]: lookupValues } },
+                    { batch_id: { [Op.in]: lookupValues } },
+                  ],
+                },
+                transaction,
+              })
+              : null;
+
             if (existing) {
-              await existing.update(payload, { transaction });
+              const forceRegenerate = shouldRegenerateMaterialLabel(existing, payload);
+              const finalizedPayload = await finalizeMaterialLabelId(Material, payload, {
+                excludeId: existing.id,
+                forceRegenerate,
+                transaction,
+              });
+              await existing.update(finalizedPayload, { transaction });
               result.updated += 1;
             } else {
-              await Material.create(payload, { transaction });
+              const finalizedPayload = await finalizeMaterialLabelId(Material, payload, { transaction });
+              await Material.create(finalizedPayload, { transaction });
               result.created += 1;
             }
           }
@@ -1597,6 +2053,7 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
             detail: `Verified material ${existing.name}`,
             metadata: {
               notes: payload.notes,
+              label_id: existing.label_id,
               batch_id: existing.batch_id,
               asset_uid: buildAssetUid('hazmat', existing.id),
             },

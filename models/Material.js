@@ -15,6 +15,81 @@ function normalizeNumber(value, fallback = 0) {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
+function normalizeCasNumber(value) {
+  const text = String(value || '').trim();
+  if (!text) return null;
+  const match = text.match(/^(\d{2,7})-(\d{2})-(\d)$/);
+  return match ? `${match[1]}-${match[2]}-${match[3]}` : null;
+}
+
+function normalizePrimaryClass(value, fallback = '0') {
+  const text = String(value || '').trim().toUpperCase();
+  if (!text) return fallback;
+
+  const compact = text.startsWith('C') ? text.slice(1) : text;
+  const digit = compact.match(/[0-9]/);
+  if (!digit) return fallback;
+  return digit[0];
+}
+
+function normalizeDivision(value) {
+  const text = String(value || '').trim();
+  return text || null;
+}
+
+function normalizeManualOverrides(value) {
+  let source = value;
+  if (typeof source === 'string') {
+    try {
+      source = JSON.parse(source);
+    } catch (error) {
+      source = {};
+    }
+  }
+
+  const on = normalizeSymbols(source && source.on);
+  const off = normalizeSymbols(source && source.off);
+  const offSet = new Set(off);
+
+  return {
+    on: on.filter((symbol) => !offSet.has(symbol)),
+    off,
+  };
+}
+
+function normalizeContainerSize(value) {
+  let source = value;
+  if (typeof source === 'string') {
+    try {
+      source = JSON.parse(source);
+    } catch (error) {
+      source = null;
+    }
+  }
+
+  if (!source || typeof source !== 'object') return null;
+
+  const unit = String(source.unit || '').trim();
+  const numericValue = Number(source.value);
+  if (!unit || !Number.isFinite(numericValue) || numericValue <= 0) return null;
+
+  const type = String(source.type || (source.normalized && source.normalized.type) || 'unknown').trim() || 'unknown';
+  const normalized = source.normalized && typeof source.normalized === 'object'
+    ? {
+      value: Number(source.normalized.value),
+      unit: String(source.normalized.unit || '').trim(),
+      type: String(source.normalized.type || type).trim() || type,
+    }
+    : null;
+
+  return {
+    value: numericValue,
+    unit,
+    type,
+    normalized,
+  };
+}
+
 module.exports = function defineMaterial(sequelize, DataTypes) {
   return sequelize.define('Material', {
     id: {
@@ -29,12 +104,53 @@ module.exports = function defineMaterial(sequelize, DataTypes) {
         notEmpty: true,
       },
     },
+    label_id: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+      validate: {
+        notEmpty: true,
+      },
+    },
     batch_id: {
       type: DataTypes.STRING,
       allowNull: false,
       unique: true,
       validate: {
         notEmpty: true,
+      },
+    },
+    primary_class: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: '0',
+      get() {
+        return normalizePrimaryClass(this.getDataValue('primary_class'));
+      },
+      set(value) {
+        this.setDataValue('primary_class', normalizePrimaryClass(value));
+      },
+    },
+    division: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: null,
+      get() {
+        return normalizeDivision(this.getDataValue('division'));
+      },
+      set(value) {
+        this.setDataValue('division', normalizeDivision(value));
+      },
+    },
+    cas_number: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: null,
+      get() {
+        return normalizeCasNumber(this.getDataValue('cas_number'));
+      },
+      set(value) {
+        this.setDataValue('cas_number', normalizeCasNumber(value));
       },
     },
     ghs_symbols: {
@@ -52,6 +168,35 @@ module.exports = function defineMaterial(sequelize, DataTypes) {
       },
       set(value) {
         this.setDataValue('ghs_symbols', JSON.stringify(normalizeSymbols(value)));
+      },
+    },
+    ghs_auto_symbols: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+      defaultValue: '[]',
+      get() {
+        const raw = this.getDataValue('ghs_auto_symbols');
+        if (!raw) return [];
+        try {
+          return normalizeSymbols(JSON.parse(raw));
+        } catch (error) {
+          return normalizeSymbols(raw);
+        }
+      },
+      set(value) {
+        this.setDataValue('ghs_auto_symbols', JSON.stringify(normalizeSymbols(value)));
+      },
+    },
+    ghs_manual_overrides: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+      defaultValue: '{"on":[],"off":[]}',
+      get() {
+        const raw = this.getDataValue('ghs_manual_overrides');
+        return normalizeManualOverrides(raw);
+      },
+      set(value) {
+        this.setDataValue('ghs_manual_overrides', JSON.stringify(normalizeManualOverrides(value)));
       },
     },
     received_date: {
@@ -73,6 +218,48 @@ module.exports = function defineMaterial(sequelize, DataTypes) {
       allowNull: false,
       defaultValue: 0,
     },
+    sds_file_path: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: null,
+    },
+    image_paths: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+      defaultValue: '[]',
+      get() {
+        const raw = this.getDataValue('image_paths');
+        if (!raw) return [];
+        try {
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed)
+            ? parsed.map((item) => String(item || '').trim()).filter(Boolean)
+            : [];
+        } catch (error) {
+          return [];
+        }
+      },
+      set(value) {
+        const source = Array.isArray(value) ? value : [value];
+        const normalized = Array.from(new Set(source
+          .map((item) => String(item || '').trim())
+          .filter(Boolean)));
+        this.setDataValue('image_paths', JSON.stringify(normalized));
+      },
+    },
+    container_size: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      defaultValue: null,
+      get() {
+        const raw = this.getDataValue('container_size');
+        return normalizeContainerSize(raw);
+      },
+      set(value) {
+        const normalized = normalizeContainerSize(value);
+        this.setDataValue('container_size', normalized ? JSON.stringify(normalized) : null);
+      },
+    },
     current_stock: {
       type: DataTypes.VIRTUAL,
       get() {
@@ -85,5 +272,19 @@ module.exports = function defineMaterial(sequelize, DataTypes) {
   }, {
     tableName: 'materials',
     timestamps: false,
+    indexes: [
+      {
+        name: 'materials_name_idx',
+        fields: ['name'],
+      },
+      {
+        name: 'materials_label_id_idx',
+        fields: ['label_id'],
+      },
+      {
+        name: 'materials_batch_id_idx',
+        fields: ['batch_id'],
+      },
+    ],
   });
 };

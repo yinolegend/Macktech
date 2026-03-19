@@ -131,11 +131,242 @@ function shouldMigrateGageLog(row) {
   return moduleName === 'calibration' || moduleName === 'gage' || moduleName === 'gages' || entityType === 'asset';
 }
 
-async function syncHazmatModels() {
-  await hazmatSequelize.authenticate();
-  await hazmatSequelize.sync();
+const HAZMAT_CLASS_RULES = [
+  { symbol: 'explosive', primaryClass: '1', division: '1.1' },
+  { symbol: 'flammable', primaryClass: '2', division: '3' },
+  { symbol: 'oxidizing', primaryClass: '3', division: '5.1' },
+  { symbol: 'gas_cylinder', primaryClass: '4', division: '2.2' },
+  { symbol: 'corrosive', primaryClass: '5', division: '8' },
+  { symbol: 'toxic', primaryClass: '6', division: '6.1' },
+  { symbol: 'health_hazard', primaryClass: '7', division: '6.2' },
+  { symbol: 'exclamation_mark', primaryClass: '8', division: '9' },
+  { symbol: 'environmental_hazard', primaryClass: '9', division: '9.1' },
+];
+
+function normalizeHazmatSymbol(value) {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
 }
 
+function normalizeHazmatSymbols(value) {
+  if (Array.isArray(value)) {
+    return Array.from(new Set(value.map(normalizeHazmatSymbol).filter(Boolean)));
+  }
+
+  const raw = String(value || '').trim();
+  if (!raw) return [];
+
+  if (raw.startsWith('[')) {
+    try {
+      return normalizeHazmatSymbols(JSON.parse(raw));
+    } catch (error) {
+    }
+  }
+
+  return Array.from(new Set(raw.split(/[;,|]/).map(normalizeHazmatSymbol).filter(Boolean)));
+}
+
+function normalizePrimaryClassCode(value) {
+  const text = String(value || '').trim().toUpperCase();
+  if (!text) return '';
+  const compact = text.startsWith('C') ? text.slice(1) : text;
+  const digit = compact.match(/[0-9]/);
+  return digit ? digit[0] : '';
+}
+
+function normalizeDivisionText(value) {
+  return String(value || '').trim();
+}
+
+function resolveClassDivisionFromSymbols(symbols) {
+  const normalized = normalizeHazmatSymbols(symbols);
+  if (!normalized.length) {
+    return { primaryClass: '0', division: '0' };
+  }
+
+  const symbolSet = new Set(normalized);
+  const hasNonHazardous = symbolSet.has('non_hazardous');
+  const hasOtherHazards = normalized.some((symbol) => symbol !== 'non_hazardous');
+
+  if (hasNonHazardous && !hasOtherHazards) {
+    return { primaryClass: '0', division: '0' };
+  }
+
+  for (const rule of HAZMAT_CLASS_RULES) {
+    if (symbolSet.has(rule.symbol)) {
+      return {
+        primaryClass: rule.primaryClass,
+        division: rule.division,
+      };
+    }
+  }
+
+  return { primaryClass: '0', division: '0' };
+}
+
+function normalizeLabelId(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
+function normalizeLabelDivisionSegment(value) {
+  const compact = normalizeDivisionText(value).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return compact || '0';
+}
+
+function buildBase36Segment(length = 6) {
+  let token = '';
+  while (token.length < length) {
+    token += Math.floor(Math.random() * 36).toString(36);
+  }
+  return token.slice(0, length).toUpperCase();
+}
+
+function formatLabelDateSegment(value) {
+  const parsed = value ? new Date(value) : new Date();
+  const date = Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(date.getUTCDate()).padStart(2, '0');
+  const yy = String(date.getUTCFullYear()).slice(-2);
+  return `${mm}${dd}${yy}`;
+}
+
+function buildSmartLabelIdSeed(primaryClass, division, expirationDate) {
+  const classCode = normalizePrimaryClassCode(primaryClass) || '0';
+  const divisionCode = normalizeLabelDivisionSegment(division);
+  const randomCode = buildBase36Segment(6);
+  const dateCode = formatLabelDateSegment(expirationDate);
+  return `C${classCode}${divisionCode}-${randomCode}-${dateCode}`;
+}
+
+function getUniqueBackfilledLabelId(usedSet, preferredLabel, primaryClass, division, expirationDate) {
+  const preferred = normalizeLabelId(preferredLabel);
+  if (preferred && !usedSet.has(preferred)) {
+    usedSet.add(preferred);
+    return preferred;
+  }
+
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const candidate = buildSmartLabelIdSeed(primaryClass, division, expirationDate);
+    if (!usedSet.has(candidate)) {
+      usedSet.add(candidate);
+      return candidate;
+    }
+  }
+
+  const fallback = normalizeLabelId(
+    `C${normalizePrimaryClassCode(primaryClass) || '0'}${normalizeLabelDivisionSegment(division)}-${Date.now().toString(36).slice(-6).toUpperCase().padStart(6, '0')}-${formatLabelDateSegment(expirationDate)}`
+  );
+  usedSet.add(fallback);
+  return fallback;
+}
+
+async function syncHazmatModels() {
+  await hazmatSequelize.authenticate();
+  await ensureHazmatMaterialColumns({ allowMissingTable: true });
+  await hazmatSequelize.sync();
+  await ensureHazmatMaterialColumns();
+  await ensureHazmatMaterialIndexes();
+}
+
+async function ensureHazmatMaterialColumns(options = {}) {
+  const allowMissingTable = Boolean(options && options.allowMissingTable);
+  const hasMaterialsTable = await tableExists(hazmatSequelize, 'materials');
+  if (!hasMaterialsTable) {
+    if (allowMissingTable) return;
+    throw new Error('materials table does not exist');
+  }
+
+  const columns = await listTableColumns(hazmatSequelize, 'materials');
+  const missingColumns = [];
+
+  if (!columns.has('label_id')) {
+    missingColumns.push('ALTER TABLE materials ADD COLUMN label_id TEXT');
+  }
+  if (!columns.has('primary_class')) {
+    missingColumns.push("ALTER TABLE materials ADD COLUMN primary_class TEXT NOT NULL DEFAULT '0'");
+  }
+  if (!columns.has('division')) {
+    missingColumns.push("ALTER TABLE materials ADD COLUMN division TEXT NOT NULL DEFAULT ''");
+  }
+
+  if (!columns.has('cas_number')) {
+    missingColumns.push('ALTER TABLE materials ADD COLUMN cas_number TEXT');
+  }
+  if (!columns.has('ghs_auto_symbols')) {
+    missingColumns.push("ALTER TABLE materials ADD COLUMN ghs_auto_symbols TEXT NOT NULL DEFAULT '[]'");
+  }
+  if (!columns.has('ghs_manual_overrides')) {
+    missingColumns.push("ALTER TABLE materials ADD COLUMN ghs_manual_overrides TEXT NOT NULL DEFAULT '{\"on\":[],\"off\":[]}'");
+  }
+  if (!columns.has('container_size')) {
+    missingColumns.push('ALTER TABLE materials ADD COLUMN container_size TEXT');
+  }
+  if (!columns.has('sds_file_path')) {
+    missingColumns.push('ALTER TABLE materials ADD COLUMN sds_file_path TEXT');
+  }
+  if (!columns.has('image_paths')) {
+    missingColumns.push("ALTER TABLE materials ADD COLUMN image_paths TEXT NOT NULL DEFAULT '[]'");
+  }
+
+  for (const statement of missingColumns) {
+    await hazmatSequelize.query(statement);
+  }
+
+  await hazmatSequelize.query("UPDATE materials SET label_id = COALESCE(NULLIF(TRIM(label_id), ''), NULLIF(TRIM(batch_id), ''))");
+  await hazmatSequelize.query("UPDATE materials SET primary_class = COALESCE(NULLIF(TRIM(primary_class), ''), '0')");
+  await hazmatSequelize.query("UPDATE materials SET division = COALESCE(division, '')");
+  await hazmatSequelize.query("UPDATE materials SET ghs_auto_symbols = COALESCE(ghs_auto_symbols, '[]')");
+  await hazmatSequelize.query("UPDATE materials SET ghs_manual_overrides = COALESCE(ghs_manual_overrides, '{\"on\":[],\"off\":[]}')");
+  await hazmatSequelize.query("UPDATE materials SET image_paths = COALESCE(image_paths, '[]')");
+
+  const rows = await Material.findAll({
+    attributes: ['id', 'label_id', 'batch_id', 'primary_class', 'division', 'ghs_symbols', 'ghs_auto_symbols', 'expiration_date'],
+    order: [['id', 'ASC']],
+    raw: true,
+  });
+  const usedLabelIds = new Set();
+
+  for (const row of rows) {
+    const autoSymbols = normalizeHazmatSymbols(row.ghs_auto_symbols);
+    const selectedSymbols = normalizeHazmatSymbols(row.ghs_symbols);
+    const derived = resolveClassDivisionFromSymbols(autoSymbols.length ? autoSymbols : selectedSymbols);
+
+    const primaryClass = normalizePrimaryClassCode(row.primary_class) || derived.primaryClass;
+    const division = normalizeDivisionText(row.division) || derived.division;
+    const existingLabelId = normalizeLabelId(row.label_id);
+    let labelId = existingLabelId;
+
+    if (labelId && !usedLabelIds.has(labelId)) {
+      usedLabelIds.add(labelId);
+    } else {
+      const preferredLabelId = normalizeLabelId(row.batch_id);
+      labelId = getUniqueBackfilledLabelId(
+        usedLabelIds,
+        preferredLabelId,
+        primaryClass,
+        division,
+        row.expiration_date
+      );
+    }
+
+    const updates = {};
+    if (existingLabelId !== labelId) updates.label_id = labelId;
+    if (normalizeLabelId(row.batch_id) !== labelId) updates.batch_id = labelId;
+    if (normalizePrimaryClassCode(row.primary_class) !== primaryClass) updates.primary_class = primaryClass;
+    if (normalizeDivisionText(row.division) !== division) updates.division = division;
+
+    if (Object.keys(updates).length) {
+      await Material.update(updates, { where: { id: row.id } });
+    }
+  }
+}
+
+async function ensureHazmatMaterialIndexes() {
+  await hazmatSequelize.query('CREATE INDEX IF NOT EXISTS materials_name_idx ON materials(name)');
+  await hazmatSequelize.query('CREATE UNIQUE INDEX IF NOT EXISTS materials_label_id_uidx ON materials(label_id)');
+  await hazmatSequelize.query('CREATE INDEX IF NOT EXISTS materials_batch_id_idx ON materials(batch_id)');
+  await hazmatSequelize.query('CREATE INDEX IF NOT EXISTS materials_primary_class_idx ON materials(primary_class)');
+  await hazmatSequelize.query('CREATE INDEX IF NOT EXISTS materials_cas_number_idx ON materials(cas_number)');
+}
 async function listTableColumns(sequelize, tableName) {
   const rows = await sequelize.query(`PRAGMA table_info(${tableName})`, {
     type: QueryTypes.SELECT,
@@ -381,10 +612,15 @@ async function migrateHazmatData(legacySequelize) {
 
   await hazmatSequelize.transaction(async (transaction) => {
     for (const row of materials) {
+      const symbols = normalizeHazmatSymbols(row.ghs_symbols);
+      const derived = resolveClassDivisionFromSymbols(symbols);
       await Material.upsert({
         id: row.id,
         name: row.name,
+        label_id: row.batch_id,
         batch_id: row.batch_id,
+        primary_class: derived.primaryClass,
+        division: derived.division,
         ghs_symbols: row.ghs_symbols,
         received_date: row.received_date,
         expiration_date: row.expiration_date,

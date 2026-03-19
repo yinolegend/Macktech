@@ -8,6 +8,8 @@ const {
 } = require('../../config/paths');
 
 const ICON_LIBRARY_DIR = FRONTEND_ICONS_DIR;
+const ICON_ROUTE_PREFIX = '/assets/icons/';
+const LEGACY_ICON_ROUTE_PREFIX = '/icons/';
 const DEFAULT_FACILITY_MAP_RECORD_ID = 'main_facility';
 const MAX_FACILITY_MAPS = 40;
 const FACILITY_AREA_KINDS = ['department', 'hallway', 'room', 'table', 'wall', 'sign', 'text', 'service', 'common', 'other'];
@@ -202,8 +204,12 @@ function sanitizeSvgAssetPath(value, fallback = '') {
   const raw = sanitizeShortText(value, 300, fallback).replace(/\\/g, '/');
   if (!raw) return '';
   const normalized = raw.startsWith('/') ? raw : `/${raw}`;
-  if (!normalized.startsWith('/icons/') || !normalized.toLowerCase().endsWith('.svg')) return fallback || '';
-  return normalized;
+  if (!normalized.toLowerCase().endsWith('.svg')) return fallback || '';
+  if (normalized.startsWith(ICON_ROUTE_PREFIX)) return normalized;
+  if (normalized.startsWith(LEGACY_ICON_ROUTE_PREFIX)) {
+    return `${ICON_ROUTE_PREFIX}${normalized.slice(LEGACY_ICON_ROUTE_PREFIX.length)}`;
+  }
+  return fallback || '';
 }
 
 function sanitizeRotation(value, fallback = 0) {
@@ -245,7 +251,7 @@ function walkSvgIconFiles(rootDir, currentDir = rootDir) {
       label,
       category,
       relativePath,
-      url: `/icons/${relativePath}`,
+      url: `${ICON_ROUTE_PREFIX}${relativePath}`,
     });
   }
   return items;
@@ -673,8 +679,10 @@ function resolvePublicMapAssetPath(assetUrl) {
     return fs.existsSync(filePath) ? filePath : null;
   }
 
-  if (raw.startsWith('/icons/')) {
-    const relative = raw.slice('/icons/'.length).split('/').join(path.sep);
+  if (raw.startsWith(ICON_ROUTE_PREFIX) || raw.startsWith(LEGACY_ICON_ROUTE_PREFIX)) {
+    const relative = raw.startsWith(ICON_ROUTE_PREFIX)
+      ? raw.slice(ICON_ROUTE_PREFIX.length).split('/').join(path.sep)
+      : raw.slice(LEGACY_ICON_ROUTE_PREFIX.length).split('/').join(path.sep);
     const filePath = path.join(ICON_LIBRARY_DIR, relative);
     return fs.existsSync(filePath) ? filePath : null;
   }

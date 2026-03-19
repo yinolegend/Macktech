@@ -4,16 +4,16 @@ The Hazardous Material Tracking Portal is built to run fully offline at runtime.
 
 Place these files in the workspace exactly as listed:
 
-1. `backend/public/js/tabulator.min.js`
+1. `frontend/assets/vendor/tabulator.min.js`
    Tabulator.js v5.x browser bundle.
 
-2. `backend/public/css/tabulator_midnight.min.css`
+2. `frontend/assets/vendor/tabulator_midnight.min.css`
    Tabulator.js v5.x stylesheet. The portal references the dark midnight theme, but another v5.x Tabulator CSS build can be substituted if you update the link in `backend/public/hazmat-portal.html`.
 
-3. `backend/public/js/xlsx.full.min.js`
+3. `frontend/assets/vendor/xlsx.full.min.js`
    SheetJS browser bundle used for Excel import and branded export.
 
-4. `backend/public/js/luxon.min.js`
+4. `frontend/assets/vendor/luxon.min.js`
    Luxon browser bundle used by the expiration engine and timestamp formatting.
 
 Server-side dependency:
@@ -23,11 +23,11 @@ Server-side dependency:
 
 Static paths exposed by the server:
 
-1. `/public/js/*`
-   Served from `backend/public/js`.
+1. `/assets/*`
+   Served from `frontend/assets`.
 
-2. `/public/css/*`
-   Served from `backend/public/css`.
+2. `/assets/icons/*`
+   Served from `frontend/assets/icons`.
 
 Portal entry and role gate:
 

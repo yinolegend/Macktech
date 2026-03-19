@@ -6,7 +6,7 @@ function registerCommandCenterRoutes(app, controller, authMiddleware, requireRol
   const editOnly = requirePermission('edit_access');
   const settingsOnly = requirePermission('settings_access', 'department_management');
 
-  app.get('/portals/command-center', authMiddleware, commandCenterOnly, controller.servePortal);
+  app.get('/portals/command-center', controller.servePortal);
 
   app.get('/api/command-center/session', authMiddleware, commandCenterOnly, controller.session);
   app.post('/api/command-center/logout', authMiddleware, commandCenterOnly, controller.logout);
@@ -16,6 +16,9 @@ function registerCommandCenterRoutes(app, controller, authMiddleware, requireRol
   app.delete('/api/command-center/departments/:id', authMiddleware, settingsOnly, controller.deleteDepartment);
 
   app.get('/api/command-center/materials', authMiddleware, hazmatRead, controller.listMaterials);
+  app.get('/api/command-center/cas-index', authMiddleware, hazmatRead, controller.listCasIndex);
+  app.get('/api/command-center/cas-index/summary', authMiddleware, hazmatRead, controller.casIndexSummary);
+  app.get('/api/command-center/cas/:casNumber', authMiddleware, hazmatRead, controller.lookupCas);
   app.post('/api/command-center/materials', authMiddleware, hazmatRead, editOnly, controller.createMaterial);
   app.put('/api/command-center/materials/:id', authMiddleware, hazmatRead, editOnly, controller.updateMaterial);
   app.delete('/api/command-center/materials/:id', authMiddleware, hazmatRead, editOnly, controller.deleteMaterial);

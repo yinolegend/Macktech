@@ -21,7 +21,7 @@ node server.js
 3. Open the local portal.
 
 ```text
-http://localhost:3000
+http://127.0.0.1:3000
 ```
 
 ### Project structure
@@ -31,7 +31,7 @@ http://localhost:3000
 - `frontend/scripts` contains browser-side JavaScript.
 - `frontend/styles` contains shared CSS.
 - `frontend/assets` contains local vendor files and static frontend assets.
-- `frontend/icons` contains the local SVG icon library.
+- `frontend/assets/icons` contains the local SVG icon library.
 - `api/routes` registers HTTP endpoints.
 - `api/controllers` contains route handlers.
 - `api/middleware` contains reusable API middleware factories.
@@ -48,8 +48,8 @@ http://localhost:3000
 
 - Frontend pages call only the local API under `/api/`.
 - Fabric.js is served locally from `frontend/assets/vendor`.
-- SVG icons are served locally from `frontend/icons`.
-- Handbook PDFs, announcement uploads, and map assets are served from the local filesystem under `data/`.
+- SVG icons are served locally from `frontend/assets/icons`.
+- Handbook PDFs, announcement uploads, and map assets are served from the local filesystem under `data/uploads/`.
 - The active shared theme no longer depends on Google Fonts or any CDN-hosted resource.
 
 ### Local data
@@ -61,9 +61,12 @@ The application persists data in these locations:
 - `data/gages.db` for gage/calibration assets and gage-side audit logs.
 - `data/facility_maps.json` and `data/facility_map.json` for facility maps.
 - `data/announcements.json` for announcements.
-- `data/handbook` for local handbook PDFs.
-- `data/announcements_files` for uploaded announcement media.
-- `data/map_assets` for uploaded map backgrounds.
+- `data/uploads/handbook` for local handbook PDFs.
+- `data/uploads/announcements` for uploaded announcement media.
+- `data/uploads/maps` for uploaded map backgrounds.
+- `data/uploads/calibration` for calibration attachments.
+- `data/uploads/sds` for local SDS files.
+- `data/uploads/certs` for local certificate assets.
 
 ### Core API surface
 

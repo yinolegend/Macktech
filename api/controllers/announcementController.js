@@ -1,4 +1,23 @@
 function createAnnouncementController({ announcementsService, io, announcementUpload }) {
+  function isAnnouncementHidden(announcement) {
+    if (!announcement) return false;
+    const value = announcement.hidden;
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      return normalized === 'true' || normalized === '1' || normalized === 'yes';
+    }
+    return value === true;
+  }
+
+  function isAnnouncementExpired(announcement) {
+    if (!announcement) return false;
+    const value = announcement.expiresAt || announcement.expires_at;
+    if (!value) return false;
+    const timestamp = Date.parse(value);
+    if (Number.isNaN(timestamp)) return false;
+    return timestamp < Date.now();
+  }
+
   return {
     createAnnouncement: (req, res) => {
       try {
@@ -45,6 +64,18 @@ function createAnnouncementController({ announcementsService, io, announcementUp
       }
     },
 
+    listPublicAnnouncements: (req, res) => {
+      try {
+        const { list, mutated } = announcementsService.ensureAnnouncementIds(announcementsService.readAnnouncements());
+        if (mutated) announcementsService.writeAnnouncements(list);
+        const visible = list.filter((announcement) => !isAnnouncementHidden(announcement) && !isAnnouncementExpired(announcement));
+        return res.json(visible);
+      } catch (error) {
+        console.error('failed to read public announcements', error && error.message ? error.message : error);
+        return res.status(500).json({ error: 'failed to read announcements' });
+      }
+    },
+
     deleteAnnouncement: (req, res) => {
       try {
         const targetId = announcementsService.normalizeAnnouncementId(req.params.id);
@@ -81,6 +112,7 @@ function createAnnouncementController({ announcementsService, io, announcementUp
         if (typeof patch.title !== 'undefined') announcement.title = String(patch.title);
         if (typeof patch.body !== 'undefined') announcement.body = String(patch.body);
         if (typeof patch.image !== 'undefined') announcement.image = patch.image ? String(patch.image) : undefined;
+        if (typeof patch.expiresAt !== 'undefined') announcement.expiresAt = patch.expiresAt ? String(patch.expiresAt) : undefined;
         announcements[index] = announcement;
         announcementsService.writeAnnouncements(announcements);
         announcementsService.cleanupUnusedAnnouncementFiles(announcements);

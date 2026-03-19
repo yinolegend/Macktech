@@ -1,4 +1,5 @@
 function registerAnnouncementRoutes(app, controller, authMiddleware) {
+  app.get('/api/public/announcements', controller.listPublicAnnouncements);
   app.post('/api/announcements', authMiddleware, controller.createAnnouncement);
   app.get('/api/announcements', authMiddleware, controller.listAnnouncements);
   app.patch('/api/announcements/reorder', authMiddleware, controller.reorderAnnouncements);

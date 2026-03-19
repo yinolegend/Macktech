@@ -11,8 +11,8 @@
  * The service worker scope is "/" (registered from any page at root level).
  */
 
-const CACHE_NAME = 'command-center-shell-v2';
-const API_CACHE_NAME = 'command-center-api-v2';
+const CACHE_NAME = 'command-center-shell-v6';
+const API_CACHE_NAME = 'command-center-api-v6';
 const API_CACHE_SECONDS = 30; // how long a GET /api response is reused offline
 
 // Static shell assets that should always be available offline.
@@ -31,8 +31,8 @@ const SHELL_ASSETS = [
   '/admin.html',
   '/admin-console.html',
   '/manifest.webmanifest',
-  '/icons/icon-192.svg',
-  '/icons/icon-512.svg',
+  '/assets/icons/icon-192.svg',
+  '/assets/icons/icon-512.svg',
 ];
 
 // ─── Install ────────────────────────────────────────────────────────────────
@@ -71,12 +71,80 @@ self.addEventListener('fetch', (event) => {
   // Never intercept non-GET mutations for API routes.
   if (url.pathname.startsWith('/api/') && request.method !== 'GET') return;
 
+  // CAS lookups already have a client-side embedded fallback. Bypass service
+  // worker API caching here so stale chemical matches do not survive fixes.
+  if (url.pathname.startsWith('/api/command-center/cas/')) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(apiNetworkFirst(request));
+  } else if (isDynamicDataRequest(url, request)) {
+    // Announcement data changes frequently; prefer network and only fall back to cache.
+    event.respondWith(dynamicDataNetworkFirst(request));
+  } else if (isHtmlRequest(url, request)) {
+    // Always fetch HTML from the network so page updates are visible immediately.
+    // Only fall back to cache when offline.
+    event.respondWith(htmlNetworkFirst(request));
   } else {
     event.respondWith(shellCacheFirst(request));
   }
 });
+
+function isHtmlRequest(url, request) {
+  const p = url.pathname;
+  if (p.endsWith('.html')) return true;
+  if (p === '/' || p === '') return true;
+  const accept = request.headers.get('Accept') || '';
+  return accept.includes('text/html');
+}
+
+function isDynamicDataRequest(url, request) {
+  if (request.method !== 'GET') return false;
+  return url.pathname === '/announcements.json';
+}
+
+async function dynamicDataNetworkFirst(request) {
+  try {
+    const response = await fetch(request);
+    if (response && response.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (_) {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    return new Response(JSON.stringify([]), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+/**
+ * Network-first for HTML pages — always try to get the freshest markup,
+ * but fall back to a cached copy when offline.
+ */
+async function htmlNetworkFirst(request) {
+  try {
+    const response = await fetch(request);
+    if (response && response.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (_) {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    const fallback = await caches.match('/index.html');
+    return fallback || new Response('Offline — Command Center is not available right now.', {
+      status: 503,
+      headers: { 'Content-Type': 'text/plain' },
+    });
+  }
+}
 
 /**
  * Cache-first for static shell assets.

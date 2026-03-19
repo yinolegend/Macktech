@@ -151,7 +151,7 @@ function resolvePortalTargetForUser(user, requestedPortal) {
   }
 
   if (normalizedPortal === 'command-center') {
-    return hasOperationalModuleAccess(access)
+    return (hasOperationalModuleAccess(access) || access.permissions.includes('admin_console'))
       ? REQUESTED_PORTAL_TARGETS['command-center']
       : null;
   }

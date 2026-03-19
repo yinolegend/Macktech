@@ -5,7 +5,7 @@ const { Server } = require('socket.io');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-const { PORT, JWT_SECRET, JWT_EXPIRES_IN, SESSION_MAX_AGE_MS } = require('../config/app');
+const { PORT, HOST, JWT_SECRET, JWT_EXPIRES_IN, SESSION_MAX_AGE_MS } = require('../config/app');
 const paths = require('../config/paths');
 const db = require('./database');
 const ad = require('./auth/directory');
@@ -25,6 +25,7 @@ const { createPageController } = require('../api/controllers/pageController');
 const { createHazmatController } = require('../api/controllers/hazmatController');
 const { createCommandCenterController } = require('../api/controllers/commandCenterController');
 const { createAdminConsoleController } = require('../api/controllers/adminConsoleController');
+const { createCasService } = require('./services/casService');
 const { hazmatDb, gagesDb, debugDb, syncPortalModels } = require('../models');
 
 let PDFDocument = null;
@@ -48,6 +49,8 @@ function createServerApp() {
     mapAssetUpload,
     handbookUpload,
     calibrationAttachmentUpload,
+    hazmatSdsUpload,
+    hazmatImageUpload,
   } = require('./services/uploadService');
 
   announcementsService.cleanupUnusedAnnouncementFiles();
@@ -55,6 +58,22 @@ function createServerApp() {
   const app = express();
   const server = http.createServer(app);
   const io = new Server(server);
+  const casMasterLookupEnabled = String(process.env.CAS_MASTER_LOOKUP || 'true').trim().toLowerCase() !== 'false';
+  const casRemoteLookupEnabled = String(process.env.CAS_REMOTE_LOOKUP || 'true').trim().toLowerCase() !== 'false';
+  const casRemoteTimeoutMs = Number.parseInt(process.env.CAS_REMOTE_TIMEOUT_MS || '8000', 10);
+  const casSnapshotPaths = [paths.CAS_INDEX_PATH];
+  if (casMasterLookupEnabled) {
+    casSnapshotPaths.push(paths.CAS_INDEX_MASTER_PATH);
+  }
+  casSnapshotPaths.push(paths.CAS_INDEX_EXTENDED_PATH);
+  const casService = createCasService({
+    snapshotPaths: casSnapshotPaths,
+    writeThroughPath: paths.CAS_INDEX_EXTENDED_PATH,
+    allowRemoteLookup: casRemoteLookupEnabled,
+    remoteLookupTimeoutMs: Number.isFinite(casRemoteTimeoutMs) ? casRemoteTimeoutMs : 8000,
+    logger: console,
+  });
+  casService.loadSnapshot();
 
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
@@ -122,11 +141,14 @@ function createServerApp() {
   app.use('/styles', express.static(paths.FRONTEND_STYLES_DIR));
   app.use('/scripts', express.static(paths.FRONTEND_SCRIPTS_DIR));
   app.use('/assets', express.static(paths.FRONTEND_ASSETS_DIR));
-  app.use('/public/css', express.static(paths.LEGACY_STYLES_DIR));
+  app.use('/public/css', express.static(paths.FRONTEND_STYLES_DIR));
+  // Keep legacy /public/js route for existing app pages that still load local scripts from this path.
   app.use('/public/js', express.static(paths.LEGACY_PUBLIC_JS_DIR));
-  app.use('/public/sds', express.static(paths.LEGACY_PUBLIC_SDS_DIR));
-  app.use('/public/certs', express.static(paths.LEGACY_PUBLIC_CERTS_DIR));
+  app.use('/public/sds', express.static(paths.SDS_UPLOADS_DIR));
+  app.use('/public/certs', express.static(paths.CERT_UPLOADS_DIR));
+  app.use('/assets/icons', express.static(paths.FRONTEND_ICONS_DIR));
   app.use('/icons', express.static(paths.FRONTEND_ICONS_DIR));
+  app.use('/uploads', express.static(paths.UPLOADS_DIR));
   app.use('/pdf-handbook', express.static(handbookService.HANDBOOK_DIR));
   app.use('/announcements-files', express.static(paths.ANNOUNCEMENT_FILES_DIR));
   app.use('/map-assets', express.static(paths.MAP_ASSETS_DIR));
@@ -199,6 +221,8 @@ function createServerApp() {
       UsageLog: hazmatDb.UsageLog,
       sequelize: hazmatDb.sequelize,
       paths,
+      hazmatSdsUpload,
+      hazmatImageUpload,
     }),
     commandCenterController: createCommandCenterController({
       hazmatDb,
@@ -206,6 +230,7 @@ function createServerApp() {
       debugDb,
       paths,
       calibrationAttachmentUpload,
+      casService,
     }),
     adminConsoleController: createAdminConsoleController({
       db,
@@ -231,8 +256,8 @@ async function startServer(port = PORT) {
   await syncPortalModels();
   await bootstrapDefaultAdmin({ db, bcrypt }).catch(() => null);
   await new Promise((resolve) => {
-    runtime.server.listen(port, () => {
-      console.log(`Server listening on ${port}`);
+    runtime.server.listen(port, HOST, () => {
+      console.log(`Server listening on http://${HOST}:${port}`);
       resolve();
     });
   });

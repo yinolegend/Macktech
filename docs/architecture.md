@@ -3,7 +3,7 @@
 ## Runtime
 
 - Root startup: `node server.js`
-- Local API base: `http://localhost:3000/api/`
+- Local API base: `http://127.0.0.1:3000/api/`
 - Static frontend served locally from `frontend/`
 - Persistent data stored in `data/`
 
@@ -13,7 +13,7 @@
 - `frontend/scripts` contains browser-side JavaScript.
 - `frontend/styles` contains shared CSS.
 - `frontend/assets` contains local vendor assets and static frontend files.
-- `frontend/icons` contains the local SVG icon library used by the map editor.
+- `frontend/assets/icons` contains the local SVG icon library used by the map editor.
 - `api/routes` defines HTTP route registration.
 - `api/controllers` holds request handlers.
 - `api/middleware` contains reusable API middleware factories.
@@ -29,5 +29,5 @@
 
 - Frontend pages use only relative/local API calls.
 - Icons and Fabric.js are served from local files.
-- Handbook PDFs, map assets, and announcement uploads are served from local filesystem data folders.
+- Handbook PDFs, map assets, and announcement uploads are served from local filesystem paths under `data/uploads/`.
 - Remote font imports were removed from the active shared theme.

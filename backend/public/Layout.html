@@ -5,25 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Command Center</title>
     <link rel="stylesheet" href="/public/css/tabulator.min.css" />
-    <link rel="stylesheet" href="/public/css/Style.css" />
+    <link rel="stylesheet" href="/public/css/Style.css?v=20260319-label-id-ui-2" />
   </head>
   <body>
     <div class="tactical-shell" data-view="hazmat" data-section="dashboard">
       <aside class="tactical-sidebar" aria-label="Command Center Sidebar">
-        <div class="sidebar-brand">
-          <div class="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" class="icon-svg brand-svg">
-              <path d="M12 2 20 6v6c0 5-3.8 9.5-8 11-4.2-1.5-8-6-8-11V6l8-4Z"></path>
-              <path d="m8.5 12 2.3 2.3L15.8 9.3"></path>
-            </svg>
-          </div>
-          <div>
-            <p class="eyebrow">Tactical Dark</p>
-            <h1>Command Center</h1>
-            <p class="sidebar-copy">Offline oversight for hazmat inventory, calibration compliance, and failure analysis diagnostics.</p>
-          </div>
-        </div>
-
         <nav class="sidebar-nav" aria-label="Workspace navigation">
           <button class="sidebar-nav-button active" type="button" data-section="dashboard">
             <span class="nav-icon" aria-hidden="true">
@@ -39,9 +25,9 @@
           <button id="quick-new-asset-button" class="sidebar-nav-button" type="button">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" class="icon-svg">
-                <path d="M12 5v14"></path>
-                <path d="M5 12h14"></path>
-                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"></circle>
+                <path d="M12 8v8"></path>
+                <path d="M8 12h8"></path>
               </svg>
             </span>
             <span>New Asset (+)</span>
@@ -101,18 +87,6 @@
         </nav>
 
         <div class="sidebar-footer">
-          <div class="user-panel">
-            <span class="nav-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" class="icon-svg">
-                <path d="M12 2 20 6v6c0 5-3.8 9.5-8 11-4.2-1.5-8-6-8-11V6l8-4Z"></path>
-                <path d="m8.5 12 2.3 2.3L15.8 9.3"></path>
-              </svg>
-            </span>
-            <div>
-              <small>Authenticated Session</small>
-              <strong id="session-user">Authenticated</strong>
-            </div>
-          </div>
           <div class="sidebar-actions">
             <button id="refresh-button" class="sidebar-utility" type="button">
               <svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true">
@@ -129,6 +103,10 @@
               </svg>
               <span>Sign Out</span>
             </button>
+          </div>
+          <div class="user-panel-compact">
+            <small>Authenticated Session</small>
+            <strong id="session-user">Authenticated</strong>
           </div>
         </div>
       </aside>
@@ -167,7 +145,7 @@
           <details class="dashboard-summary-panel" open>
             <summary>Summary Cards</summary>
             <div class="stats-grid">
-              <article class="stat-card stat-critical summary-card-trigger" data-summary-filter="red" role="button" tabindex="0" aria-pressed="false">
+              <article class="stat-card stat-critical">
                 <div class="stat-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" class="icon-svg">
                     <path d="M12 9v4"></path>
@@ -181,7 +159,7 @@
                   <small id="expired-copy">RED rows mark expired hazmat stock or overdue calibration assets.</small>
                 </div>
               </article>
-              <article class="stat-card stat-amber summary-card-trigger" data-summary-filter="amber" role="button" tabindex="0" aria-pressed="false">
+              <article class="stat-card stat-amber">
                 <div class="stat-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" class="icon-svg">
                     <path d="M12 6v6l4 2"></path>
@@ -194,7 +172,7 @@
                   <small id="warning-copy">AMBER rows show items inside the configured warning lead time.</small>
                 </div>
               </article>
-              <article class="stat-card stat-blue summary-card-trigger" data-summary-filter="safe" role="button" tabindex="0" aria-pressed="false">
+              <article class="stat-card stat-blue">
                 <div class="stat-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" class="icon-svg">
                     <path d="M4 20h16"></path>
@@ -209,7 +187,7 @@
                   <small id="secondary-copy">Hazmat rows also flag AMBER when stock falls below threshold.</small>
                 </div>
               </article>
-              <article class="stat-card stat-lock summary-card-trigger" data-summary-filter="locked" role="button" tabindex="0" aria-pressed="false">
+              <article class="stat-card stat-lock">
                 <div class="stat-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" class="icon-svg">
                     <rect x="5" y="11" width="14" height="10" rx="2"></rect>
@@ -345,7 +323,7 @@
                     <path d="m20 20-3.5-3.5"></path>
                   </svg>
                 </span>
-                <input id="inventory-search" type="search" placeholder="Search by material, batch, or hazard symbol" />
+                <input id="inventory-search" type="search" placeholder="Search by material, label ID, class, or hazard symbol" />
               </label>
               <div id="inventory-table" class="table-frame"></div>
             </div>
@@ -805,13 +783,54 @@
             <input name="name" type="text" required />
           </label>
           <label>
-            Batch ID
-            <input name="batch_id" type="text" required />
+            CAS Number
+            <input name="cas_number" type="text" placeholder="XXX-XX-X" data-format="cas" />
+            <small id="cas-lookup-status" style="display: none; margin-top: 4px; font-size: 0.85em;"></small>
           </label>
-          <label>
-            Expiration Date
-            <input name="expiration_date" type="date" />
-          </label>
+          <div class="field-grid compact-row material-label-grid">
+            <label class="label-id-field">
+              Label ID
+              <input name="label_id" type="text" readonly aria-readonly="true" />
+              <small class="label-id-meta">Auto-generated from class, division, and expiration date.</small>
+            </label>
+            <label>
+              Primary Class
+              <select name="primary_class" required>
+                <option value="">Select class</option>
+                <option value="0">C0</option>
+                <option value="1">C1</option>
+                <option value="2">C2</option>
+                <option value="3">C3</option>
+                <option value="4">C4</option>
+                <option value="5">C5</option>
+                <option value="6">C6</option>
+                <option value="7">C7</option>
+                <option value="8">C8</option>
+                <option value="9">C9</option>
+              </select>
+            </label>
+            <label>
+              Division
+              <input name="division" type="text" placeholder="Auto from CAS or manual override" />
+            </label>
+          </div>
+          <div class="label-id-tooltip-wrap">
+            <button id="label-id-tooltip-toggle" class="label-id-tooltip-button" type="button" aria-expanded="false" aria-controls="label-id-tooltip-panel">Label ID Decoder</button>
+            <div id="label-id-tooltip-panel" class="label-id-tooltip-panel hidden" role="tooltip">
+              <strong>C[class][division]-[RANDOM]-[MMDDYY]</strong>
+              <small>Example: C23-7F3Q1A-031926 means Class 2, Division 3, random serial, and date code.</small>
+            </div>
+          </div>
+          <div class="field-grid compact-row">
+            <label>
+              Expiration Date
+              <input name="expiration_date" type="date" />
+            </label>
+            <label>
+              Added On (Auto)
+              <input name="created_date" type="date" readonly />
+            </label>
+          </div>
           <div class="field-grid">
             <label>
               Stock Level
@@ -822,8 +841,34 @@
               <input name="min_threshold" type="number" min="0" step="0.01" required />
             </label>
           </div>
+          <label class="container-label">
+            Container Size (Optional)
+            <div class="container-size-grid">
+              <input name="container_value" type="number" min="0" step="0.01" placeholder="Amount" class="container-input" />
+              <select name="container_unit" class="container-select">
+                <option value="">-- Select Unit --</option>
+                <optgroup label="Mass">
+                  <option value="mg">mg</option>
+                  <option value="g" selected>g</option>
+                  <option value="kg">kg</option>
+                  <option value="lb">lb</option>
+                  <option value="oz">oz</option>
+                </optgroup>
+                <optgroup label="Volume">
+                  <option value="mL">mL</option>
+                  <option value="L">L</option>
+                  <option value="gal">gal</option>
+                </optgroup>
+                <optgroup label="Industrial">
+                  <option value="drum">drum (55 gal)</option>
+                  <option value="IBC">IBC (1000 L)</option>
+                  <option value="tank">tank</option>
+                </optgroup>
+              </select>
+            </div>
+          </label>
           <div>
-            <span class="field-label">Hazard DNA (GHS Symbols)</span>
+            <span class="field-label" id="ghs-label">Hazard DNA (Auto-detected + Manual)</span>
             <div id="ghs-selector" class="ghs-selector"></div>
           </div>
           <div class="modal-actions">
@@ -1279,6 +1324,6 @@
     <script src="/public/js/jspdf.min.js"></script>
     <script src="/public/js/chart.umd.js"></script>
     <script src="/public/js/Auth_Redirect.js"></script>
-    <script src="/public/js/Assets_Logic.js"></script>
+    <script src="/public/js/Assets_Logic.js?v=20260319-cas-live-1"></script>
   </body>
 </html>

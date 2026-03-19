@@ -4,6 +4,8 @@ const {
   MAP_ASSETS_DIR,
   HANDBOOK_DIR,
   CALIBRATION_ATTACHMENTS_DIR,
+  SDS_UPLOADS_DIR,
+  HAZMAT_IMAGE_UPLOADS_DIR,
 } = require('../../config/paths');
 
 function sanitizeUploadName(originalName, fallbackName) {
@@ -32,6 +34,16 @@ const calibrationAttachmentStorage = multer.diskStorage({
   filename: (req, file, cb) => cb(null, `${Date.now()}_${sanitizeUploadName(file.originalname, 'calibration_attachment')}`),
 });
 
+const hazmatSdsStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, SDS_UPLOADS_DIR),
+  filename: (req, file, cb) => cb(null, `${Date.now()}_${sanitizeUploadName(file.originalname, 'hazmat_sds.pdf')}`),
+});
+
+const hazmatImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, HAZMAT_IMAGE_UPLOADS_DIR),
+  filename: (req, file, cb) => cb(null, `${Date.now()}_${sanitizeUploadName(file.originalname, 'hazmat_image')}`),
+});
+
 function allowCalibrationAttachment(file) {
   const mime = String(file && file.mimetype ? file.mimetype : '').toLowerCase();
   const extension = String(file && file.originalname ? file.originalname : '').toLowerCase().split('.').pop();
@@ -43,6 +55,17 @@ function allowCalibrationAttachment(file) {
     'image/png',
   ]);
   return allowedExtensions.has(extension) || allowedMimes.has(mime);
+}
+
+function allowPdfOnly(file) {
+  const mime = String(file && file.mimetype ? file.mimetype : '').toLowerCase();
+  const extension = String(file && file.originalname ? file.originalname : '').toLowerCase().split('.').pop();
+  return extension === 'pdf' || mime === 'application/pdf';
+}
+
+function allowImageOnly(file) {
+  const mime = String(file && file.mimetype ? file.mimetype : '').toLowerCase();
+  return mime.startsWith('image/');
 }
 
 const announcementUpload = multer({ storage: announcementStorage });
@@ -74,9 +97,31 @@ const calibrationAttachmentUpload = multer({
   },
 });
 
+const hazmatSdsUpload = multer({
+  storage: hazmatSdsStorage,
+  fileFilter: (req, file, cb) => {
+    if (!allowPdfOnly(file)) {
+      return cb(new Error('Only PDF files are allowed'));
+    }
+    return cb(null, true);
+  },
+});
+
+const hazmatImageUpload = multer({
+  storage: hazmatImageStorage,
+  fileFilter: (req, file, cb) => {
+    if (!allowImageOnly(file)) {
+      return cb(new Error('Only image files are allowed'));
+    }
+    return cb(null, true);
+  },
+});
+
 module.exports = {
   announcementUpload,
   mapAssetUpload,
   handbookUpload,
   calibrationAttachmentUpload,
+  hazmatSdsUpload,
+  hazmatImageUpload,
 };

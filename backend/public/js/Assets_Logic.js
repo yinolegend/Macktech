@@ -28,7 +28,33 @@
     { key: 'health_hazard', label: 'Health', description: 'Long-term respiratory or organ impact.' },
     { key: 'exclamation_mark', label: 'Irritant', description: 'Skin, eye, or respiratory irritant.' },
     { key: 'environmental_hazard', label: 'Environment', description: 'Environmental contamination risk.' },
+    { key: 'non_hazardous', label: 'IDENTIFIED NON-HAZARDOUS MATERIAL', description: 'Material identified as non-hazardous after review.' },
   ];
+
+  const MATERIAL_CLASS_RULES = [
+    { symbol: 'explosive', classCode: '1', division: '1.1' },
+    { symbol: 'flammable', classCode: '2', division: '3' },
+    { symbol: 'oxidizing', classCode: '3', division: '5.1' },
+    { symbol: 'gas_cylinder', classCode: '4', division: '2.2' },
+    { symbol: 'corrosive', classCode: '5', division: '8' },
+    { symbol: 'toxic', classCode: '6', division: '6.1' },
+    { symbol: 'health_hazard', classCode: '7', division: '6.2' },
+    { symbol: 'exclamation_mark', classCode: '8', division: '9' },
+    { symbol: 'environmental_hazard', classCode: '9', division: '9.1' },
+  ];
+
+  const CLASS_HAZARD_DNA_MAP = {
+    '0': ['non_hazardous'],
+    '1': ['explosive'],
+    '2': ['flammable'],
+    '3': ['oxidizing'],
+    '4': ['gas_cylinder'],
+    '5': ['corrosive'],
+    '6': ['toxic'],
+    '7': ['health_hazard'],
+    '8': ['exclamation_mark'],
+    '9': ['environmental_hazard'],
+  };
 
   const DEFAULT_TEMPLATE_UNITS = [
     { name: 'Unitless', symbol: '' },
@@ -99,6 +125,268 @@
     { name: 'Capacitance ESR', symbol: '\u03A9' },
   ];
 
+  // Local CAS Database (chemical name + GHS hazards mapping, NCBI-based)
+  // This is a curated offline database for common laboratory hazmat
+  const CAS_CHEMICAL_DATABASE = {
+    '108-95-2': {name: 'Phenol', ghs: ['corrosive', 'toxic', 'health_hazard', 'environmental_hazard']},
+    '67-56-1': {name: 'Methanol', ghs: ['flammable', 'toxic', 'health_hazard']},
+    '64-17-5': {name: 'Ethanol', ghs: ['flammable', 'exclamation_mark']},
+    '78-93-3': {name: 'Methyl Ethyl Ketone', ghs: ['flammable', 'exclamation_mark', 'health_hazard']},
+    '71-43-2': {name: 'Benzene', ghs: ['flammable', 'toxic', 'health_hazard', 'environmental_hazard']},
+    '67-66-3': {name: 'Chloroform', ghs: ['toxic', 'health_hazard', 'environmental_hazard']},
+    '79-01-6': {name: 'Trichloroethylene', ghs: ['toxic', 'health_hazard', 'environmental_hazard']},
+    '75-01-4': {name: 'Vinyl Chloride', ghs: ['gas_cylinder', 'toxic', 'health_hazard', 'environmental_hazard']},
+    '50-00-0': {name: 'Formaldehyde', ghs: ['toxic', 'health_hazard', 'exclamation_mark', 'environmental_hazard']},
+    '123-91-5': {name: '1,4-Dioxane', ghs: ['flammable', 'health_hazard', 'environmental_hazard']},
+    '75-09-2': {name: 'Dichloromethane', ghs: ['health_hazard', 'exclamation_mark']},
+    '107-06-2': {name: '1,2-Dichloroethane', ghs: ['toxic', 'health_hazard', 'environmental_hazard']},
+    '79-34-5': {name: '1,1,2,2-Tetrachloroethane', ghs: ['toxic', 'health_hazard', 'environmental_hazard']},
+    '7664-93-9': {name: 'Sulfuric Acid', ghs: ['corrosive', 'environmental_hazard']},
+    '7732-18-5': {name: 'Water', ghs: []},
+    '7697-37-2': {name: 'Nitric Acid', ghs: ['corrosive', 'oxidizing', 'environmental_hazard']},
+    '7647-01-0': {name: 'Hydrochloric Acid', ghs: ['corrosive']},
+    '7783-06-4': {name: 'Hydrogen Sulfide', ghs: ['gas_cylinder', 'toxic', 'flammable', 'environmental_hazard']},
+    '26628-22-8': {name: 'Sodium Azide', ghs: ['toxic', 'explosive', 'health_hazard', 'environmental_hazard']},
+    '94-36-0': {name: 'Benzoyl Peroxide', ghs: ['explosive', 'oxidizing', 'health_hazard']},
+    '1330-20-7': {name: 'Xylene', ghs: ['flammable', 'health_hazard', 'environmental_hazard']},
+    '872-05-9': {name: '1-Decene', ghs: ['flammable', 'environmental_hazard']},
+    '98-82-8': {name: 'Cumene', ghs: ['flammable', 'health_hazard', 'environmental_hazard']},
+    '95-47-6': {name: 'o-Xylene', ghs: ['flammable', 'health_hazard', 'environmental_hazard']},
+    '108-88-3': {name: 'Toluene', ghs: ['flammable', 'health_hazard', 'environmental_hazard']},
+    '67-64-1': {name: 'Acetone', ghs: ['flammable', 'exclamation_mark']},
+    '67-63-0': {name: 'Isopropyl Alcohol', ghs: ['flammable', 'exclamation_mark']},
+    '75-05-8': {name: 'Acetonitrile', ghs: ['flammable', 'toxic', 'health_hazard']},
+    '1310-73-2': {name: 'Sodium Hydroxide', ghs: ['corrosive']},
+    '7664-41-7': {name: 'Ammonia', ghs: ['gas_cylinder', 'corrosive', 'toxic', 'environmental_hazard']},
+    '7722-84-1': {name: 'Hydrogen Peroxide', ghs: ['oxidizing', 'corrosive', 'exclamation_mark']},
+  };
+
+  // Container size conversion utilities
+  const CONTAINER_CONVERSIONS = {
+    normalizeContainerSize: function(value, unit) {
+      const v = Number(value) || 0;
+      if (!v) return { value: 0, unit: 'g', type: 'mass' };
+      
+      const massUnits = {mg: 0.001, g: 1, kg: 1000, lb: 453.592, oz: 28.3495};
+      const volumeUnits = {mL: 1, L: 1000, gal: 3785.41};
+      const industrialUnits = {drum: 207964, IBC: 1000000, tank: null};
+      
+      if (massUnits[unit]) {
+        return {value: v * massUnits[unit], unit: 'g', type: 'mass'};
+      } else if (volumeUnits[unit]) {
+        return {value: v * volumeUnits[unit], unit: 'mL', type: 'volume'};
+      } else if (industrialUnits[unit]) {
+        return {value: industrialUnits[unit] || v, unit: unit, type: 'industrial'};
+      }
+      return {value: v, unit: unit, type: 'unknown'};
+    }
+  };
+
+  // CAS Number validation (format: XXX-XX-X)
+  function isValidCasNumber(cas) {
+    if (!cas) return false;
+    const casRegex = /^\d{2,7}-\d{2}-\d$/;
+    return casRegex.test(cas.trim());
+  }
+
+  // Auto-format CAS number with hyphens (removes hyphens and re-applies them)
+  function formatCasNumber(cas) {
+    if (!cas) return '';
+    // Remove all non-digit characters
+    const digitsOnly = String(cas || '').replace(/\D/g, '');
+    // CAS format: 2-7 digits, then 2 digits, then 1 digit (e.g., 64-17-5, 108-88-3, 7732-18-5)
+    if (digitsOnly.length < 5) return digitsOnly;
+    const lastDigit = digitsOnly.slice(-1);
+    const middleTwo = digitsOnly.slice(-3, -1);
+    const firstPart = digitsOnly.slice(0, -3);
+    return `${firstPart}-${middleTwo}-${lastDigit}`;
+  }
+
+  // CAS lookup in local database
+  function lookupCasChemical(casNumber) {
+    const normalized = casNumber && casNumber.trim().toUpperCase();
+    return CAS_CHEMICAL_DATABASE[normalized] || null;
+  }
+
+  function normalizeHazardSymbol(value) {
+    return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_');
+  }
+
+  function normalizeHazardSymbols(value) {
+    const source = Array.isArray(value)
+      ? value
+      : String(value || '')
+        .split(/[;,|]/)
+        .map((item) => item.trim());
+    return Array.from(new Set(source.map(normalizeHazardSymbol).filter(Boolean)));
+  }
+
+  function normalizePrimaryClassValue(value) {
+    const text = String(value || '').trim().toUpperCase();
+    if (!text) return '';
+    const compact = text.startsWith('C') ? text.slice(1) : text;
+    const match = compact.match(/[0-9]/);
+    return match ? match[0] : '';
+  }
+
+  function normalizeDivisionValue(value) {
+    return String(value || '').trim();
+  }
+
+  function normalizeLabelIdValue(value) {
+    return String(value || '').trim().toUpperCase();
+  }
+
+  function normalizeLabelDivisionSegment(value) {
+    const compact = normalizeDivisionValue(value).toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return compact || '0';
+  }
+
+  function formatLabelDateSegment(value) {
+    const parsed = value ? new Date(value) : new Date();
+    const date = Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+    const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(date.getUTCDate()).padStart(2, '0');
+    const yy = String(date.getUTCFullYear()).slice(-2);
+    return `${mm}${dd}${yy}`;
+  }
+
+  function buildBase36Segment(length = 6) {
+    let token = '';
+    while (token.length < length) {
+      token += Math.floor(Math.random() * 36).toString(36);
+    }
+    return token.slice(0, length).toUpperCase();
+  }
+
+  function deriveClassDivisionFromHazards(symbols) {
+    const normalized = normalizeHazardSymbols(symbols);
+    if (!normalized.length) return null;
+
+    const symbolSet = new Set(normalized);
+    const hasNonHazardous = symbolSet.has('non_hazardous');
+    const hasOtherHazards = normalized.some((symbol) => symbol !== 'non_hazardous');
+    if (hasNonHazardous && !hasOtherHazards) {
+      return { primaryClass: '0', division: '0' };
+    }
+
+    for (const rule of MATERIAL_CLASS_RULES) {
+      if (symbolSet.has(rule.symbol)) {
+        return { primaryClass: rule.classCode, division: rule.division };
+      }
+    }
+
+    return { primaryClass: '0', division: '0' };
+  }
+
+  function defaultDivisionForClass(primaryClass) {
+    const classCode = normalizePrimaryClassValue(primaryClass);
+    if (classCode === '0') return '0';
+    const rule = MATERIAL_CLASS_RULES.find((entry) => entry.classCode === classCode);
+    return rule ? rule.division : '';
+  }
+
+  function getHazardsForClass(primaryClass) {
+    const classCode = normalizePrimaryClassValue(primaryClass);
+    return normalizeHazardSymbols(CLASS_HAZARD_DNA_MAP[classCode] || []);
+  }
+
+  function generateSmartLabelID(primaryClass, division, expirationDate) {
+    const classCode = normalizePrimaryClassValue(primaryClass);
+    if (!classCode) return '';
+
+    const divisionCode = normalizeLabelDivisionSegment(division || defaultDivisionForClass(classCode));
+    const dateCode = formatLabelDateSegment(expirationDate);
+    const existingIds = new Set(
+      (state.materials || [])
+        .filter((item) => String(item.id || '') !== String(state.editingMaterialId || ''))
+        .map((item) => normalizeLabelIdValue(item.label_id || item.batch_id))
+        .filter(Boolean)
+    );
+
+    for (let attempt = 0; attempt < 80; attempt += 1) {
+      const candidate = normalizeLabelIdValue(`C${classCode}${divisionCode}-${buildBase36Segment(6)}-${dateCode}`);
+      if (!existingIds.has(candidate)) {
+        return candidate;
+      }
+    }
+
+    return normalizeLabelIdValue(`C${classCode}${divisionCode}-${Date.now().toString(36).slice(-6).toUpperCase().padStart(6, '0')}-${dateCode}`);
+  }
+
+  function isCasLookupRecord(value, expectedCasNumber) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+
+    const casNumber = String(value.cas_number || '').trim();
+    if (!isValidCasNumber(casNumber)) return false;
+    if (expectedCasNumber && casNumber !== String(expectedCasNumber || '').trim()) return false;
+
+    return Array.isArray(value.ghs_auto_symbols) || Array.isArray(value.ghs) || Array.isArray(value.hazard_dna);
+  }
+
+  function buildEmbeddedCasFallback(casNumber) {
+    const fallback = lookupCasChemical(casNumber);
+    const derived = fallback ? deriveClassDivisionFromHazards(fallback.ghs) : null;
+    return fallback
+      ? {
+        cas_number: casNumber,
+        name: fallback.name,
+        ghs_auto_symbols: normalizeHazardSymbols(fallback.ghs),
+        hazard_dna: normalizeHazardSymbols(fallback.ghs),
+        primary_class: derived ? derived.primaryClass : '0',
+        division: derived ? derived.division : '0',
+        hazard_status: fallback.ghs && fallback.ghs.length ? 'classified' : 'unknown',
+        source: 'Embedded fallback cache',
+        dataset_version: 'local-fallback',
+      }
+      : null;
+  }
+
+  function normalizeHazardOverrides(value) {
+    let source = value;
+    if (typeof source === 'string') {
+      try {
+        source = JSON.parse(source);
+      } catch (error) {
+        source = {};
+      }
+    }
+
+    const on = normalizeHazardSymbols(source && source.on);
+    const off = normalizeHazardSymbols(source && source.off);
+    const offSet = new Set(off);
+    return {
+      on: on.filter((symbol) => !offSet.has(symbol)),
+      off,
+    };
+  }
+
+  function createMaterialHazardDraft(autoSymbols, manualOverrides, fallbackSelected) {
+    const auto = new Set(normalizeHazardSymbols(autoSymbols));
+    const normalizedOverrides = normalizeHazardOverrides(manualOverrides);
+    const manualOn = new Set(normalizedOverrides.on);
+    const manualOff = new Set(normalizedOverrides.off);
+
+    if (!auto.size && !manualOn.size && !manualOff.size) {
+      normalizeHazardSymbols(fallbackSelected).forEach((symbol) => manualOn.add(symbol));
+    }
+
+    return {
+      auto,
+      manualOn,
+      manualOff,
+    };
+  }
+
+  function computeDraftSelectedSymbols(draft) {
+    const selected = new Set((draft && draft.auto) || []);
+    ((draft && draft.manualOff) || []).forEach((symbol) => selected.delete(symbol));
+    ((draft && draft.manualOn) || []).forEach((symbol) => selected.add(symbol));
+    return selected;
+  }
+
+  const CAS_LOOKUP_DEBOUNCE_MS = 220;
+
   const DISALLOWED_TEMPLATE_UNIT_TOKENS = new Set(['day', 'days']);
   const DEFAULT_TEMPLATE_INTERVAL_MONTHS = 12;
   const AVERAGE_DAYS_PER_MONTH = 365 / 12;
@@ -162,6 +450,10 @@
     currentReportModule: 'hazmat',
     currentStatusTimeout: null,
     currentPatternTimeout: null,
+    casLookupDebounceId: null,
+    casLookupRequestId: 0,
+    materialLabelTooltipPinned: false,
+    materialHazardDraft: createMaterialHazardDraft([], { on: [], off: [] }, []),
     unitLibrary: [],
     selectedTemplateUnitId: '',
     debugParetoChart: null,
@@ -342,6 +634,8 @@
     elements.assetDetailEditAction = document.getElementById('asset-detail-edit-action');
     elements.assetDetailDeleteAction = document.getElementById('asset-detail-delete-action');
     elements.ghsSelector = document.getElementById('ghs-selector');
+    elements.labelIdTooltipToggle = document.getElementById('label-id-tooltip-toggle');
+    elements.labelIdTooltipPanel = document.getElementById('label-id-tooltip-panel');
     elements.settingsForm = document.getElementById('settings-form');
     elements.departmentCreateForm = document.getElementById('department-create-form');
     elements.departmentAdminList = document.getElementById('department-admin-list');
@@ -392,8 +686,6 @@
       setView(getPreferredAssetView());
       setSection('assets');
     });
-    addEvent(elements.dashboardSummaryPanel, 'click', handleSummaryCardInteraction);
-    addEvent(elements.dashboardSummaryPanel, 'keydown', handleSummaryCardInteraction);
     addEvent(elements.clearAssetFiltersButton, 'click', clearAssetFilters);
     addEvent(elements.templateIntervalMode, 'change', handleTemplateIntervalModeChange);
     addEvent(elements.templateIntervalMonths, 'change', syncTemplateCalIntervalField);
@@ -462,6 +754,15 @@
     });
 
     addEvent(elements.materialForm, 'submit', submitMaterialForm);
+    addEvent(elements.materialForm && elements.materialForm.cas_number, 'input', handleCasNumberInput);
+    addEvent(elements.materialForm && elements.materialForm.primary_class, 'change', handleMaterialPrimaryClassChange);
+    addEvent(elements.materialForm && elements.materialForm.division, 'input', handleMaterialDivisionInput);
+    addEvent(elements.materialForm && elements.materialForm.expiration_date, 'change', handleMaterialExpirationChange);
+    addEvent(elements.labelIdTooltipToggle, 'click', handleLabelIdTooltipToggle);
+    addEvent(elements.labelIdTooltipToggle, 'mouseenter', () => previewLabelIdTooltip(true));
+    addEvent(elements.labelIdTooltipToggle, 'mouseleave', () => previewLabelIdTooltip(false));
+    addEvent(elements.labelIdTooltipToggle, 'focus', () => previewLabelIdTooltip(true));
+    addEvent(elements.labelIdTooltipToggle, 'blur', () => previewLabelIdTooltip(false));
     addEvent(elements.usageForm, 'submit', submitUsageForm);
     addEvent(elements.templateForm, 'submit', submitTemplateForm);
     addEvent(elements.calibrationForm, 'submit', submitCalibrationForm);
@@ -531,10 +832,24 @@
   }
 
   function getUserModuleAccess() {
+    const defaultOperationalModules = ['hazmat', 'calibration', 'failure_analysis', 'reports', 'dashboard'];
     if (!state.user || !Array.isArray(state.user.modules)) {
-      return ['hazmat', 'calibration', 'failure_analysis', 'reports', 'dashboard'];
+      return defaultOperationalModules.slice();
     }
-    return state.user.modules.slice();
+
+    const normalizedModules = Array.from(new Set(
+      state.user.modules.map((moduleKey) => normalizeAccessModuleKey(moduleKey)).filter(Boolean)
+    ));
+    if (normalizedModules.length) {
+      return normalizedModules;
+    }
+
+    const permissions = Array.isArray(state.user.permissions) ? state.user.permissions : [];
+    if (permissions.includes('admin_console')) {
+      return defaultOperationalModules.concat('admin_console');
+    }
+
+    return defaultOperationalModules.slice();
   }
 
   function hasModuleAccess(moduleName) {
@@ -603,7 +918,7 @@
     const view = getPreferredAssetView();
     if (view === 'calibration') return 'New Asset (+)';
     if (view === 'debug') return 'New Ticket (+)';
-    return 'New Hazmat (+)';
+    return 'Add Hazmat';
   }
 
   function applyPortalAccessControl() {
@@ -718,6 +1033,12 @@
     } catch (error) {
       setStatus(error.message || 'Failed to load Command Center data.', 'error');
     }
+  }
+
+  // Refresh ONLY the current active module (prevents cascade effects)
+  // Refresh ONLY the current active module (prevents cascade effects)
+  async function refreshCurrentModule(options = {}) {
+    return refreshPortal(options); // Just use refreshPortal for now
   }
 
   function renderAll() {
@@ -938,8 +1259,8 @@
           section: 'assets',
           id: item.id,
           title: item.name || 'Unnamed Material',
-          subtitle: item.batch_id || `ID ${item.id}`,
-          subtitleLabel: 'Batch',
+          subtitle: item.label_id || item.batch_id || `ID ${item.id}`,
+          subtitleLabel: 'Label',
           department,
           typeTags: getHazmatTypeTags(item),
           statusKey,
@@ -1138,11 +1459,16 @@
     elements.dashboardAssetResults.innerHTML = entries.slice(0, 12).map((entry) => {
       const isHazmatEntry = entry.source === 'hazmat';
       const isDebugEntry = entry.source === 'debug';
-      const subtitleLabel = entry.subtitleLabel || (isHazmatEntry ? 'Batch' : (isDebugEntry ? 'Board' : 'Serial'));
+      const subtitleLabel = entry.subtitleLabel || (isHazmatEntry ? 'Label' : (isDebugEntry ? 'Board' : 'Serial'));
       const dueLabel = entry.dueLabel || (isHazmatEntry ? 'Expiration' : (isDebugEntry ? 'Status' : 'Next Cal'));
       const dueFallback = isHazmatEntry ? 'Open' : (isDebugEntry ? 'OPEN' : 'Not scheduled');
       const primaryAction = isHazmatEntry ? 'verify' : (isDebugEntry ? 'bench' : 'calibrate');
       const primaryLabel = isHazmatEntry ? 'Verify' : (isDebugEntry ? 'Select' : 'Calibrate');
+      const primaryIconMarkup = isHazmatEntry
+        ? '<svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8.5 12 2.2 2.2 4.8-4.8"></path></svg>'
+        : (isDebugEntry
+          ? '<svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="2.5"></circle><path d="M12 3v3"></path><path d="M12 18v3"></path><path d="M3 12h3"></path><path d="M18 12h3"></path></svg>'
+          : '<svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true"><path d="M12 6v6l4 2"></path><circle cx="12" cy="12" r="9"></circle></svg>');
       return [
         `<article class="asset-result-card" data-asset-source="${escapeHtml(entry.source)}" data-asset-id="${escapeHtml(String(entry.id))}">`,
         '<div class="asset-result-head">',
@@ -1155,14 +1481,17 @@
         `<div><small>${escapeHtml(dueLabel)}</small><strong>${escapeHtml(entry.nextCal || dueFallback)}</strong></div>`,
         '</div>',
         '<div class="asset-result-actions">',
-        '<button class="queue-action-button" type="button" data-result-action="view" aria-label="View asset details" title="View">',
+        '<button class="queue-action-button queue-action-button-view" type="button" data-result-action="view" aria-label="View asset details" title="View details">',
         '<svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>',
+        '<span class="queue-action-label">View</span>',
         '</button>',
-        '<button class="queue-action-button" type="button" data-result-action="edit" aria-label="Edit asset" title="Edit">',
+        '<button class="queue-action-button queue-action-button-edit" type="button" data-result-action="edit" aria-label="Edit asset" title="Edit asset">',
         '<svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true"><path d="m4 20 4.2-1 10-10a2 2 0 0 0-2.8-2.8l-10 10L4 20Z"></path><path d="M13.5 6.5 17.5 10.5"></path></svg>',
+        '<span class="queue-action-label">Edit</span>',
         '</button>',
-        `<button class="queue-action-button emphasize" type="button" data-result-action="${escapeHtml(primaryAction)}" aria-label="${escapeHtml(primaryLabel)} asset" title="${escapeHtml(primaryLabel)}">`,
-        '<svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true"><path d="M7 12h10"></path><path d="M7 8h10"></path><path d="M7 16h6"></path><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>',
+        `<button class="queue-action-button queue-action-button-primary emphasize" type="button" data-result-action="${escapeHtml(primaryAction)}" aria-label="${escapeHtml(primaryLabel)} asset" title="${escapeHtml(primaryLabel)} asset">`,
+        primaryIconMarkup,
+        `<span class="queue-action-label">${escapeHtml(primaryLabel)}</span>`,
         '</button>',
         '</div>',
         '</article>',
@@ -1988,7 +2317,7 @@
     const columns = [
       { title: 'Material', field: 'name', minWidth: 170 },
       { title: 'Asset ID', field: 'asset_uid', minWidth: 150 },
-      { title: 'Batch', field: 'batch_id', minWidth: 120 },
+      { title: 'Label ID', field: 'label_id', minWidth: 160 },
       {
         title: 'GHS',
         field: 'ghs_symbols',
@@ -4602,32 +4931,428 @@
     ].join('')).join('');
 
     elements.ghsSelector.querySelectorAll('[data-ghs-symbol]').forEach((button) => {
-      button.addEventListener('click', () => button.classList.toggle('is-selected'));
+      button.addEventListener('click', () => handleGhsTokenToggle(button.dataset.ghsSymbol));
+    });
+
+    renderMaterialHazardDraft();
+  }
+
+  function setGhsLookupStatus(message, tone) {
+    const statusElement = document.getElementById('cas-lookup-status');
+    if (!statusElement) return;
+
+    if (!message) {
+      statusElement.style.display = 'none';
+      statusElement.textContent = '';
+      return;
+    }
+
+    statusElement.style.display = 'block';
+    statusElement.textContent = message;
+    if (tone === 'success') {
+      statusElement.style.color = '#58b47d';
+    } else if (tone === 'warning') {
+      statusElement.style.color = '#ffb347';
+    } else if (tone === 'error') {
+      statusElement.style.color = '#ff7b7b';
+    } else {
+      statusElement.style.color = '#9ba7b8';
+    }
+  }
+
+  function renderMaterialHazardDraft() {
+    const draft = state.materialHazardDraft || createMaterialHazardDraft([], { on: [], off: [] }, []);
+    const selected = computeDraftSelectedSymbols(draft);
+    const buttons = elements.ghsSelector.querySelectorAll('.ghs-token');
+    if (buttons.length === 0) return;
+
+    buttons.forEach((button) => {
+      const symbol = normalizeHazardSymbol(button.dataset.ghsSymbol);
+      const isSelected = selected.has(symbol);
+      const isAuto = draft.auto.has(symbol);
+      const isManualOn = draft.manualOn.has(symbol);
+      const isManualOff = draft.manualOff.has(symbol);
+
+      button.classList.toggle('is-selected', isSelected);
+      button.classList.toggle('is-auto-detected', isSelected && isAuto && !isManualOn);
+      button.classList.toggle('is-manual-selected', isSelected && (isManualOn || !isAuto));
+      button.classList.toggle('is-manual-disabled', !isSelected && isManualOff);
+      button.classList.toggle('is-off', !isSelected);
+      button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
     });
   }
 
   function getSelectedGhsSymbols() {
-    return Array.from(elements.ghsSelector.querySelectorAll('.ghs-token.is-selected')).map((button) => button.dataset.ghsSymbol);
+    return Array.from(computeDraftSelectedSymbols(state.materialHazardDraft));
+  }
+
+  function getMaterialHazardMetadata() {
+    const draft = state.materialHazardDraft || createMaterialHazardDraft([], { on: [], off: [] }, []);
+    return {
+      ghs_auto_symbols: Array.from(draft.auto),
+      ghs_manual_overrides: {
+        on: Array.from(draft.manualOn),
+        off: Array.from(draft.manualOff),
+      },
+    };
   }
 
   function setSelectedGhsSymbols(symbols) {
-    const selected = new Set(Array.isArray(symbols) ? symbols : []);
-    elements.ghsSelector.querySelectorAll('.ghs-token').forEach((button) => {
-      button.classList.toggle('is-selected', selected.has(button.dataset.ghsSymbol));
+    state.materialHazardDraft = createMaterialHazardDraft([], { on: normalizeHazardSymbols(symbols), off: [] }, symbols);
+    renderMaterialHazardDraft();
+  }
+
+  function setMaterialAutoHazards(symbols) {
+    const draft = state.materialHazardDraft || createMaterialHazardDraft([], { on: [], off: [] }, []);
+    draft.auto = new Set(normalizeHazardSymbols(symbols));
+    Array.from(draft.manualOff).forEach((symbol) => {
+      if (!draft.auto.has(symbol)) {
+        draft.manualOff.delete(symbol);
+      }
     });
+    state.materialHazardDraft = draft;
+    renderMaterialHazardDraft();
+  }
+
+  function setLabelIdTooltipVisibility(visible, pinned) {
+    if (!elements.labelIdTooltipPanel || !elements.labelIdTooltipToggle) return;
+    if (typeof pinned === 'boolean') {
+      state.materialLabelTooltipPinned = pinned;
+    }
+
+    elements.labelIdTooltipPanel.classList.toggle('hidden', !visible);
+    elements.labelIdTooltipToggle.setAttribute('aria-expanded', visible ? 'true' : 'false');
+  }
+
+  function previewLabelIdTooltip(visible) {
+    if (state.materialLabelTooltipPinned) return;
+    setLabelIdTooltipVisibility(visible, false);
+  }
+
+  function handleLabelIdTooltipToggle() {
+    const nextPinned = !state.materialLabelTooltipPinned;
+    setLabelIdTooltipVisibility(nextPinned, nextPinned);
+  }
+
+  function syncHazardDnaFromClass(primaryClass) {
+    const classCode = normalizePrimaryClassValue(primaryClass);
+    if (!classCode) return;
+    const classHazards = getHazardsForClass(classCode);
+    state.materialHazardDraft = createMaterialHazardDraft(classHazards, { on: [], off: [] }, classHazards);
+    renderMaterialHazardDraft();
+  }
+
+  function regenerateMaterialLabelId() {
+    if (!elements.materialForm || !elements.materialForm.label_id) return;
+
+    const classCode = normalizePrimaryClassValue(elements.materialForm.primary_class && elements.materialForm.primary_class.value);
+    if (!classCode) {
+      elements.materialForm.label_id.value = '';
+      return;
+    }
+
+    const divisionInput = normalizeDivisionValue(elements.materialForm.division && elements.materialForm.division.value);
+    const division = divisionInput || defaultDivisionForClass(classCode) || '0';
+    if (elements.materialForm.division && !divisionInput) {
+      elements.materialForm.division.value = division;
+    }
+
+    elements.materialForm.label_id.value = generateSmartLabelID(
+      classCode,
+      division,
+      elements.materialForm.expiration_date ? elements.materialForm.expiration_date.value : ''
+    );
+  }
+
+  function handleMaterialPrimaryClassChange(event) {
+    const classCode = normalizePrimaryClassValue(event && event.target ? event.target.value : '');
+    if (!classCode) {
+      if (elements.materialForm && elements.materialForm.label_id) {
+        elements.materialForm.label_id.value = '';
+      }
+      return;
+    }
+
+    if (elements.materialForm && elements.materialForm.division) {
+      const existingDivision = normalizeDivisionValue(elements.materialForm.division.value);
+      if (!existingDivision) {
+        elements.materialForm.division.value = defaultDivisionForClass(classCode) || '0';
+      }
+    }
+
+    syncHazardDnaFromClass(classCode);
+    regenerateMaterialLabelId();
+  }
+
+  function handleMaterialDivisionInput() {
+    regenerateMaterialLabelId();
+  }
+
+  function handleMaterialExpirationChange() {
+    regenerateMaterialLabelId();
+  }
+
+  function applyClassDivisionFromHazards(symbols, options) {
+    const sourceOptions = options && typeof options === 'object' ? options : {};
+    const derived = deriveClassDivisionFromHazards(symbols);
+    if (!derived || !elements.materialForm) return;
+
+    const resolvedClass = normalizePrimaryClassValue(sourceOptions.primaryClass) || derived.primaryClass;
+    const resolvedDivision = normalizeDivisionValue(sourceOptions.division)
+      || defaultDivisionForClass(resolvedClass)
+      || derived.division;
+
+    if (elements.materialForm.primary_class) {
+      elements.materialForm.primary_class.value = resolvedClass;
+    }
+    if (elements.materialForm.division) {
+      elements.materialForm.division.value = resolvedDivision;
+    }
+
+    const hazardDna = normalizeHazardSymbols(sourceOptions.hazardDna);
+    if (hazardDna.length) {
+      state.materialHazardDraft = createMaterialHazardDraft(hazardDna, { on: [], off: [] }, hazardDna);
+      renderMaterialHazardDraft();
+    } else {
+      syncHazardDnaFromClass(resolvedClass);
+    }
+    regenerateMaterialLabelId();
+  }
+
+  function handleGhsTokenToggle(symbol) {
+    const normalizedSymbol = normalizeHazardSymbol(symbol);
+    if (!normalizedSymbol) return;
+
+    const draft = state.materialHazardDraft || createMaterialHazardDraft([], { on: [], off: [] }, []);
+    const selected = computeDraftSelectedSymbols(draft);
+    const isSelected = selected.has(normalizedSymbol);
+    const isAuto = draft.auto.has(normalizedSymbol);
+
+    if (isSelected) {
+      if (isAuto) {
+        draft.manualOff.add(normalizedSymbol);
+        draft.manualOn.delete(normalizedSymbol);
+      } else {
+        draft.manualOn.delete(normalizedSymbol);
+        draft.manualOff.delete(normalizedSymbol);
+      }
+    } else if (isAuto) {
+      draft.manualOff.delete(normalizedSymbol);
+    } else {
+      draft.manualOn.add(normalizedSymbol);
+    }
+
+    state.materialHazardDraft = draft;
+    renderMaterialHazardDraft();
+  }
+
+  async function queryLocalCasRecord(casNumber) {
+    const normalized = String(casNumber || '').trim();
+    if (!normalized) return null;
+
+    try {
+      const requestPath = `/api/command-center/cas/${encodeURIComponent(normalized)}?ts=${Date.now()}`;
+      const record = await apiFetch(requestPath);
+      if (isCasLookupRecord(record, normalized)) {
+        const normalizedAutoSymbols = Array.isArray(record.ghs_auto_symbols)
+          ? normalizeHazardSymbols(record.ghs_auto_symbols)
+          : normalizeHazardSymbols(record.ghs);
+        const normalizedHazardDna = Array.isArray(record.hazard_dna)
+          ? normalizeHazardSymbols(record.hazard_dna)
+          : normalizedAutoSymbols;
+
+        return {
+          ...record,
+          cas_number: String(record.cas_number || '').trim(),
+          name: String(record.name || '').trim(),
+          primary_class: normalizePrimaryClassValue(record.primary_class),
+          division: normalizeDivisionValue(record.division),
+          hazard_status: String(record.hazard_status || '').trim().toLowerCase(),
+          hazard_dna: normalizedHazardDna,
+          ghs_auto_symbols: normalizedAutoSymbols,
+        };
+      }
+
+      const fallback = buildEmbeddedCasFallback(normalized);
+      if (fallback) return fallback;
+
+      throw new Error('Invalid CAS response received from local database.');
+    } catch (error) {
+      const message = String((error && error.message) || '').toLowerCase();
+      if (message.includes('not found')) {
+        return buildEmbeddedCasFallback(normalized);
+      }
+
+      if (
+        message.includes('offline')
+        || message.includes('failed to fetch')
+        || message.includes('network')
+        || message.includes('invalid cas response')
+        || message.includes('invalid api response format')
+        || message.includes('expected json')
+      ) {
+        const fallback = buildEmbeddedCasFallback(normalized);
+        if (fallback) return fallback;
+        return null;
+      }
+
+      throw error;
+    }
   }
 
   function openMaterialModal(material) {
     state.editingMaterialId = material ? material.id : null;
     elements.materialModalTitle.textContent = material ? 'Edit Material' : 'Add Material';
     elements.materialForm.reset();
-    setSelectedGhsSymbols(material ? material.ghs_symbols : []);
+    state.materialHazardDraft = createMaterialHazardDraft(
+      material ? material.ghs_auto_symbols : [],
+      material ? material.ghs_manual_overrides : { on: [], off: [] },
+      material ? material.ghs_symbols : []
+    );
+    renderMaterialHazardDraft();
     elements.materialForm.name.value = material ? material.name : '';
-    elements.materialForm.batch_id.value = material ? material.batch_id : '';
+    elements.materialForm.cas_number.value = material && material.cas_number ? material.cas_number : '';
+    const resolvedClass = material
+      ? (normalizePrimaryClassValue(material.primary_class)
+        || (deriveClassDivisionFromHazards(material.ghs_auto_symbols || material.ghs_symbols) || {}).primaryClass
+        || '')
+      : '';
+    const resolvedDivision = material
+      ? (normalizeDivisionValue(material.division)
+        || defaultDivisionForClass(resolvedClass)
+        || (deriveClassDivisionFromHazards(material.ghs_auto_symbols || material.ghs_symbols) || {}).division
+        || '')
+      : '';
+
+    if (elements.materialForm.label_id) {
+      elements.materialForm.label_id.value = material ? normalizeLabelIdValue(material.label_id || material.batch_id) : '';
+    }
+    if (elements.materialForm.primary_class) {
+      elements.materialForm.primary_class.value = resolvedClass;
+    }
+    if (elements.materialForm.division) {
+      elements.materialForm.division.value = resolvedDivision;
+    }
     elements.materialForm.expiration_date.value = material ? (material.expiration_date || '') : '';
+    
+    // Auto-populate creation date for new materials
+    if (!material) {
+      const today = new Date().toISOString().split('T')[0];
+      if (elements.materialForm.created_date) {
+        elements.materialForm.created_date.value = today;
+      }
+    } else if (elements.materialForm.created_date) {
+      elements.materialForm.created_date.value = material.created_date || '';
+    }
+    
     elements.materialForm.stock_level.value = material ? material.stock_level : '0';
     elements.materialForm.min_threshold.value = material ? material.min_threshold : '0';
+    
+    // Restore container size if editing
+    if (material && material.container_size) {
+      elements.materialForm.container_value.value = material.container_size.value || '';
+      elements.materialForm.container_unit.value = material.container_size.unit || 'g';
+    } else {
+      elements.materialForm.container_value.value = '';
+      elements.materialForm.container_unit.value = 'g';
+    }
+
+    setGhsLookupStatus('', 'info');
+    setLabelIdTooltipVisibility(false, false);
+
+    if (material && elements.materialForm.label_id && !elements.materialForm.label_id.value) {
+      regenerateMaterialLabelId();
+    }
+    
     openModal('material-modal');
+  }
+
+  function handleCasNumberInput(event) {
+    let casNumber = event.target.value.trim();
+
+    if (state.casLookupDebounceId) {
+      clearTimeout(state.casLookupDebounceId);
+      state.casLookupDebounceId = null;
+    }
+
+    // Auto-format with hyphens
+    const formatted = formatCasNumber(casNumber);
+    if (event.target.value !== formatted) {
+      event.target.value = formatted;
+    }
+    casNumber = formatted;
+
+    if (!casNumber) {
+      setMaterialAutoHazards([]);
+      setGhsLookupStatus('', 'info');
+      return;
+    }
+
+    if (!isValidCasNumber(casNumber)) {
+      setMaterialAutoHazards([]);
+      setGhsLookupStatus('Invalid CAS format. Expected XXX-XX-X.', 'warning');
+      return;
+    }
+
+    setGhsLookupStatus('Searching local CAS database...', 'info');
+    state.casLookupDebounceId = setTimeout(async () => {
+      const requestId = state.casLookupRequestId + 1;
+      state.casLookupRequestId = requestId;
+
+      try {
+        const record = await queryLocalCasRecord(casNumber);
+        if (requestId !== state.casLookupRequestId) return;
+
+        console.log('CAS lookup result:', record);
+
+        if (!record) {
+          setMaterialAutoHazards([]);
+          setGhsLookupStatus('CAS not found in local or live database.', 'info');
+          return;
+        }
+
+        if (!elements.materialForm.name.value.trim()) {
+          elements.materialForm.name.value = record.name || '';
+        }
+
+        const hasExplicitAutoHazards = Array.isArray(record.ghs_auto_symbols);
+        const hasLegacyHazards = Array.isArray(record.ghs);
+        if (!hasExplicitAutoHazards && !hasLegacyHazards) {
+          throw new Error('Invalid CAS response received from local database.');
+        }
+
+        const symbols = hasExplicitAutoHazards
+          ? normalizeHazardSymbols(record.ghs_auto_symbols)
+          : normalizeHazardSymbols(record.ghs);
+
+        const hazardStatus = String(record.hazard_status || '').trim().toLowerCase();
+        const treatAsNonHazardous = hasExplicitAutoHazards && symbols.length === 0 && hazardStatus === 'non_hazardous';
+        const classSignals = treatAsNonHazardous ? ['non_hazardous'] : symbols;
+
+        if (treatAsNonHazardous) {
+          setMaterialAutoHazards(['non_hazardous']);
+        } else {
+          setMaterialAutoHazards(symbols);
+        }
+        applyClassDivisionFromHazards(classSignals, {
+          primaryClass: record.primary_class,
+          division: record.division,
+          hazardDna: record.hazard_dna,
+        });
+        renderMaterialHazardDraft();
+        const datasetText = record.dataset_version ? ` (${record.dataset_version})` : '';
+        const matchedName = record.name || casNumber;
+        const hazardNote = treatAsNonHazardous
+          ? ' - Non-hazardous'
+          : (hasExplicitAutoHazards && symbols.length === 0 ? ' - Hazard profile pending review' : '');
+        setGhsLookupStatus(`CAS matched: ${matchedName}${datasetText}${hazardNote}`, 'success');
+      } catch (error) {
+        if (requestId !== state.casLookupRequestId) return;
+        console.error('CAS lookup error:', error);
+        setMaterialAutoHazards([]);
+        setGhsLookupStatus((error && error.message) || 'Failed to query local CAS database.', 'error');
+      }
+    }, CAS_LOOKUP_DEBOUNCE_MS);
   }
 
   function openUsageModal(material) {
@@ -4800,7 +5525,7 @@
     const isCalibration = normalizedKind === 'calibration';
     const title = isCalibration
       ? `${asset.tool_name || 'Calibration Asset'} · ${asset.serial_number || 'No serial'}`
-      : `${asset.name || 'Hazmat Material'} · ${asset.batch_id || 'No batch'}`;
+      : `${asset.name || 'Hazmat Material'} · ${asset.label_id || asset.batch_id || 'No label'}`;
 
     elements.assetDetailEyebrow.textContent = isCalibration ? 'Calibration Asset Details' : 'Hazmat Asset Details';
     elements.assetDetailTitle.textContent = title;
@@ -4944,6 +5669,9 @@
     if (!modal) return;
     modal.classList.add('hidden');
     modal.setAttribute('aria-hidden', 'true');
+    if (id === 'material-modal') {
+      setLabelIdTooltipVisibility(false, false);
+    }
     if (id === 'department-modal') {
       state.editingDepartmentName = '';
     }
@@ -4962,13 +5690,49 @@
   async function submitMaterialForm(event) {
     event.preventDefault();
     const isEditing = Boolean(state.editingMaterialId);
+    const containerValue = elements.materialForm.container_value.value;
+    const containerUnit = elements.materialForm.container_unit.value;
+    const hazardMetadata = getMaterialHazardMetadata();
+    const primaryClass = normalizePrimaryClassValue(elements.materialForm.primary_class && elements.materialForm.primary_class.value);
+
+    if (!primaryClass) {
+      setStatus('Primary Class is required.', 'error');
+      return;
+    }
+
+    const division = normalizeDivisionValue(elements.materialForm.division && elements.materialForm.division.value)
+      || defaultDivisionForClass(primaryClass)
+      || '0';
+    if (elements.materialForm.division && !normalizeDivisionValue(elements.materialForm.division.value)) {
+      elements.materialForm.division.value = division;
+    }
+
+    let labelId = normalizeLabelIdValue(elements.materialForm.label_id && elements.materialForm.label_id.value);
+    if (!labelId) {
+      labelId = generateSmartLabelID(primaryClass, division, elements.materialForm.expiration_date.value || '');
+      if (elements.materialForm.label_id) {
+        elements.materialForm.label_id.value = labelId;
+      }
+    }
+    
     const payload = {
       name: elements.materialForm.name.value.trim(),
-      batch_id: elements.materialForm.batch_id.value.trim(),
+      cas_number: elements.materialForm.cas_number ? elements.materialForm.cas_number.value.trim() : null,
+      label_id: labelId,
+      batch_id: labelId,
+      primary_class: primaryClass,
+      division,
       expiration_date: elements.materialForm.expiration_date.value || null,
       stock_level: Number(elements.materialForm.stock_level.value || 0),
       min_threshold: Number(elements.materialForm.min_threshold.value || 0),
       ghs_symbols: getSelectedGhsSymbols(),
+      ghs_auto_symbols: hazardMetadata.ghs_auto_symbols,
+      ghs_manual_overrides: hazardMetadata.ghs_manual_overrides,
+      container_size: (containerValue && containerUnit) ? {
+        value: Number(containerValue),
+        unit: containerUnit,
+        normalized: CONTAINER_CONVERSIONS.normalizeContainerSize(containerValue, containerUnit)
+      } : null,
     };
 
     try {
@@ -4987,7 +5751,7 @@
         setStatus('Material created.', 'info');
       }
       closeModal('material-modal');
-      await refreshPortal({ silentStatus: true });
+      await refreshCurrentModule({ silentStatus: true });
       if (!isEditing) {
         openAssetDetailModal(findMaterialById(material && material.id) || material, 'hazmat');
       }
@@ -5374,7 +6138,7 @@
     const inventoryRows = state.materials.map((item) => ({
       AssetID: item.asset_uid,
       Name: item.name,
-      Batch: item.batch_id,
+      LabelID: item.label_id || item.batch_id,
       Symbols: item.ghs_symbols.join(', '),
       Expiration: item.expiration_date,
       StockLevel: item.stock_level,
@@ -5510,8 +6274,12 @@
     const opts = options || {};
     const headers = new Headers(opts.headers || {});
     const isFormDataBody = typeof FormData !== 'undefined' && opts.body instanceof FormData;
+    const isApiRequest = String(url || '').startsWith('/api/');
     if (opts.body && !isFormDataBody && !headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json');
+    }
+    if (isApiRequest && !headers.has('Accept')) {
+      headers.set('Accept', 'application/json');
     }
 
     const token = localStorage.getItem(TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY);
@@ -5531,7 +6299,26 @@
     }
 
     const contentType = response.headers.get('content-type') || '';
-    const data = contentType.includes('application/json') ? await response.json() : await response.text();
+    let data;
+    if (contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      if (isApiRequest) {
+        try {
+          data = text ? JSON.parse(text) : null;
+        } catch (error) {
+          data = text;
+        }
+      } else {
+        data = text;
+      }
+    }
+
+    if (isApiRequest && response.ok && (data === null || typeof data !== 'object')) {
+      throw new Error('Invalid API response format. Expected JSON.');
+    }
+
     if (!response.ok) {
       const errorMessage = typeof data === 'string' ? data : (data && data.error) || response.statusText;
       throw new Error(errorMessage || 'Request failed');
@@ -5558,12 +6345,12 @@
   function mapInventoryRows(rows) {
     return rows.map(normalizeRow).map((row) => ({
       name: pickValue(row, ['name', 'material_name', 'material', 'chemical', 'chemical_name']),
-      batch_id: pickValue(row, ['batch_id', 'batch', 'batch_number', 'lot', 'lot_number']),
+      label_id: pickValue(row, ['label_id', 'label', 'labelid', 'batch_id', 'batch', 'batch_number', 'lot', 'lot_number']),
       ghs_symbols: pickValue(row, ['ghs_symbols', 'ghs', 'hazards', 'hazard_symbols']),
       expiration_date: pickValue(row, ['expiration_date', 'expiration', 'expiry', 'exp_date']),
       stock_level: pickValue(row, ['stock_level', 'stock', 'current_stock', 'quantity_on_hand']),
       min_threshold: pickValue(row, ['min_threshold', 'minimum_threshold', 'minimum', 'threshold']),
-    })).filter((row) => row.name && row.batch_id);
+    })).filter((row) => row.name && row.label_id);
   }
 
   function mapCalibrationRows(rows) {
@@ -5704,7 +6491,9 @@
     return [
       { label: 'Asset ID', value: item.asset_uid || `HAZ-ASSET-${String(item.id || '').padStart(6, '0')}` },
       { label: 'Material Name', value: item.name },
-      { label: 'Batch ID', value: item.batch_id },
+      { label: 'Label ID', value: item.label_id || item.batch_id },
+      { label: 'Primary Class', value: item.primary_class ? `C${item.primary_class}` : 'Not set' },
+      { label: 'Division', value: item.division || 'Not set' },
       { label: 'Assigned Department / Owner', value: item.assigned_department || state.settings.defaultDepartment },
       { label: 'GHS Symbols', html: renderGhsSymbols(item.ghs_symbols) },
       { label: 'Expiration Date', value: item.expiration_date || 'Open' },
@@ -5873,7 +6662,16 @@
   function filterInventoryRows(data, term) {
     const value = String(term || '').trim().toLowerCase();
     if (!value) return true;
-    return [data.name, data.asset_uid, data.batch_id, (data.ghs_symbols || []).join(' '), data.expiration_date].some((field) => String(field || '').toLowerCase().includes(value));
+    return [
+      data.name,
+      data.asset_uid,
+      data.label_id,
+      data.batch_id,
+      data.primary_class,
+      data.division,
+      (data.ghs_symbols || []).join(' '),
+      data.expiration_date,
+    ].some((field) => String(field || '').toLowerCase().includes(value));
   }
 
   function filterCalibrationRows(data, term) {
@@ -5947,6 +6745,7 @@
       health_hazard: wrap(`<path d="M32 18c5 0 8 4 8 9 0 7-8 15-8 15s-8-8-8-15c0-5 3-9 8-9Z" fill="none" stroke="${danger}" stroke-width="4"></path><path d="M32 24v10M27 29h10" stroke="${danger}" stroke-width="4" stroke-linecap="round"></path>`),
       exclamation_mark: wrap(`<path d="M32 18v18" stroke="${danger}" stroke-width="6" stroke-linecap="round"></path><circle cx="32" cy="46" r="3.5" fill="${danger}"></circle>`),
       environmental_hazard: wrap(`<path d="M20 44c6-4 10-10 14-20 3 8 7 13 10 16M24 46h18" stroke="${danger}" stroke-width="4" stroke-linecap="round"></path><path d="M42 40c4-2 8-1 10 2-3 5-7 7-13 5" fill="none" stroke="${danger}" stroke-width="4"></path>`),
+      non_hazardous: `<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="26" fill="#fff" stroke="#27ae60" stroke-width="4"></circle><path d="M18 34l12 12 18-20" stroke="#27ae60" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"></path></svg>`,
     };
 
     return icons[key] || wrap(`<circle cx="32" cy="32" r="10" fill="none" stroke="${danger}" stroke-width="4"></circle>`);

@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Command Center" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+    <link rel="apple-touch-icon" href="/assets/icons/icon-192.svg" />
     <title>Login Portal - Command Center</title>
     <link rel="stylesheet" href="css/unified-theme.css" />
     <style>
@@ -232,14 +232,14 @@
           <div class="row">
             <label for="login_target">Login Type</label>
             <select id="login_target">
-              <option value="command-center">Command Center Login</option>
+                <option value="command-center">Modules</option>
               <option value="admin">Admin Login</option>
               <option value="announcements">Announcements Login</option>
               <option value="mapping">Mapping Login</option>
             </select>
           </div>
 
-          <div class="portal-chip" id="portal_preview">Selected: Command Center Login</div>
+            <div class="portal-chip" id="portal_preview">Selected: Modules</div>
 
           <div class="actions">
             <a href="index.html" class="btn ghost">Home</a>
@@ -295,7 +295,8 @@
 
       function userHasAnyOperationalModule(user) {
         const modules = Array.isArray(user && user.modules) ? user.modules : [];
-        return modules.some((moduleKey) => moduleKey === 'dashboard' || moduleKey === 'hazmat' || moduleKey === 'calibration' || moduleKey === 'failure_analysis' || moduleKey === 'reports');
+        return modules.some((moduleKey) => moduleKey === 'dashboard' || moduleKey === 'hazmat' || moduleKey === 'calibration' || moduleKey === 'failure_analysis' || moduleKey === 'reports')
+          || userHasPermission(user, 'admin_console');
       }
 
       const PORTALS = {
@@ -308,7 +309,7 @@
           accessError: 'This account does not have access to the Admin Console.',
         },
         'command-center': {
-          label: 'Command Center Login',
+          label: 'Modules',
           badge: 'Command Center',
           helper: 'Sign in to open Command Center for HAZMAT inventory and gage calibration.',
           destination: '/portals/command-center',

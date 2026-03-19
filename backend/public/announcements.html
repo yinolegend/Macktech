@@ -3,6 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0b74ff" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Command Center" />
+    <link rel="apple-touch-icon" href="/assets/icons/icon-192.svg" />
     <title>Announcements — Command Center</title>
     <link rel="stylesheet" href="css/unified-theme.css" />
     <style>
@@ -30,6 +37,20 @@
       .ann-body-preview img{ max-width:100%; border-radius:6px; margin-top:8px; }
       .ann-full-body{ color:#374463; font-size:clamp(18px,2vw,26px); line-height:1.6; margin-top:14px; }
       .ann-full-body img{ max-width:100%; border-radius:8px; margin:10px 0; }
+      .ann-thumb{
+        width:100%;
+        max-height:220px;
+        object-fit:cover;
+        border-radius:12px;
+        display:block;
+        margin:0 0 12px 0;
+        box-shadow:0 10px 26px rgba(11,43,94,0.14);
+        background:#e7f1ff;
+      }
+      .ann-list.single-view .ann.single .ann-thumb{
+        max-height:420px;
+        margin:0 0 16px 0;
+      }
       .ann-list.ann-list--few{ grid-template-columns:repeat(auto-fit,minmax(500px,620px)); justify-content:center; gap:28px; }
       .ann-list.ann-list--few .ann{ padding:34px; min-height:340px; }
       .ann-list.ann-list--many{ grid-template-columns:repeat(auto-fit,minmax(420px,520px)); justify-content:center; gap:22px; }
@@ -52,12 +73,153 @@
         background:#fdfdfd;
       }
 
+      .ann .pdf-thumbnail-card{
+        display:block;
+        margin-top:12px;
+        border:1px solid rgba(11,116,255,0.18);
+        border-radius:16px;
+        background:linear-gradient(180deg,#ffffff,#f5f9ff);
+        padding:14px;
+        color:#12345a;
+        text-decoration:none;
+        box-shadow:0 14px 30px rgba(11,52,99,0.08);
+        transition:transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      }
+
+      .ann .pdf-thumbnail-card:hover,
+      .ann .pdf-thumbnail-card:focus-visible{
+        transform:translateY(-2px);
+        border-color:rgba(11,116,255,0.45);
+        box-shadow:0 18px 36px rgba(11,52,99,0.14);
+      }
+
+      .ann .pdf-thumbnail-card__top{
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        gap:10px;
+        margin-bottom:12px;
+      }
+
+      .ann .pdf-thumbnail-card__tag,
+      .ann .pdf-thumbnail-card__variant,
+      .ann .pdf-thumbnail-card__cta{
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        border-radius:999px;
+        font-size:11px;
+        font-weight:700;
+        letter-spacing:0.04em;
+        text-transform:uppercase;
+      }
+
+      .ann .pdf-thumbnail-card__tag{
+        padding:5px 9px;
+        background:#0b74ff;
+        color:white;
+      }
+
+      .ann .pdf-thumbnail-card__variant{
+        padding:5px 10px;
+        background:rgba(11,116,255,0.1);
+        color:#0b4ca8;
+      }
+
+      .ann .pdf-thumbnail-card__body{
+        display:flex;
+        align-items:center;
+        gap:14px;
+      }
+
+      .ann .pdf-thumbnail-card__icon{
+        flex:0 0 auto;
+        width:64px;
+        height:64px;
+        border-radius:18px;
+        background:linear-gradient(160deg,#0b74ff,#7cb0ff);
+        color:white;
+        font-size:18px;
+        font-weight:800;
+        letter-spacing:0.08em;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        box-shadow:0 10px 20px rgba(11,116,255,0.2);
+      }
+
+      .ann .pdf-thumbnail-card__text{
+        min-width:0;
+        flex:1 1 auto;
+        display:flex;
+        flex-direction:column;
+        gap:5px;
+      }
+
+      .ann .pdf-thumbnail-card__text strong{
+        color:#0f2857;
+        font-size:15px;
+        line-height:1.35;
+        word-break:break-word;
+      }
+
+      .ann .pdf-thumbnail-card__text span{
+        color:#5c7094;
+        font-size:12px;
+      }
+
+      .ann .pdf-thumbnail-card__cta{
+        flex:0 0 auto;
+        padding:8px 12px;
+        background:#edf5ff;
+        color:#0b4ca8;
+        border:1px solid rgba(11,116,255,0.18);
+      }
+
+      .ann .pdf-thumbnail-card--poster .pdf-thumbnail-card__body{
+        flex-direction:column;
+        align-items:stretch;
+      }
+
+      .ann .pdf-thumbnail-card--poster .pdf-thumbnail-card__icon{
+        width:88px;
+        height:104px;
+        border-radius:22px;
+      }
+
+      .ann .pdf-thumbnail-card--poster .pdf-thumbnail-card__cta{
+        width:100%;
+      }
+
+      .ann .pdf-thumbnail-card--stack{
+        background:linear-gradient(135deg,#ffffff 0%,#eef4ff 72%,#ffffff 100%);
+      }
+
+      .ann .pdf-thumbnail-card--stack .pdf-thumbnail-card__icon{
+        box-shadow:-8px 8px 0 rgba(92,132,255,0.16),-16px 16px 0 rgba(92,132,255,0.08);
+      }
+
+      .ann .pdf-thumbnail-card--strip{
+        background:linear-gradient(120deg,#eef4ff 0%,#ffffff 55%,#f4f9ff 100%);
+      }
+
+      .ann .pdf-thumbnail-card--strip .pdf-thumbnail-card__icon{
+        width:56px;
+        height:56px;
+        border-radius:16px;
+      }
+
+      .ann .pdf-thumbnail-card--strip .pdf-thumbnail-card__cta{
+        white-space:nowrap;
+      }
+
       /* Single announcement view: center and enlarge content for readability */
       .ann-list.single-view .ann.single{ max-width:1280px; margin:18px auto; padding:clamp(28px,3vw,44px); }
       .ann-list.single-view .ann.single h3{ font-size:clamp(30px,3.8vw,48px); }
       .ann-list.single-view .ann.single .ann-full-body{ font-size:clamp(20px,2.4vw,30px); }
       .ann-list.single-view .ann.single .pdf-preview iframe{ height:clamp(520px,82vh,1800px); }
       .ann-list.single-view .ann.single .pdf-open-link{ display:block; margin-top:8px; text-align:right; font-size:13px; color:var(--brand); text-decoration:none; }
+      .ann-list.single-view .ann.single .pdf-thumbnail-card{ max-width:760px; margin:16px auto 0; }
 
       @media (max-width: 1000px){
         .card{ width:100%; max-width:none; }
@@ -81,6 +243,8 @@
         .ann{ padding:18px; }
         .ann-body-preview{ max-height:none; }
         .ann .pdf-preview iframe{ height:clamp(220px,40vh,600px); }
+        .ann .pdf-thumbnail-card__body{ flex-wrap:wrap; }
+        .ann .pdf-thumbnail-card__cta{ width:100%; }
       }
     </style>
   </head>
@@ -199,6 +363,22 @@
         return moved;
       }
 
+      function normalizeAnnouncementImageUrl(value){
+        return String(value || '').trim();
+      }
+
+      function buildAnnouncementThumbnail(url, title){
+        const source = normalizeAnnouncementImageUrl(url);
+        if (!source) return null;
+        const img = document.createElement('img');
+        img.className = 'ann-thumb';
+        img.src = source;
+        img.alt = (title ? `${title} thumbnail` : 'Announcement thumbnail');
+        img.loading = 'lazy';
+        img.addEventListener('error', () => img.remove());
+        return img;
+      }
+
       function renderExpiredNotice(){
         const container = document.getElementById('announcements');
         container.classList.remove('single-view');
@@ -238,8 +418,10 @@
           bodyPreview.classList.add('ann-body-preview');
           prioritizeTextBeforeImages(bodyPreview);
 
-          transformPdfBlocks(bodyPreview);
+          transformPdfBlocks(bodyPreview, { isSingleView: false });
 
+          const thumbnail = buildAnnouncementThumbnail(announcement.image, announcement.title || 'Announcement');
+          if (thumbnail) card.appendChild(thumbnail);
           card.appendChild(title);
           if (bodyPreview.childNodes.length) card.appendChild(bodyPreview);
 
@@ -252,6 +434,7 @@
 
           const cardId = getAnnouncementId(announcement, idx);
           card.addEventListener('click', (event)=>{
+            if (event.target.closest('a,button')) return;
             event.preventDefault();
             try {
               const targetUrl = new URL(window.location.href);
@@ -259,10 +442,11 @@
               targetUrl.search = '';
               targetUrl.hash = '';
               targetUrl.searchParams.set('id', String(cardId));
+              targetUrl.searchParams.set('mode', 'single');
               const win = window.open(targetUrl.toString(), '_blank', 'noopener');
               if (!win) window.location.href = targetUrl.toString();
             } catch (err) {
-              const fallbackUrl = '/announcements.html?id=' + encodeURIComponent(String(cardId));
+              const fallbackUrl = '/announcements.html?id=' + encodeURIComponent(String(cardId)) + '&mode=single';
               const win = window.open(fallbackUrl, '_blank');
               if (!win) window.location.href = fallbackUrl;
             }
@@ -293,8 +477,10 @@
         const body = sanitizeAnnouncementBody(toHtmlContent(target.body || target.html || ''));
         body.classList.add('ann-full-body');
         prioritizeTextBeforeImages(body);
-        transformPdfBlocks(body);
+        transformPdfBlocks(body, { isSingleView: true });
 
+        const thumbnail = buildAnnouncementThumbnail(target.image, target.title || 'Announcement');
+        if (thumbnail) wrap.appendChild(thumbnail);
         wrap.appendChild(title);
         if (body.childNodes.length) wrap.appendChild(body);
 
@@ -309,8 +495,127 @@
         updateCardSizing(1);
       }
 
-      function transformPdfBlocks(container){
+      function cleanPdfFileLabel(value){
+        const text = String(value || '').trim().replace(/^\d+_/, '');
+        return text || 'PDF attachment';
+      }
+
+      function shortenPdfLabel(value, maxLength){
+        const text = cleanPdfFileLabel(value);
+        if (!Number.isFinite(maxLength) || text.length <= maxLength) return text;
+        return text.slice(0, Math.max(0, maxLength - 3)).trimEnd() + '...';
+      }
+
+      function decodePdfFileName(url, fallbackName){
+        const source = String(url || '').split('#')[0].split('?')[0];
+        const fileName = source.split('/').pop() || '';
+        if (!fileName) return cleanPdfFileLabel(fallbackName || 'PDF attachment');
+        try {
+          return cleanPdfFileLabel(decodeURIComponent(fileName));
+        } catch (error) {
+          return cleanPdfFileLabel(fileName);
+        }
+      }
+
+      function normalizePdfThumbnailVariant(value){
+        const normalized = String(value || '').trim().toLowerCase();
+        if (!normalized) return '';
+        if (normalized === 'stack' || normalized === 'strip') return normalized;
+        return 'poster';
+      }
+
+      function normalizePdfDisplayMode(value){
+        const normalized = String(value || '').trim().toLowerCase();
+        if (normalized === 'inline' || normalized === 'open' || normalized === 'thumbnail') return normalized;
+        return '';
+      }
+
+      function resolvePdfDisplayMode(block, variant, iframe){
+        const explicit = normalizePdfDisplayMode(block.getAttribute('data-display-mode') || (block.dataset && block.dataset.displayMode) || '');
+        if (explicit) return explicit;
+        if (!variant && iframe) return 'inline';
+        return 'thumbnail';
+      }
+
+      function extractPdfThumbnailTitle(block, fileName){
+        const stored = block.getAttribute('data-thumb-title') || (block.dataset && block.dataset.thumbTitle) || '';
+        if (stored && String(stored).trim()) return String(stored).trim();
+        return cleanPdfFileLabel(fileName);
+      }
+
+      function extractPdfThumbnailSubtitle(block, displayMode){
+        const stored = block.getAttribute('data-thumb-subtitle') || (block.dataset && block.dataset.thumbSubtitle) || '';
+        if (stored && String(stored).trim()) return String(stored).trim();
+        return displayMode === 'open'
+          ? 'Visible when the announcement is opened'
+          : 'Open this file in a new tab';
+      }
+
+      function extractPdfFileName(block, url){
+        const storedName = block.getAttribute('data-file-name') || (block.dataset && block.dataset.fileName) || '';
+        if (storedName) return cleanPdfFileLabel(storedName);
+        const caption = block.querySelector('.media-caption');
+        if (caption && caption.textContent) return cleanPdfFileLabel(caption.textContent);
+        const iframe = block.querySelector('iframe');
+        if (iframe && iframe.title) return cleanPdfFileLabel(iframe.title);
+        return decodePdfFileName(url, 'PDF attachment');
+      }
+
+      function buildPdfThumbnailCard(url, fileName, variant, options){
+        const normalizedVariant = normalizePdfThumbnailVariant(variant) || 'poster';
+        const displayMode = normalizePdfDisplayMode(options && options.displayMode) || 'thumbnail';
+        const link = document.createElement('a');
+        link.className = `pdf-thumbnail-card pdf-thumbnail-card--${normalizedVariant}`;
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+
+        const top = document.createElement('span');
+        top.className = 'pdf-thumbnail-card__top';
+        const tag = document.createElement('span');
+        tag.className = 'pdf-thumbnail-card__tag';
+        tag.textContent = 'PDF';
+        const badge = document.createElement('span');
+        badge.className = 'pdf-thumbnail-card__variant';
+        badge.textContent = 'Attachment';
+        top.appendChild(tag);
+        top.appendChild(badge);
+
+        const body = document.createElement('span');
+        body.className = 'pdf-thumbnail-card__body';
+        const icon = document.createElement('span');
+        icon.className = 'pdf-thumbnail-card__icon';
+        icon.textContent = 'PDF';
+        const text = document.createElement('span');
+        text.className = 'pdf-thumbnail-card__text';
+        const title = document.createElement('strong');
+        const titleText = String((options && options.title) || fileName).trim() || fileName;
+        title.textContent = shortenPdfLabel(titleText, 48);
+        const subtitle = document.createElement('span');
+        const subtitleText = String((options && options.subtitle) || '').trim();
+        subtitle.textContent = subtitleText || (displayMode === 'open' ? 'Visible when the announcement is opened' : 'Open this file in a new tab');
+        text.appendChild(title);
+        text.appendChild(subtitle);
+        const cta = document.createElement('span');
+        cta.className = 'pdf-thumbnail-card__cta';
+        cta.textContent = displayMode === 'open' ? 'Open Announcement' : 'Open PDF';
+
+        body.appendChild(icon);
+        body.appendChild(text);
+        body.appendChild(cta);
+        link.appendChild(top);
+        link.appendChild(body);
+        return link;
+      }
+
+      function copyPresentation(source, target){
+        if (!source || !target) return;
+        target.style.cssText = source.style.cssText;
+      }
+
+      function transformPdfBlocks(container, options){
         if (!container) return;
+        const isSingleView = !!(options && options.isSingleView);
         container.querySelectorAll('img').forEach(img => {
           const parsed = parsePdfUrl(img.src);
           if (!parsed) return;
@@ -332,27 +637,60 @@
           
           img.replaceWith(wrapper);
         });
-        container.querySelectorAll('.editor-media[data-media-type="pdf"] iframe').forEach(iframe => {
-          const existingSrc = iframe.src || iframe.getAttribute('src') || '';
+        container.querySelectorAll('.editor-media[data-media-type="pdf"]').forEach(block => {
+          const rawVariant = block.getAttribute('data-thumbnail-variant') || (block.dataset && block.dataset.thumbnailVariant) || '';
+          const variant = normalizePdfThumbnailVariant(rawVariant);
+          const storedSrc = block.getAttribute('data-src') || (block.dataset && block.dataset.src) || '';
+          const iframe = block.querySelector('iframe');
+          const existingSrc = storedSrc || (iframe ? (iframe.getAttribute('src') || iframe.src || '') : '');
           const parsed = parsePdfUrl(existingSrc);
-          
+          if (!parsed) return;
+
+          const displayMode = resolvePdfDisplayMode(block, variant, iframe);
+          if (displayMode === 'open' && !isSingleView) {
+            block.remove();
+            return;
+          }
+
+          const fileName = extractPdfFileName(block, parsed);
+          const thumbTitle = extractPdfThumbnailTitle(block, fileName);
+          const thumbSubtitle = extractPdfThumbnailSubtitle(block, displayMode);
+
+          if (displayMode === 'thumbnail') {
+            const card = buildPdfThumbnailCard(parsed, fileName, variant || 'poster', {
+              title: thumbTitle,
+              subtitle: thumbSubtitle,
+              displayMode,
+            });
+            copyPresentation(block, card);
+            block.replaceWith(card);
+            return;
+          }
+
           const wrapper = document.createElement('div');
           wrapper.className = 'pdf-preview';
-          iframe.parentElement.insertBefore(wrapper, iframe);
-          wrapper.appendChild(iframe);
-          
-          if (parsed) {
-            if (!existingSrc.includes('#view=')) {
-              iframe.src = parsed + '#view=FitH&toolbar=1';
-            }
-            const link = document.createElement('a');
-            link.href = parsed;
-            link.target = '_blank';
-            link.rel = 'noopener';
-            link.className = 'pdf-open-link';
-            link.textContent = '📄 Open PDF in new tab';
-            wrapper.appendChild(link);
+          copyPresentation(block, wrapper);
+
+          const previewFrame = iframe ? iframe.cloneNode(true) : document.createElement('iframe');
+          if (!iframe) {
+            previewFrame.loading = 'lazy';
+            previewFrame.title = fileName || 'PDF preview';
           }
+          if (!existingSrc.includes('#view=')) {
+            previewFrame.src = parsed + '#view=FitH&toolbar=1';
+          } else if (!iframe) {
+            previewFrame.src = existingSrc;
+          }
+          wrapper.appendChild(previewFrame);
+
+          const link = document.createElement('a');
+          link.href = parsed;
+          link.target = '_blank';
+          link.rel = 'noopener';
+          link.className = 'pdf-open-link';
+          link.textContent = '📄 Open PDF in new tab';
+          wrapper.appendChild(link);
+          block.replaceWith(wrapper);
         });
       }
 
@@ -376,7 +714,7 @@
         el.classList.remove('empty');
         el.classList.remove('single-view');
         try{
-          const res = await fetch('/announcements.json', { cache: 'no-store' });
+          const res = await fetch('/api/public/announcements', { cache: 'no-store' });
           if (!res.ok) { el.classList.add('empty'); el.innerHTML = '<div style="color:var(--muted)">No announcements available.</div>'; updateCardSizing(0); return; }
           const list = await res.json();
           if (!Array.isArray(list) || list.length === 0) { el.classList.add('empty'); el.innerHTML = '<div style="color:var(--muted)">No announcements available.</div>'; updateCardSizing(0); return; }
@@ -384,8 +722,9 @@
 
           const params = new URLSearchParams(window.location.search);
           const idParam = params.get('id');
-          if (idParam !== null){
-            const target = list.find((announcement, idx)=> !announcement.hidden && String(getAnnouncementId(announcement, idx)) === idParam);
+          const modeParam = String(params.get('mode') || '').trim().toLowerCase();
+          if (idParam !== null && modeParam === 'single'){
+            const target = visibleList.find((announcement, idx)=> String(getAnnouncementId(announcement, idx)) === idParam);
             if (target){
               if (isAnnouncementExpired(target)) {
                 renderExpiredNotice();
@@ -405,5 +744,10 @@
       document.getElementById('btnHomeFromAnnouncements').addEventListener('click', ()=> { window.location.href = '/'; });
       loadAnnouncements();
     </script>
-  </body>
+    <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(function(){});
+    }
+  </script>
+</body>
 </html>

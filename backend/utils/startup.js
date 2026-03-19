@@ -63,10 +63,14 @@ function initializeWorkspaceStructure() {
     paths.FRONTEND_VENDOR_DIR,
     paths.FRONTEND_ICONS_DIR,
     paths.DATA_DIR,
+    paths.UPLOADS_DIR,
     paths.HANDBOOK_DIR,
     paths.ANNOUNCEMENT_FILES_DIR,
     paths.MAP_ASSETS_DIR,
     paths.CALIBRATION_ATTACHMENTS_DIR,
+    paths.SDS_UPLOADS_DIR,
+    paths.HAZMAT_IMAGE_UPLOADS_DIR,
+    paths.CERT_UPLOADS_DIR,
     paths.BACKUPS_DIR,
     paths.DOCS_DIR,
     paths.LEGACY_STYLES_DIR,
@@ -79,15 +83,36 @@ function initializeWorkspaceStructure() {
     ensureDir(dir);
   }
 
+  const localVendorFiles = [
+    'fabric.min.js',
+    'tabulator.min.js',
+    'xlsx.full.min.js',
+    'jspdf.min.js',
+    'luxon.min.js',
+    'lucide.min.js',
+    'chart.umd.js',
+  ];
+
+  for (const fileName of localVendorFiles) {
+    copyFileIfMissing(path.join(paths.LEGACY_PUBLIC_JS_DIR, fileName), path.join(paths.FRONTEND_VENDOR_DIR, fileName));
+  }
+
   copyMatchingFilesIfMissing(paths.LEGACY_PUBLIC_DIR, paths.FRONTEND_PAGES_DIR, (fileName) => fileName.toLowerCase().endsWith('.html'));
   copyDirectoryContentsIfMissing(paths.LEGACY_STYLES_DIR, paths.FRONTEND_STYLES_DIR);
   copyDirectoryContentsIfMissing(paths.LEGACY_VENDOR_DIR, paths.FRONTEND_VENDOR_DIR);
   copyDirectoryContentsIfMissing(paths.LEGACY_ICONS_DIR, paths.FRONTEND_ICONS_DIR);
+  copyDirectoryContentsIfMissing(paths.LEGACY_FRONTEND_ICONS_DIR, paths.FRONTEND_ICONS_DIR);
   copyFileIfMissing(path.join(paths.LEGACY_PUBLIC_DIR, 'app.js'), path.join(paths.FRONTEND_SCRIPTS_DIR, 'app.js'));
   copyFileIfMissing(paths.LEGACY_ANNOUNCEMENTS_PATH, paths.ANNOUNCEMENTS_PATH);
   copyDirectoryContentsIfMissing(paths.LEGACY_PDF_HANDBOOK_DIR, paths.HANDBOOK_DIR);
   copyDirectoryContentsIfMissing(paths.LEGACY_ANNOUNCEMENT_FILES_DIR, paths.ANNOUNCEMENT_FILES_DIR);
   copyDirectoryContentsIfMissing(paths.LEGACY_MAP_ASSETS_DIR, paths.MAP_ASSETS_DIR);
+  copyDirectoryContentsIfMissing(paths.LEGACY_PUBLIC_SDS_DIR, paths.SDS_UPLOADS_DIR);
+  copyDirectoryContentsIfMissing(paths.LEGACY_PUBLIC_CERTS_DIR, paths.CERT_UPLOADS_DIR);
+  copyDirectoryContentsIfMissing(paths.LEGACY_DATA_HANDBOOK_DIR, paths.HANDBOOK_DIR);
+  copyDirectoryContentsIfMissing(paths.LEGACY_DATA_ANNOUNCEMENT_FILES_DIR, paths.ANNOUNCEMENT_FILES_DIR);
+  copyDirectoryContentsIfMissing(paths.LEGACY_DATA_MAP_ASSETS_DIR, paths.MAP_ASSETS_DIR);
+  copyDirectoryContentsIfMissing(paths.LEGACY_DATA_CALIBRATION_ATTACHMENTS_DIR, paths.CALIBRATION_ATTACHMENTS_DIR);
 
   if (!fs.existsSync(paths.ANNOUNCEMENTS_PATH)) {
     fs.writeFileSync(paths.ANNOUNCEMENTS_PATH, '[]', 'utf8');

@@ -5,6 +5,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "cas:master:build": "node scripts/build_cas_master_pack.js",
+    "cas:master:build:unlimited": "node scripts/build_cas_master_pack.js --limit 0",
+    "cas:master:segment": "node scripts/split_cas_master_segments.js",
+    "cas:seed:list": "node scripts/seed_cas_from_list.js",
     "user:list": "node scripts/user_admin.js list",
     "user:add": "node scripts/user_admin.js add",
     "user:passwd": "node scripts/user_admin.js passwd",

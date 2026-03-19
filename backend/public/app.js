@@ -474,8 +474,12 @@ function normalizeMapSvgPath(value) {
   const raw = String(value || '').trim().replace(/\\/g, '/');
   if (!raw) return '';
   const normalized = raw.startsWith('/') ? raw : ('/' + raw.replace(/^\/+/, ''));
-  if (!normalized.startsWith('/icons/') || !/\.svg$/i.test(normalized)) return '';
-  return normalized;
+  if (!/\.svg$/i.test(normalized)) return '';
+  if (normalized.startsWith('/assets/icons/')) return normalized;
+  if (normalized.startsWith('/icons/')) {
+    return '/assets/icons/' + normalized.slice('/icons/'.length);
+  }
+  return '';
 }
 
 function mapKindLabel(kind) {

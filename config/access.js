@@ -311,9 +311,23 @@ function buildAccessProfile(user) {
   const explicitPermissionAccessProvided = Object.prototype.hasOwnProperty.call(user || {}, 'permission_access_provided')
     ? Boolean(user && user.permission_access_provided)
     : hasExplicitPermissionAccess(user && user.permission_access);
-  const modules = explicitModuleAccessProvided
+  let modules = explicitModuleAccessProvided
     ? explicitModules
     : roleDefinition.modules.slice();
+
+  if (roleDefinition.key === 'Admin') {
+    if (!modules.length) {
+      modules = roleDefinition.modules.slice();
+    }
+
+    // Admin is always treated as full operational access.
+    ['dashboard', 'hazmat', 'calibration', 'failure_analysis', 'reports', 'admin_console'].forEach((moduleKey) => {
+      if (!modules.includes(moduleKey)) {
+        modules.push(moduleKey);
+      }
+    });
+  }
+  modules = normalizeModuleAccess(modules);
 
   const permissions = new Set(explicitPermissionAccessProvided
     ? explicitPermissions
@@ -348,7 +362,11 @@ function hasPermission(user, permission) {
 
 function hasAnyModule(user, modules) {
   const requested = Array.isArray(modules) ? modules : [modules];
-  const allowed = new Set(buildAccessProfile(user).modules);
+  const access = buildAccessProfile(user);
+  if (access.role === 'Admin') {
+    return true;
+  }
+  const allowed = new Set(access.modules);
   return requested.some((moduleKey) => allowed.has(normalizeModuleKey(moduleKey)));
 }
 
