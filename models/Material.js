@@ -90,6 +90,11 @@ function normalizeContainerSize(value) {
   };
 }
 
+function normalizeDepartment(value, fallback = 'Operations') {
+  const text = String(value || '').trim().replace(/\s+/g, ' ');
+  return text || fallback;
+}
+
 module.exports = function defineMaterial(sequelize, DataTypes) {
   return sequelize.define('Material', {
     id: {
@@ -217,6 +222,17 @@ module.exports = function defineMaterial(sequelize, DataTypes) {
       type: DataTypes.FLOAT,
       allowNull: false,
       defaultValue: 0,
+    },
+    assigned_department: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: 'Operations',
+      get() {
+        return normalizeDepartment(this.getDataValue('assigned_department'));
+      },
+      set(value) {
+        this.setDataValue('assigned_department', normalizeDepartment(value));
+      },
     },
     sds_file_path: {
       type: DataTypes.STRING,

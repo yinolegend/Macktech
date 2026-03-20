@@ -7,6 +7,7 @@ const backendRequire = createRequire(path.join(__dirname, '..', 'backend', 'pack
 const { Sequelize, DataTypes, QueryTypes } = backendRequire('sequelize');
 
 const defineMaterial = require('./Material');
+const defineCasThresholdDefault = require('./CasThresholdDefault');
 const defineUsageLog = require('./UsageLog');
 const defineHazmatTemplate = require('./HazmatTemplate');
 const defineCalibrationTemplate = require('./CalibrationTemplate');
@@ -57,6 +58,7 @@ const gagesSequelize = createSQLiteSequelize(paths.GAGES_DB_PATH);
 const debugSequelize = createSQLiteSequelize(paths.DEBUG_LAB_DB_PATH);
 
 const Material = defineMaterial(hazmatSequelize, DataTypes);
+const CasThresholdDefault = defineCasThresholdDefault(hazmatSequelize, DataTypes);
 const UsageLog = defineUsageLog(hazmatSequelize, DataTypes);
 const HazmatTemplate = defineHazmatTemplate(hazmatSequelize, DataTypes);
 const HazmatLog = defineCommandLog(hazmatSequelize, DataTypes);
@@ -264,6 +266,7 @@ async function syncHazmatModels() {
   await ensureHazmatMaterialColumns({ allowMissingTable: true });
   await hazmatSequelize.sync();
   await ensureHazmatMaterialColumns();
+  await ensureCasThresholdDefaultsTable();
   await ensureHazmatMaterialIndexes();
 }
 
@@ -300,6 +303,9 @@ async function ensureHazmatMaterialColumns(options = {}) {
   if (!columns.has('container_size')) {
     missingColumns.push('ALTER TABLE materials ADD COLUMN container_size TEXT');
   }
+  if (!columns.has('assigned_department')) {
+    missingColumns.push(`ALTER TABLE materials ADD COLUMN assigned_department TEXT NOT NULL DEFAULT '${DEFAULT_DEPARTMENT}'`);
+  }
   if (!columns.has('sds_file_path')) {
     missingColumns.push('ALTER TABLE materials ADD COLUMN sds_file_path TEXT');
   }
@@ -317,6 +323,7 @@ async function ensureHazmatMaterialColumns(options = {}) {
   await hazmatSequelize.query("UPDATE materials SET ghs_auto_symbols = COALESCE(ghs_auto_symbols, '[]')");
   await hazmatSequelize.query("UPDATE materials SET ghs_manual_overrides = COALESCE(ghs_manual_overrides, '{\"on\":[],\"off\":[]}')");
   await hazmatSequelize.query("UPDATE materials SET image_paths = COALESCE(image_paths, '[]')");
+  await hazmatSequelize.query(`UPDATE materials SET assigned_department = COALESCE(NULLIF(TRIM(assigned_department), ''), '${DEFAULT_DEPARTMENT}')`);
 
   const rows = await Material.findAll({
     attributes: ['id', 'label_id', 'batch_id', 'primary_class', 'division', 'ghs_symbols', 'ghs_auto_symbols', 'expiration_date'],
@@ -366,6 +373,31 @@ async function ensureHazmatMaterialIndexes() {
   await hazmatSequelize.query('CREATE INDEX IF NOT EXISTS materials_batch_id_idx ON materials(batch_id)');
   await hazmatSequelize.query('CREATE INDEX IF NOT EXISTS materials_primary_class_idx ON materials(primary_class)');
   await hazmatSequelize.query('CREATE INDEX IF NOT EXISTS materials_cas_number_idx ON materials(cas_number)');
+  await hazmatSequelize.query('CREATE INDEX IF NOT EXISTS materials_assigned_department_idx ON materials(assigned_department)');
+}
+
+async function ensureCasThresholdDefaultsTable() {
+  const hasTable = await tableExists(hazmatSequelize, 'cas_threshold_defaults');
+  if (!hasTable) {
+    await CasThresholdDefault.sync();
+  }
+
+  const columns = await listTableColumns(hazmatSequelize, 'cas_threshold_defaults');
+  const missingColumns = [];
+  if (!columns.has('cas_number')) {
+    missingColumns.push('ALTER TABLE cas_threshold_defaults ADD COLUMN cas_number TEXT');
+  }
+  if (!columns.has('min_threshold')) {
+    missingColumns.push('ALTER TABLE cas_threshold_defaults ADD COLUMN min_threshold REAL NOT NULL DEFAULT 0');
+  }
+
+  for (const statement of missingColumns) {
+    await hazmatSequelize.query(statement);
+  }
+
+  await hazmatSequelize.query("UPDATE cas_threshold_defaults SET min_threshold = CASE WHEN min_threshold IS NULL OR min_threshold < 0 THEN 0 ELSE min_threshold END");
+  await hazmatSequelize.query("DELETE FROM cas_threshold_defaults WHERE cas_number IS NULL OR TRIM(cas_number) = ''");
+  await hazmatSequelize.query('CREATE UNIQUE INDEX IF NOT EXISTS cas_threshold_defaults_cas_number_uidx ON cas_threshold_defaults(cas_number)');
 }
 async function listTableColumns(sequelize, tableName) {
   const rows = await sequelize.query(`PRAGMA table_info(${tableName})`, {
@@ -817,6 +849,7 @@ async function syncPortalModels() {
 const hazmatDb = {
   sequelize: hazmatSequelize,
   Material,
+  CasThresholdDefault,
   UsageLog,
   HazmatTemplate,
   CommandLog: HazmatLog,
@@ -847,6 +880,7 @@ module.exports = {
   gagesSequelize,
   debugSequelize,
   Material,
+  CasThresholdDefault,
   UsageLog,
   HazmatTemplate,
   Department,

@@ -283,6 +283,29 @@
             </section>
           </div>
 
+          <section class="panel-card tactical-panel dashboard-doctrine-panel">
+            <div class="panel-header-row">
+              <div>
+                <p class="eyebrow">Compliance Doctrine</p>
+                <h3>Offline Survival Kit</h3>
+              </div>
+            </div>
+            <div class="compliance-grid">
+              <article class="doctrine-card">
+                <strong>RED ROW</strong>
+                <p id="doctrine-red-copy">Expiration date has already passed for the item.</p>
+              </article>
+              <article class="doctrine-card">
+                <strong>AMBER ROW</strong>
+                <p id="doctrine-amber-copy">Item is inside the configured warning lead time.</p>
+              </article>
+              <article class="doctrine-card">
+                <strong>LOCKED</strong>
+                <p id="doctrine-lock-copy">Check-out remains disabled for any RED calibration asset.</p>
+              </article>
+            </div>
+          </section>
+
         </section>
 
         <section class="workspace-section" data-section="assets" aria-hidden="true">
@@ -743,6 +766,29 @@
               <div id="settings-template-table" class="table-frame"></div>
             </section>
 
+            <section id="cas-threshold-panel" class="panel-card tactical-panel cas-threshold-panel hidden">
+              <div class="panel-header-row">
+                <div>
+                  <p class="eyebrow">Hazmat Threshold Rules</p>
+                  <h3>CAS Minimum Threshold Defaults</h3>
+                </div>
+              </div>
+              <p class="panel-copy">Configure minimum stock thresholds by CAS. CAS-linked materials always follow these defaults.</p>
+              <form id="cas-threshold-form" class="cas-threshold-form">
+                <label>
+                  CAS Number
+                  <input id="cas-threshold-cas-number" name="cas_number" type="text" placeholder="XXX-XX-X" data-format="cas" required />
+                </label>
+                <label>
+                  Minimum Threshold
+                  <input id="cas-threshold-value" name="min_threshold" type="number" min="0" step="0.01" required />
+                </label>
+                <button id="cas-threshold-save-button" class="action-button secondary" type="submit">Save Threshold</button>
+              </form>
+              <div id="cas-threshold-status" class="config-note">Save a CAS threshold to apply automatic low-stock alerts.</div>
+              <div id="cas-threshold-list" class="department-admin-list"></div>
+            </section>
+
             <section class="panel-card tactical-panel">
               <div class="panel-header-row">
                 <div>
@@ -770,18 +816,22 @@
       <div class="modal-card">
         <div class="modal-header">
           <h2 id="material-modal-title">Add Material</h2>
-          <button class="icon-button" type="button" data-close-modal="material-modal" aria-label="Close material modal">
-            <svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true">
-              <path d="M18 6 6 18"></path>
-              <path d="m6 6 12 12"></path>
-            </svg>
-          </button>
         </div>
         <form id="material-form" class="modal-form">
-          <label>
-            Material Name
-            <input name="name" type="text" required />
-          </label>
+          <div class="field-grid compact-row material-top-grid">
+            <label class="material-name-field">
+              Material Name
+              <input name="name" type="text" required />
+            </label>
+            <label>
+              Department
+              <select id="material-assigned-department" name="assigned_department"></select>
+            </label>
+            <label>
+              Quantity
+              <input name="stock_level" type="number" min="0" step="0.01" required />
+            </label>
+          </div>
           <label>
             CAS Number
             <input name="cas_number" type="text" placeholder="XXX-XX-X" data-format="cas" />
@@ -790,10 +840,10 @@
           <div class="field-grid compact-row material-label-grid">
             <label class="label-id-field">
               <span class="label-id-heading">
-                <button id="label-id-tooltip-toggle" class="label-id-tooltip-button" type="button" aria-expanded="false" aria-controls="label-id-tooltip-panel">
+                <span id="label-id-tooltip-toggle" class="label-id-tooltip-button" tabindex="0" aria-expanded="false" aria-controls="label-id-tooltip-panel">
                   Label ID
                   <span class="label-id-tooltip-cue" aria-hidden="true">?</span>
-                </button>
+                </span>
                 <div id="label-id-tooltip-panel" class="label-id-tooltip-panel hidden" role="tooltip">
                   <small>Auto-generated from class, division, and expiration date.</small>
                   <strong>C[class][division]-[RANDOM]-[MMDDYY]</strong>
@@ -826,23 +876,30 @@
           <div class="field-grid compact-row">
             <label>
               Expiration Date
-              <input name="expiration_date" type="date" />
+              <div class="date-input-shell">
+                <input name="expiration_date" type="date" />
+                <button id="material-expiration-calendar-button" class="calendar-trigger-button" type="button" aria-label="Open expiration date calendar">
+                  <svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true">
+                    <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+                    <path d="M8 3v4"></path>
+                    <path d="M16 3v4"></path>
+                    <path d="M3 10h18"></path>
+                  </svg>
+                </button>
+              </div>
             </label>
             <label>
               Added On (Auto)
               <input name="created_date" type="date" readonly />
             </label>
           </div>
-          <div class="field-grid">
+          <div id="material-manual-threshold-wrap" class="field-grid compact-row manual-threshold-row hidden">
             <label>
-              Stock Level
-              <input name="stock_level" type="number" min="0" step="0.01" required />
-            </label>
-            <label>
-              Minimum Threshold
-              <input name="min_threshold" type="number" min="0" step="0.01" required />
+              Minimum Threshold (Manual - No CAS)
+              <input name="min_threshold" type="number" min="0" step="0.01" />
             </label>
           </div>
+          <div id="material-threshold-source-note" class="config-note material-threshold-note hidden"></div>
           <label class="container-label">
             Container Size (Optional)
             <div class="container-size-grid">
@@ -1326,6 +1383,6 @@
     <script src="/public/js/jspdf.min.js"></script>
     <script src="/public/js/chart.umd.js"></script>
     <script src="/public/js/Auth_Redirect.js"></script>
-    <script src="/public/js/Assets_Logic.js?v=20260319-cas-live-1"></script>
+    <script src="/public/js/Assets_Logic.js?v=20260320-ui-restore-1"></script>
   </body>
 </html>

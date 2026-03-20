@@ -1025,16 +1025,90 @@ small,
 
 .modal-form input[type='date']::-webkit-calendar-picker-indicator {
   opacity: 1;
-  padding: 4px;
-  border-radius: 8px;
-  background: rgba(255, 180, 0, 0.14);
-  filter: invert(88%) sepia(20%) saturate(663%) hue-rotate(337deg) brightness(101%) contrast(98%);
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  filter: none;
   cursor: pointer;
 }
 
 .modal-form input[type='date']::-webkit-calendar-picker-indicator:hover,
 .modal-form input[type='date']::-webkit-calendar-picker-indicator:focus {
-  background: rgba(255, 180, 0, 0.24);
+  background: transparent;
+}
+
+.material-top-grid {
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr) minmax(0, 0.9fr);
+  align-items: end;
+}
+
+.material-top-grid > label {
+  align-content: start;
+}
+
+.material-name-field {
+  min-width: 0;
+}
+
+.material-top-grid input,
+.material-top-grid select,
+.manual-threshold-row input {
+  min-height: 38px;
+  border-radius: 10px;
+}
+
+.date-input-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.date-input-shell input[type='date'] {
+  min-height: 38px;
+}
+
+.calendar-trigger-button {
+  width: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 180, 0, 0.1);
+  color: #f8d389;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.calendar-trigger-button:hover,
+.calendar-trigger-button:focus-visible {
+  border-color: rgba(255, 195, 90, 0.72);
+  background: rgba(255, 180, 0, 0.2);
+  outline: none;
+}
+
+.material-threshold-note {
+  margin-top: -4px;
+}
+
+.container-label {
+  gap: 6px;
+}
+
+.container-size-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr);
+  gap: 8px;
+}
+
+.container-size-grid .container-input,
+.container-size-grid .container-select {
+  min-height: 36px;
+  height: 36px;
+  border-radius: 10px;
 }
 
 .modal-form small {
@@ -1082,7 +1156,7 @@ small,
   font: inherit;
   font-weight: 600;
   letter-spacing: 0.01em;
-  cursor: help;
+  cursor: default;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1112,6 +1186,36 @@ small,
 .label-id-tooltip-button:focus-visible .label-id-tooltip-cue {
   border-color: rgba(255, 200, 90, 0.62);
   background: rgba(255, 180, 0, 0.2);
+}
+
+.cas-threshold-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.8fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.cas-threshold-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--accent-card-fill);
+}
+
+.cas-threshold-meta {
+  display: grid;
+  gap: 3px;
+}
+
+.cas-threshold-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .label-id-tooltip-panel {
@@ -1412,6 +1516,12 @@ small,
   .resource-links,
   .modal-actions {
     justify-content: flex-start;
+  }
+
+  .material-top-grid,
+  .cas-threshold-form,
+  .container-size-grid {
+    grid-template-columns: 1fr;
   }
 }
 

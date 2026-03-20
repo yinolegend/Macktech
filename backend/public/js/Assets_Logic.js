@@ -202,6 +202,27 @@
     return `${firstPart}-${middleTwo}-${lastDigit}`;
   }
 
+  function normalizeCasThresholdValue(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric < 0) return 0;
+    return Number(numeric.toFixed(2));
+  }
+
+  function normalizeCasThresholdDefaults(value) {
+    const rows = Array.isArray(value) ? value : [];
+    return rows
+      .map((entry) => {
+        const casNumber = formatCasNumber(String(entry && entry.cas_number ? entry.cas_number : '').trim());
+        if (!isValidCasNumber(casNumber)) return null;
+        return {
+          cas_number: casNumber,
+          min_threshold: normalizeCasThresholdValue(entry && entry.min_threshold),
+        };
+      })
+      .filter(Boolean)
+      .sort((left, right) => left.cas_number.localeCompare(right.cas_number));
+  }
+
   // CAS lookup in local database
   function lookupCasChemical(casNumber) {
     const normalized = casNumber && casNumber.trim().toUpperCase();
@@ -428,6 +449,7 @@
       chronic_failures: [],
     },
     logs: [],
+    casThresholdDefaults: [],
     inventoryTable: null,
     templateTable: null,
     settingsTemplateTable: null,
@@ -452,8 +474,10 @@
     currentPatternTimeout: null,
     casLookupDebounceId: null,
     casLookupRequestId: 0,
-    materialLabelTooltipPinned: false,
+    materialFormInitialSnapshot: '',
+    materialFormDirty: false,
     materialHazardDraft: createMaterialHazardDraft([], { on: [], off: [] }, []),
+    editingCasThresholdCas: '',
     unitLibrary: [],
     selectedTemplateUnitId: '',
     debugParetoChart: null,
@@ -570,6 +594,10 @@
     elements.materialModal = document.getElementById('material-modal');
     elements.materialForm = document.getElementById('material-form');
     elements.materialModalTitle = document.getElementById('material-modal-title');
+    elements.materialAssignedDepartment = document.getElementById('material-assigned-department');
+    elements.materialManualThresholdWrap = document.getElementById('material-manual-threshold-wrap');
+    elements.materialThresholdSourceNote = document.getElementById('material-threshold-source-note');
+    elements.materialExpirationCalendarButton = document.getElementById('material-expiration-calendar-button');
     elements.usageModal = document.getElementById('usage-modal');
     elements.usageForm = document.getElementById('usage-form');
     elements.usageModalTitle = document.getElementById('usage-modal-title');
@@ -643,6 +671,11 @@
     elements.departmentViewMode = document.getElementById('department-view-mode');
     elements.settingsAddTemplateButton = document.getElementById('settings-add-template-button');
     elements.settingsTemplateTitle = document.getElementById('settings-template-title');
+    elements.casThresholdPanel = document.getElementById('cas-threshold-panel');
+    elements.casThresholdForm = document.getElementById('cas-threshold-form');
+    elements.casThresholdStatus = document.getElementById('cas-threshold-status');
+    elements.casThresholdList = document.getElementById('cas-threshold-list');
+    elements.casThresholdSaveButton = document.getElementById('cas-threshold-save-button');
     elements.failureAnalysisButton = document.getElementById('failure-analysis-button');
     elements.settingsTemplatePanel = document.querySelector('.settings-template-panel');
     elements.cfeSectionButton = document.querySelector('.sidebar-nav-button[data-section="cfe"]');
@@ -754,11 +787,13 @@
     });
 
     addEvent(elements.materialForm, 'submit', submitMaterialForm);
+    addEvent(elements.materialForm, 'input', refreshMaterialFormDirtyState);
+    addEvent(elements.materialForm, 'change', refreshMaterialFormDirtyState);
     addEvent(elements.materialForm && elements.materialForm.cas_number, 'input', handleCasNumberInput);
     addEvent(elements.materialForm && elements.materialForm.primary_class, 'change', handleMaterialPrimaryClassChange);
     addEvent(elements.materialForm && elements.materialForm.division, 'input', handleMaterialDivisionInput);
     addEvent(elements.materialForm && elements.materialForm.expiration_date, 'change', handleMaterialExpirationChange);
-    addEvent(elements.labelIdTooltipToggle, 'click', handleLabelIdTooltipToggle);
+    addEvent(elements.materialExpirationCalendarButton, 'click', openMaterialExpirationCalendar);
     addEvent(elements.labelIdTooltipToggle, 'mouseenter', () => previewLabelIdTooltip(true));
     addEvent(elements.labelIdTooltipToggle, 'mouseleave', () => previewLabelIdTooltip(false));
     addEvent(elements.labelIdTooltipToggle, 'focus', () => previewLabelIdTooltip(true));
@@ -777,6 +812,9 @@
     addEvent(elements.departmentViewMode, 'change', handleDepartmentViewModeChange);
     addEvent(elements.departmentAdminList, 'click', handleDepartmentAdminClick);
     addEvent(elements.departmentModalForm, 'submit', submitDepartmentModalForm);
+    addEvent(elements.casThresholdForm && elements.casThresholdForm.cas_number, 'input', handleCasThresholdCasInput);
+    addEvent(elements.casThresholdForm, 'submit', submitCasThresholdForm);
+    addEvent(elements.casThresholdList, 'click', handleCasThresholdListClick);
     addEvent(elements.assetDetailPrimaryAction, 'click', handleAssetDetailPrimaryAction);
     addEvent(elements.assetDetailEditAction, 'click', handleAssetDetailEditAction);
     addEvent(elements.assetDetailDeleteAction, 'click', handleAssetDetailDeleteAction);
@@ -788,12 +826,14 @@
     }
 
     document.querySelectorAll('[data-close-modal]').forEach((button) => {
-      button.addEventListener('click', () => closeModal(button.dataset.closeModal));
+      button.addEventListener('click', () => requestCloseModal(button.dataset.closeModal));
     });
 
     document.querySelectorAll('.modal').forEach((modal) => {
       modal.addEventListener('click', (event) => {
-        if (event.target === modal) closeModal(modal.id);
+        if (event.target !== modal) return;
+        if (modal.id === 'material-modal') return;
+        requestCloseModal(modal.id);
       });
     });
   }
@@ -918,7 +958,7 @@
     const view = getPreferredAssetView();
     if (view === 'calibration') return 'New Asset (+)';
     if (view === 'debug') return 'New Ticket (+)';
-    return 'Add Hazmat';
+    return 'Add Material';
   }
 
   function applyPortalAccessControl() {
@@ -986,6 +1026,7 @@
         hazmatTemplates,
         calibrationTemplates,
         calibration,
+        casThresholdDefaults,
         debugTickets,
         debugAnalytics,
         departments,
@@ -995,6 +1036,7 @@
         canReadHazmat ? apiFetch('/api/command-center/hazmat/templates') : Promise.resolve([]),
         canReadCalibration ? apiFetch('/api/command-center/calibration/templates') : Promise.resolve([]),
         canReadCalibration ? apiFetch('/api/command-center/calibration') : Promise.resolve([]),
+        canReadHazmat ? apiFetch('/api/command-center/cas-thresholds').catch(() => []) : Promise.resolve([]),
         canReadDebug ? apiFetch('/api/command-center/debug-lab/tickets?limit=500').catch(() => []) : Promise.resolve([]),
         canReadDebug ? apiFetch('/api/command-center/debug-lab/analytics').catch(() => ({
           pareto: [],
@@ -1015,6 +1057,7 @@
       state.hazmatTemplates = Array.isArray(hazmatTemplates) ? hazmatTemplates : [];
       state.templates = Array.isArray(calibrationTemplates) ? calibrationTemplates : [];
       state.calibration = Array.isArray(calibration) ? calibration : [];
+      state.casThresholdDefaults = normalizeCasThresholdDefaults(casThresholdDefaults);
       state.debugTickets = Array.isArray(debugTickets) ? debugTickets : [];
       state.debugAnalytics = {
         pareto: Array.isArray(debugAnalytics && debugAnalytics.pareto) ? debugAnalytics.pareto : [],
@@ -3754,11 +3797,13 @@
 
   function renderDepartmentControls() {
     renderDefaultDepartmentOptions();
+    renderMaterialDepartmentOptions();
     renderTemplateDepartmentOptions();
     renderCalibrationDepartmentOptions();
     syncDebugTicketDepartmentOptions();
     renderDepartmentFormControls();
     renderDepartmentAdminList();
+    renderCasThresholdControls();
   }
 
   function renderDepartmentFormControls() {
@@ -3797,6 +3842,26 @@
       .map((department) => `<option value="${escapeHtml(department)}">${escapeHtml(department)}</option>`)
       .join('');
     select.value = resolvedDefault;
+  }
+
+  function renderMaterialDepartmentOptions(selectedDepartment) {
+    const select = elements.materialAssignedDepartment
+      || (elements.materialForm && elements.materialForm.assigned_department);
+    if (!select) return;
+
+    const departments = normalizeDepartmentList(
+      state.settings.departments,
+      state.settings.defaultDepartment || DEFAULT_SETTINGS.defaultDepartment
+    );
+    const preferred = resolveDepartmentName(
+      selectedDepartment || select.value || state.settings.defaultDepartment,
+      departments
+    ) || departments[0];
+
+    select.innerHTML = departments
+      .map((department) => `<option value="${escapeHtml(department)}">${escapeHtml(department)}</option>`)
+      .join('');
+    select.value = preferred;
   }
 
   function renderTemplateDepartmentOptions(selectedDepartment) {
@@ -4318,6 +4383,156 @@
         '</div>',
       ].join('');
     }).join('');
+  }
+
+  function canManageCasThresholdDefaults() {
+    return hasPermissionAccess('settings_access') || hasPermissionAccess('department_management');
+  }
+
+  function findCasThresholdDefault(casNumber) {
+    const normalized = formatCasNumber(String(casNumber || '').trim());
+    if (!isValidCasNumber(normalized)) return null;
+    return (state.casThresholdDefaults || []).find((entry) => entry.cas_number === normalized) || null;
+  }
+
+  function resetCasThresholdForm() {
+    state.editingCasThresholdCas = '';
+    if (elements.casThresholdForm) {
+      elements.casThresholdForm.reset();
+    }
+    if (elements.casThresholdSaveButton) {
+      elements.casThresholdSaveButton.textContent = 'Save Threshold';
+    }
+  }
+
+  function renderCasThresholdControls() {
+    const canManage = canManageCasThresholdDefaults();
+    if (elements.casThresholdPanel) {
+      elements.casThresholdPanel.classList.toggle('hidden', !canManage);
+    }
+    if (!canManage || !elements.casThresholdList) return;
+
+    state.casThresholdDefaults = normalizeCasThresholdDefaults(state.casThresholdDefaults);
+
+    if (elements.casThresholdSaveButton) {
+      elements.casThresholdSaveButton.textContent = state.editingCasThresholdCas ? 'Update Threshold' : 'Save Threshold';
+    }
+
+    if (!state.casThresholdDefaults.length) {
+      elements.casThresholdList.innerHTML = '<div class="department-admin-empty">No CAS thresholds configured.</div>';
+      return;
+    }
+
+    elements.casThresholdList.innerHTML = state.casThresholdDefaults.map((entry) => {
+      return [
+        '<article class="cas-threshold-row">',
+        '<div class="cas-threshold-meta">',
+        `<strong>${escapeHtml(entry.cas_number)}</strong>`,
+        `<small>Minimum Threshold: ${escapeHtml(String(entry.min_threshold))}</small>`,
+        '</div>',
+        '<div class="cas-threshold-actions">',
+        `<button class="table-button" type="button" data-cas-threshold-action="edit" data-cas-number="${escapeHtml(entry.cas_number)}">Edit</button>`,
+        `<button class="table-button" type="button" data-cas-threshold-action="delete" data-cas-number="${escapeHtml(entry.cas_number)}">Delete</button>`,
+        '</div>',
+        '</article>',
+      ].join('');
+    }).join('');
+  }
+
+  function handleCasThresholdCasInput(event) {
+    if (!event || !event.target) return;
+    const formatted = formatCasNumber(String(event.target.value || '').trim());
+    if (event.target.value !== formatted) {
+      event.target.value = formatted;
+    }
+  }
+
+  async function submitCasThresholdForm(event) {
+    event.preventDefault();
+    if (!elements.casThresholdForm) return;
+
+    const casNumber = formatCasNumber(String(elements.casThresholdForm.cas_number.value || '').trim());
+    const minThreshold = normalizeCasThresholdValue(elements.casThresholdForm.min_threshold.value);
+
+    if (!isValidCasNumber(casNumber)) {
+      setStatus('CAS number must match XXX-XX-X format.', 'error');
+      return;
+    }
+
+    try {
+      const existing = findCasThresholdDefault(casNumber);
+      const endpoint = existing
+        ? `/api/command-center/cas-thresholds/${encodeURIComponent(casNumber)}`
+        : '/api/command-center/cas-thresholds';
+      const method = existing ? 'PUT' : 'POST';
+      const payload = {
+        cas_number: casNumber,
+        min_threshold: minThreshold,
+      };
+
+      const saved = await apiFetch(endpoint, {
+        method,
+        body: JSON.stringify(payload),
+      });
+
+      const normalizedSaved = normalizeCasThresholdDefaults([saved])[0] || payload;
+      state.casThresholdDefaults = normalizeCasThresholdDefaults(
+        (state.casThresholdDefaults || []).filter((entry) => entry.cas_number !== casNumber).concat([normalizedSaved])
+      );
+
+      resetCasThresholdForm();
+      renderCasThresholdControls();
+      syncMaterialThresholdInputVisibility();
+      setStatus(existing ? 'CAS threshold updated.' : 'CAS threshold created.', 'info');
+    } catch (error) {
+      setStatus(error.message || 'Failed to save CAS threshold.', 'error');
+    }
+  }
+
+  async function handleCasThresholdListClick(event) {
+    const button = event && event.target
+      ? event.target.closest('[data-cas-threshold-action][data-cas-number]')
+      : null;
+    if (!button) return;
+
+    const action = button.dataset.casThresholdAction;
+    const casNumber = formatCasNumber(String(button.dataset.casNumber || '').trim());
+    if (!isValidCasNumber(casNumber)) return;
+
+    if (action === 'edit') {
+      const record = findCasThresholdDefault(casNumber);
+      if (!record || !elements.casThresholdForm) return;
+      state.editingCasThresholdCas = casNumber;
+      elements.casThresholdForm.cas_number.value = casNumber;
+      elements.casThresholdForm.min_threshold.value = String(record.min_threshold);
+      if (elements.casThresholdSaveButton) {
+        elements.casThresholdSaveButton.textContent = 'Update Threshold';
+      }
+      return;
+    }
+
+    if (action !== 'delete') return;
+    if (!window.confirm(`Delete CAS threshold ${casNumber}?`)) return;
+
+    try {
+      await apiFetch(`/api/command-center/cas-thresholds/${encodeURIComponent(casNumber)}`, {
+        method: 'DELETE',
+      });
+
+      state.casThresholdDefaults = normalizeCasThresholdDefaults(
+        (state.casThresholdDefaults || []).filter((entry) => entry.cas_number !== casNumber)
+      );
+
+      if (state.editingCasThresholdCas === casNumber) {
+        resetCasThresholdForm();
+      }
+
+      renderCasThresholdControls();
+      syncMaterialThresholdInputVisibility();
+      setStatus('CAS threshold deleted.', 'info');
+    } catch (error) {
+      setStatus(error.message || 'Failed to delete CAS threshold.', 'error');
+    }
   }
 
   function hydrateSettingsForm() {
@@ -4980,6 +5195,8 @@
       button.classList.toggle('is-off', !isSelected);
       button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
     });
+
+    refreshMaterialFormDirtyState();
   }
 
   function getSelectedGhsSymbols() {
@@ -5014,24 +5231,15 @@
     renderMaterialHazardDraft();
   }
 
-  function setLabelIdTooltipVisibility(visible, pinned) {
+  function setLabelIdTooltipVisibility(visible) {
     if (!elements.labelIdTooltipPanel || !elements.labelIdTooltipToggle) return;
-    if (typeof pinned === 'boolean') {
-      state.materialLabelTooltipPinned = pinned;
-    }
 
     elements.labelIdTooltipPanel.classList.toggle('hidden', !visible);
     elements.labelIdTooltipToggle.setAttribute('aria-expanded', visible ? 'true' : 'false');
   }
 
   function previewLabelIdTooltip(visible) {
-    if (state.materialLabelTooltipPinned) return;
-    setLabelIdTooltipVisibility(visible, false);
-  }
-
-  function handleLabelIdTooltipToggle() {
-    const nextPinned = !state.materialLabelTooltipPinned;
-    setLabelIdTooltipVisibility(nextPinned, nextPinned);
+    setLabelIdTooltipVisibility(visible);
   }
 
   function syncHazardDnaFromClass(primaryClass) {
@@ -5090,6 +5298,92 @@
 
   function handleMaterialExpirationChange() {
     regenerateMaterialLabelId();
+    refreshMaterialFormDirtyState();
+  }
+
+  function openMaterialExpirationCalendar() {
+    const dateInput = elements.materialForm && elements.materialForm.expiration_date;
+    if (!dateInput) return;
+
+    try {
+      if (typeof dateInput.showPicker === 'function') {
+        dateInput.showPicker();
+        return;
+      }
+    } catch (error) {
+    }
+
+    dateInput.focus();
+    dateInput.click();
+  }
+
+  function buildMaterialFormSnapshot() {
+    if (!elements.materialForm) return '{}';
+
+    const form = elements.materialForm;
+    const payload = {
+      name: String(form.name ? form.name.value : '').trim(),
+      cas_number: String(form.cas_number ? form.cas_number.value : '').trim(),
+      assigned_department: String(form.assigned_department ? form.assigned_department.value : '').trim(),
+      label_id: String(form.label_id ? form.label_id.value : '').trim(),
+      primary_class: String(form.primary_class ? form.primary_class.value : '').trim(),
+      division: String(form.division ? form.division.value : '').trim(),
+      expiration_date: String(form.expiration_date ? form.expiration_date.value : '').trim(),
+      stock_level: String(form.stock_level ? form.stock_level.value : '').trim(),
+      min_threshold: String(form.min_threshold ? form.min_threshold.value : '').trim(),
+      container_value: String(form.container_value ? form.container_value.value : '').trim(),
+      container_unit: String(form.container_unit ? form.container_unit.value : '').trim(),
+      ghs_symbols: getSelectedGhsSymbols().slice().sort(),
+      ghs_auto_symbols: (getMaterialHazardMetadata().ghs_auto_symbols || []).slice().sort(),
+      ghs_manual_on: ((getMaterialHazardMetadata().ghs_manual_overrides || {}).on || []).slice().sort(),
+      ghs_manual_off: ((getMaterialHazardMetadata().ghs_manual_overrides || {}).off || []).slice().sort(),
+    };
+
+    return JSON.stringify(payload);
+  }
+
+  function refreshMaterialFormDirtyState() {
+    if (!elements.materialForm) {
+      state.materialFormDirty = false;
+      return;
+    }
+
+    const currentSnapshot = buildMaterialFormSnapshot();
+    state.materialFormDirty = currentSnapshot !== String(state.materialFormInitialSnapshot || '{}');
+  }
+
+  function syncMaterialThresholdInputVisibility() {
+    if (!elements.materialForm) return;
+
+    const rawCas = formatCasNumber(String(elements.materialForm.cas_number ? elements.materialForm.cas_number.value : '').trim());
+    const hasCas = isValidCasNumber(rawCas);
+    const matchedThreshold = hasCas ? findCasThresholdDefault(rawCas) : null;
+
+    if (elements.materialManualThresholdWrap) {
+      elements.materialManualThresholdWrap.classList.toggle('hidden', hasCas);
+    }
+
+    if (elements.materialForm.min_threshold && hasCas) {
+      elements.materialForm.min_threshold.value = '0';
+    }
+
+    if (elements.materialThresholdSourceNote) {
+      let note = '';
+      if (hasCas) {
+        if (matchedThreshold) {
+          note = `CAS default threshold applied: ${matchedThreshold.min_threshold}`;
+        } else {
+          note = 'CAS linked material: no CAS threshold default found, fallback is 0.';
+        }
+      } else {
+        note = 'No CAS number provided: manual minimum threshold is used for this material.';
+      }
+
+      elements.materialThresholdSourceNote.textContent = note;
+      elements.materialThresholdSourceNote.classList.toggle('hidden', !note);
+    }
+
+    refreshMaterialFormDirtyState();
   }
 
   function applyClassDivisionFromHazards(symbols, options) {
@@ -5202,6 +5496,8 @@
 
   function openMaterialModal(material) {
     state.editingMaterialId = material ? material.id : null;
+    state.materialFormInitialSnapshot = '{}';
+    state.materialFormDirty = false;
     elements.materialModalTitle.textContent = material ? 'Edit Material' : 'Add Material';
     elements.materialForm.reset();
     state.materialHazardDraft = createMaterialHazardDraft(
@@ -5233,6 +5529,7 @@
     if (elements.materialForm.division) {
       elements.materialForm.division.value = resolvedDivision;
     }
+    renderMaterialDepartmentOptions(material ? material.assigned_department : state.settings.defaultDepartment);
     elements.materialForm.expiration_date.value = material ? (material.expiration_date || '') : '';
     
     // Auto-populate creation date for new materials
@@ -5246,7 +5543,12 @@
     }
     
     elements.materialForm.stock_level.value = material ? material.stock_level : '0';
-    elements.materialForm.min_threshold.value = material ? material.min_threshold : '0';
+    if (elements.materialForm.min_threshold) {
+      const manualThreshold = material && !material.cas_number
+        ? Number(material.manual_min_threshold != null ? material.manual_min_threshold : material.min_threshold)
+        : 0;
+      elements.materialForm.min_threshold.value = String(Number.isFinite(manualThreshold) ? manualThreshold : 0);
+    }
     
     // Restore container size if editing
     if (material && material.container_size) {
@@ -5258,11 +5560,15 @@
     }
 
     setGhsLookupStatus('', 'info');
-    setLabelIdTooltipVisibility(false, false);
+    setLabelIdTooltipVisibility(false);
+    syncMaterialThresholdInputVisibility();
 
     if (material && elements.materialForm.label_id && !elements.materialForm.label_id.value) {
       regenerateMaterialLabelId();
     }
+
+    state.materialFormInitialSnapshot = buildMaterialFormSnapshot();
+    state.materialFormDirty = false;
     
     openModal('material-modal');
   }
@@ -5281,6 +5587,7 @@
       event.target.value = formatted;
     }
     casNumber = formatted;
+    syncMaterialThresholdInputVisibility();
 
     if (!casNumber) {
       setMaterialAutoHazards([]);
@@ -5346,11 +5653,13 @@
           ? ' - Non-hazardous'
           : (hasExplicitAutoHazards && symbols.length === 0 ? ' - Hazard profile pending review' : '');
         setGhsLookupStatus(`CAS matched: ${matchedName}${datasetText}${hazardNote}`, 'success');
+        syncMaterialThresholdInputVisibility();
       } catch (error) {
         if (requestId !== state.casLookupRequestId) return;
         console.error('CAS lookup error:', error);
         setMaterialAutoHazards([]);
         setGhsLookupStatus((error && error.message) || 'Failed to query local CAS database.', 'error');
+        syncMaterialThresholdInputVisibility();
       }
     }, CAS_LOOKUP_DEBOUNCE_MS);
   }
@@ -5664,13 +5973,33 @@
     modal.setAttribute('aria-hidden', 'false');
   }
 
+  function shouldConfirmMaterialClose() {
+    if (!elements.materialModal || elements.materialModal.classList.contains('hidden')) {
+      return false;
+    }
+
+    refreshMaterialFormDirtyState();
+    return Boolean(state.materialFormDirty);
+  }
+
+  function requestCloseModal(id) {
+    if (!id) return;
+    if (id === 'material-modal' && shouldConfirmMaterialClose()) {
+      const discard = window.confirm('Discard unsaved material changes?');
+      if (!discard) return;
+    }
+    closeModal(id);
+  }
+
   function closeModal(id) {
     const modal = document.getElementById(id);
     if (!modal) return;
     modal.classList.add('hidden');
     modal.setAttribute('aria-hidden', 'true');
     if (id === 'material-modal') {
-      setLabelIdTooltipVisibility(false, false);
+      setLabelIdTooltipVisibility(false);
+      state.materialFormInitialSnapshot = '{}';
+      state.materialFormDirty = false;
     }
     if (id === 'department-modal') {
       state.editingDepartmentName = '';
@@ -5694,9 +6023,17 @@
     const containerUnit = elements.materialForm.container_unit.value;
     const hazardMetadata = getMaterialHazardMetadata();
     const primaryClass = normalizePrimaryClassValue(elements.materialForm.primary_class && elements.materialForm.primary_class.value);
+    const rawCasNumber = elements.materialForm.cas_number ? String(elements.materialForm.cas_number.value || '').trim() : '';
+    const casNumber = rawCasNumber ? formatCasNumber(rawCasNumber) : '';
+    const hasCasNumber = Boolean(casNumber);
 
     if (!primaryClass) {
       setStatus('Primary Class is required.', 'error');
+      return;
+    }
+
+    if (hasCasNumber && !isValidCasNumber(casNumber)) {
+      setStatus('CAS number must match XXX-XX-X format.', 'error');
       return;
     }
 
@@ -5717,14 +6054,18 @@
     
     const payload = {
       name: elements.materialForm.name.value.trim(),
-      cas_number: elements.materialForm.cas_number ? elements.materialForm.cas_number.value.trim() : null,
+      assigned_department: resolveDepartmentName(
+        elements.materialForm.assigned_department ? elements.materialForm.assigned_department.value : '',
+        state.settings.departments
+      ) || state.settings.defaultDepartment,
+      cas_number: hasCasNumber ? casNumber : null,
       label_id: labelId,
       batch_id: labelId,
       primary_class: primaryClass,
       division,
       expiration_date: elements.materialForm.expiration_date.value || null,
       stock_level: Number(elements.materialForm.stock_level.value || 0),
-      min_threshold: Number(elements.materialForm.min_threshold.value || 0),
+      min_threshold: hasCasNumber ? 0 : Number(elements.materialForm.min_threshold.value || 0),
       ghs_symbols: getSelectedGhsSymbols(),
       ghs_auto_symbols: hazardMetadata.ghs_auto_symbols,
       ghs_manual_overrides: hazardMetadata.ghs_manual_overrides,
@@ -6499,7 +6840,7 @@
       { label: 'Expiration Date', value: item.expiration_date || 'Open' },
       { label: 'Shelf Life', value: describeMaterialWindow(item) },
       { label: 'Stock Level', value: item.stock_level },
-      { label: 'Minimum Threshold', value: item.min_threshold },
+      { label: 'Minimum Threshold', value: formatMaterialThresholdValue(item) },
       { label: 'High Hazard', value: item.high_hazard ? 'Yes' : 'No' },
     ];
   }
@@ -6703,6 +7044,17 @@
     if (item.low_stock) return '<span class="status-chip status-amber">LOW STOCK</span>';
     if (item.high_hazard) return '<span class="status-chip status-blue">HIGH HAZARD</span>';
     return '<span class="status-chip status-safe">READY</span>';
+  }
+
+  function formatMaterialThresholdValue(item) {
+    const effective = item && item.effective_min_threshold != null
+      ? Number(item.effective_min_threshold)
+      : Number(item && item.min_threshold != null ? item.min_threshold : 0);
+    const source = String(item && item.threshold_source ? item.threshold_source : '').toLowerCase();
+    if (source === 'cas') {
+      return `${effective} (CAS default)`;
+    }
+    return `${effective} (Manual)`;
   }
 
   function formatCalibrationStatus(item) {

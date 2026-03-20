@@ -19,6 +19,10 @@ function registerCommandCenterRoutes(app, controller, authMiddleware, requireRol
   app.get('/api/command-center/cas-index', authMiddleware, hazmatRead, controller.listCasIndex);
   app.get('/api/command-center/cas-index/summary', authMiddleware, hazmatRead, controller.casIndexSummary);
   app.get('/api/command-center/cas/:casNumber', authMiddleware, hazmatRead, controller.lookupCas);
+  app.get('/api/command-center/cas-thresholds', authMiddleware, hazmatRead, controller.listCasThresholdDefaults);
+  app.post('/api/command-center/cas-thresholds', authMiddleware, hazmatRead, settingsOnly, controller.createCasThresholdDefault);
+  app.put('/api/command-center/cas-thresholds/:casNumber', authMiddleware, hazmatRead, settingsOnly, controller.updateCasThresholdDefault);
+  app.delete('/api/command-center/cas-thresholds/:casNumber', authMiddleware, hazmatRead, settingsOnly, controller.deleteCasThresholdDefault);
   app.post('/api/command-center/materials', authMiddleware, hazmatRead, editOnly, controller.createMaterial);
   app.put('/api/command-center/materials/:id', authMiddleware, hazmatRead, editOnly, controller.updateMaterial);
   app.delete('/api/command-center/materials/:id', authMiddleware, hazmatRead, editOnly, controller.deleteMaterial);

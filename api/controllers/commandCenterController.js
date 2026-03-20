@@ -401,7 +401,32 @@ function buildCfeUid(moduleName, id) {
   return `CFE-${modulePrefix}-${formatIdSerial(id)}`;
 }
 
-function formatMaterial(material) {
+function resolveMaterialThreshold(payload, options = {}) {
+  const manualThreshold = normalizeNumber(payload && payload.min_threshold);
+  const casNumber = normalizeCasNumber(payload && payload.cas_number);
+  if (!casNumber) {
+    return {
+      manualThreshold,
+      effectiveThreshold: manualThreshold,
+      thresholdSource: 'manual',
+    };
+  }
+
+  const casThresholdLookup = options && options.casThresholdLookup instanceof Map
+    ? options.casThresholdLookup
+    : null;
+  const casThresholdValue = casThresholdLookup && casThresholdLookup.has(casNumber)
+    ? normalizeNumber(casThresholdLookup.get(casNumber))
+    : normalizeNumber(options && options.casThresholdValue);
+
+  return {
+    manualThreshold,
+    effectiveThreshold: casThresholdValue,
+    thresholdSource: 'cas',
+  };
+}
+
+function formatMaterial(material, options = {}) {
   const payload = material && typeof material.toJSON === 'function' ? material.toJSON() : material;
   const ghsSymbols = normalizeSymbols(payload.ghs_symbols);
   const ghsAutoSymbols = normalizeSymbols(payload.ghs_auto_symbols);
@@ -409,10 +434,11 @@ function formatMaterial(material) {
   const containerSize = normalizeContainerSize(payload);
   const daysRemaining = daysUntil(payload.expiration_date);
   const stockLevel = normalizeNumber(payload.stock_level, normalizeNumber(payload.current_stock));
-  const minThreshold = normalizeNumber(payload.min_threshold);
+  const threshold = resolveMaterialThreshold(payload, options);
   const labelId = normalizeLabelId(payload.label_id || payload.batch_id);
   const primaryClass = normalizePrimaryClass(payload.primary_class, '0');
   const division = normalizeDivision(payload.division) || deriveClassDivisionFromSymbols(ghsSymbols).division;
+  const assignedDepartment = normalizeText(payload.assigned_department, DEFAULT_DEPARTMENT);
 
   return {
     id: payload.id,
@@ -429,12 +455,16 @@ function formatMaterial(material) {
     ghs_auto_symbols: ghsAutoSymbols,
     ghs_manual_overrides: ghsManualOverrides,
     container_size: containerSize,
+    assigned_department: assignedDepartment,
     expiration_date: payload.expiration_date,
     stock_level: stockLevel,
-    min_threshold: minThreshold,
+    min_threshold: threshold.effectiveThreshold,
+    manual_min_threshold: threshold.manualThreshold,
+    effective_min_threshold: threshold.effectiveThreshold,
+    threshold_source: threshold.thresholdSource,
     expired: typeof daysRemaining === 'number' ? daysRemaining < 0 : false,
     days_remaining: daysRemaining,
-    low_stock: stockLevel <= minThreshold,
+    low_stock: stockLevel <= threshold.effectiveThreshold,
     high_hazard: ghsSymbols.some((symbol) => HIGH_HAZARD_CODES.has(symbol)),
   };
 }
@@ -636,12 +666,55 @@ function normalizeMaterialPayload(payload) {
     primary_class: primaryClass,
     division: division || '0',
     cas_number: casNumber,
+    assigned_department: normalizeText(payload && payload.assigned_department, DEFAULT_DEPARTMENT),
     ghs_symbols: selectedSymbols,
     ghs_auto_symbols: autoSymbols,
     ghs_manual_overrides: manualOverrides,
     container_size: containerSize,
     expiration_date: normalizeDate(payload.expiration_date),
     stock_level: normalizeNumber(payload.stock_level, normalizeNumber(payload.current_stock)),
+    min_threshold: normalizeNumber(payload.min_threshold),
+  };
+}
+
+function applyCasThresholdWritePolicy(payload) {
+  const casNumber = normalizeCasNumber(payload && payload.cas_number);
+  if (casNumber) {
+    return {
+      ...payload,
+      cas_number: casNumber,
+      min_threshold: 0,
+    };
+  }
+
+  return {
+    ...payload,
+    min_threshold: normalizeNumber(payload && payload.min_threshold),
+  };
+}
+
+function normalizeCasThresholdPayload(payload) {
+  const casNumber = normalizeCasNumber(payload && payload.cas_number);
+  if (!casNumber) {
+    throw new Error('cas_number must match XXX-XX-X format');
+  }
+
+  const minThreshold = normalizeNumber(payload && payload.min_threshold, NaN);
+  if (!Number.isFinite(minThreshold) || minThreshold < 0) {
+    throw new Error('min_threshold must be a non-negative number');
+  }
+
+  return {
+    cas_number: casNumber,
+    min_threshold: Number(minThreshold.toFixed(2)),
+  };
+}
+
+function formatCasThresholdDefault(record) {
+  const payload = record && typeof record.toJSON === 'function' ? record.toJSON() : (record || {});
+  return {
+    id: payload.id,
+    cas_number: normalizeCasNumber(payload.cas_number),
     min_threshold: normalizeNumber(payload.min_threshold),
   };
 }
@@ -1097,6 +1170,7 @@ function buildLogActor(req) {
 function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, calibrationAttachmentUpload, casService }) {
   const {
     Material,
+    CasThresholdDefault,
     UsageLog,
     HazmatTemplate,
     CommandLog: HazmatLog,
@@ -1148,6 +1222,38 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
   async function recordDebugTimeline(payload, transaction) {
     if (!DebugTicketHistory) return null;
     return DebugTicketHistory.create(payload, { transaction });
+  }
+
+  async function getCasThresholdLookupMap(transaction) {
+    if (!CasThresholdDefault) return new Map();
+
+    const rows = await CasThresholdDefault.findAll({
+      attributes: ['cas_number', 'min_threshold'],
+      order: [['cas_number', 'ASC']],
+      transaction,
+    });
+
+    const lookup = new Map();
+    rows.forEach((row) => {
+      const payload = row && typeof row.toJSON === 'function' ? row.toJSON() : row;
+      const casNumber = normalizeCasNumber(payload && payload.cas_number);
+      if (!casNumber) return;
+      lookup.set(casNumber, normalizeNumber(payload.min_threshold));
+    });
+
+    return lookup;
+  }
+
+  async function getCasThresholdValue(casNumber, transaction) {
+    const normalized = normalizeCasNumber(casNumber);
+    if (!normalized || !CasThresholdDefault) return 0;
+
+    const row = await CasThresholdDefault.findOne({
+      attributes: ['cas_number', 'min_threshold'],
+      where: { cas_number: normalized },
+      transaction,
+    });
+    return normalizeNumber(row && row.min_threshold);
   }
 
   async function resolveDebugImportDepartmentId(payload) {
@@ -1740,13 +1846,17 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
 
     listMaterials: async (req, res) => {
       try {
-        const materials = await Material.findAll({
-          order: [
-            ['expiration_date', 'ASC'],
-            ['name', 'ASC'],
-          ],
-        });
-        return res.json(materials.map(formatMaterial));
+        const [materials, casThresholdLookup] = await Promise.all([
+          Material.findAll({
+            order: [
+              ['expiration_date', 'ASC'],
+              ['name', 'ASC'],
+            ],
+          }),
+          getCasThresholdLookupMap(),
+        ]);
+
+        return res.json(materials.map((material) => formatMaterial(material, { casThresholdLookup })));
       } catch (error) {
         console.error('command center list materials', error && error.message ? error.message : error);
         return res.status(500).json({ error: 'failed to load materials' });
@@ -1828,9 +1938,98 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
       }
     },
 
+    listCasThresholdDefaults: async (req, res) => {
+      try {
+        if (!CasThresholdDefault) {
+          return res.json([]);
+        }
+
+        const rows = await CasThresholdDefault.findAll({
+          order: [['cas_number', 'ASC']],
+        });
+        return res.json(rows.map(formatCasThresholdDefault));
+      } catch (error) {
+        console.error('command center list CAS thresholds', error && error.message ? error.message : error);
+        return res.status(500).json({ error: 'failed to load cas thresholds' });
+      }
+    },
+
+    createCasThresholdDefault: async (req, res) => {
+      try {
+        if (!CasThresholdDefault) {
+          return res.status(503).json({ error: 'cas thresholds are unavailable' });
+        }
+
+        const payload = normalizeCasThresholdPayload(req.body || {});
+        const existing = await CasThresholdDefault.findOne({ where: { cas_number: payload.cas_number } });
+        if (existing) {
+          await existing.update(payload);
+          return res.status(201).json(formatCasThresholdDefault(existing));
+        }
+
+        const created = await CasThresholdDefault.create(payload);
+        return res.status(201).json(formatCasThresholdDefault(created));
+      } catch (error) {
+        const message = (error && error.message) || 'failed to save cas threshold';
+        return res.status(/format|non-negative|required/i.test(message) ? 400 : 500).json({ error: message });
+      }
+    },
+
+    updateCasThresholdDefault: async (req, res) => {
+      try {
+        if (!CasThresholdDefault) {
+          return res.status(503).json({ error: 'cas thresholds are unavailable' });
+        }
+
+        const casNumber = normalizeCasNumber((req.params && req.params.casNumber) || '');
+        if (!casNumber) {
+          return res.status(400).json({ error: 'cas_number must match XXX-XX-X format' });
+        }
+
+        const payload = normalizeCasThresholdPayload({
+          ...req.body,
+          cas_number: casNumber,
+        });
+
+        const existing = await CasThresholdDefault.findOne({ where: { cas_number: casNumber } });
+        if (!existing) {
+          return res.status(404).json({ error: 'cas threshold not found' });
+        }
+
+        await existing.update(payload);
+        return res.json(formatCasThresholdDefault(existing));
+      } catch (error) {
+        const message = (error && error.message) || 'failed to update cas threshold';
+        return res.status(/format|non-negative|required/i.test(message) ? 400 : 500).json({ error: message });
+      }
+    },
+
+    deleteCasThresholdDefault: async (req, res) => {
+      try {
+        if (!CasThresholdDefault) {
+          return res.status(503).json({ error: 'cas thresholds are unavailable' });
+        }
+
+        const casNumber = normalizeCasNumber((req.params && req.params.casNumber) || '');
+        if (!casNumber) {
+          return res.status(400).json({ error: 'cas_number must match XXX-XX-X format' });
+        }
+
+        const deleted = await CasThresholdDefault.destroy({ where: { cas_number: casNumber } });
+        if (!deleted) {
+          return res.status(404).json({ error: 'cas threshold not found' });
+        }
+
+        return res.json({ ok: true, cas_number: casNumber });
+      } catch (error) {
+        console.error('command center delete CAS threshold', error && error.message ? error.message : error);
+        return res.status(500).json({ error: 'failed to delete cas threshold' });
+      }
+    },
+
     createMaterial: async (req, res) => {
       try {
-        const payload = normalizeMaterialPayload(req.body || {});
+        const payload = applyCasThresholdWritePolicy(normalizeMaterialPayload(req.body || {}));
         const material = await hazmatSequelize.transaction(async (transaction) => {
           const finalizedPayload = await finalizeMaterialLabelId(Material, payload, { transaction });
           const created = await Material.create(finalizedPayload, { transaction });
@@ -1849,7 +2048,8 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
           return created;
         });
 
-        return res.status(201).json(formatMaterial(material));
+        const casThresholdValue = await getCasThresholdValue(material && material.cas_number);
+        return res.status(201).json(formatMaterial(material, { casThresholdValue }));
       } catch (error) {
         const message = error && error.name === 'SequelizeUniqueConstraintError'
           ? 'label_id already exists'
@@ -1864,7 +2064,9 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
         const material = await Material.findByPk(id);
         if (!material) return res.status(404).json({ error: 'material not found' });
 
-        const payload = normalizeMaterialPayload({ ...material.toJSON(), ...(req.body || {}) });
+        const payload = applyCasThresholdWritePolicy(
+          normalizeMaterialPayload({ ...material.toJSON(), ...(req.body || {}) })
+        );
         const forceRegenerate = shouldRegenerateMaterialLabel(material, payload);
         await hazmatSequelize.transaction(async (transaction) => {
           const finalizedPayload = await finalizeMaterialLabelId(Material, payload, {
@@ -1887,7 +2089,8 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
           }, transaction);
         });
 
-        return res.json(formatMaterial(material));
+        const casThresholdValue = await getCasThresholdValue(material && material.cas_number);
+        return res.json(formatMaterial(material, { casThresholdValue }));
       } catch (error) {
         const message = error && error.name === 'SequelizeUniqueConstraintError'
           ? 'label_id already exists'
@@ -1934,7 +2137,7 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
         const result = { created: 0, updated: 0 };
         await hazmatSequelize.transaction(async (transaction) => {
           for (const rawRow of rows) {
-            const payload = normalizeMaterialPayload(rawRow || {});
+            const payload = applyCasThresholdWritePolicy(normalizeMaterialPayload(rawRow || {}));
             const lookupValues = Array.from(new Set([
               normalizeLabelId(payload.label_id),
               normalizeLabelId(payload.batch_id),
@@ -2022,7 +2225,9 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
         });
 
         return res.status(201).json({
-          material: formatMaterial(response.material),
+          material: formatMaterial(response.material, {
+            casThresholdValue: await getCasThresholdValue(response && response.material && response.material.cas_number),
+          }),
           usage_log: {
             id: response.usageLog.id,
             quantity_delta: response.usageLog.quantity_delta,
@@ -2064,7 +2269,9 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
 
         return res.status(201).json({
           ok: true,
-          material: formatMaterial(material),
+          material: formatMaterial(material, {
+            casThresholdValue: await getCasThresholdValue(material && material.cas_number),
+          }),
         });
       } catch (error) {
         const message = (error && error.message) || 'failed to verify material';
