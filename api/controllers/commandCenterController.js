@@ -250,6 +250,31 @@ function normalizeCasNumber(value) {
   return match ? `${match[1]}-${match[2]}-${match[3]}` : null;
 }
 
+function normalizeManufacturer(value) {
+  const text = String(value || '').trim().replace(/\s+/g, ' ');
+  return text || null;
+}
+
+function normalizeManufacturerKey(value) {
+  const text = normalizeManufacturer(value);
+  return text ? text.toLowerCase() : '';
+}
+
+function normalizeSdsNotRequired(value, fallback = true) {
+  if (typeof value === 'boolean') return value;
+
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return fallback;
+  if (normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on') return true;
+  if (normalized === '0' || normalized === 'false' || normalized === 'no' || normalized === 'off') return false;
+  return fallback;
+}
+
+function normalizeSdsPath(value) {
+  const text = String(value || '').trim();
+  return text || null;
+}
+
 function normalizeContainerSize(payload) {
   const source = payload && payload.container_size && typeof payload.container_size === 'object'
     ? payload.container_size
@@ -439,6 +464,8 @@ function formatMaterial(material, options = {}) {
   const primaryClass = normalizePrimaryClass(payload.primary_class, '0');
   const division = normalizeDivision(payload.division) || deriveClassDivisionFromSymbols(ghsSymbols).division;
   const assignedDepartment = normalizeText(payload.assigned_department, DEFAULT_DEPARTMENT);
+  const sdsNotRequired = normalizeSdsNotRequired(payload && payload.sds_not_required, true);
+  const sdsId = normalizeNumericId(payload && payload.sds_id) || null;
 
   return {
     id: payload.id,
@@ -456,6 +483,10 @@ function formatMaterial(material, options = {}) {
     ghs_manual_overrides: ghsManualOverrides,
     container_size: containerSize,
     assigned_department: assignedDepartment,
+    manufacturer: normalizeManufacturer(payload && payload.manufacturer),
+    sds_not_required: sdsNotRequired,
+    sds_id: sdsId,
+    sds_file_path: normalizeSdsPath(payload && payload.sds_file_path),
     expiration_date: payload.expiration_date,
     stock_level: stockLevel,
     min_threshold: threshold.effectiveThreshold,
@@ -613,6 +644,11 @@ function normalizeMaterialPayload(payload) {
   const name = String((payload && payload.name) || '').trim();
   const rawLabelId = normalizeLabelId(payload && (payload.label_id || payload.batch_id));
   const casNumber = normalizeCasNumber(payload && payload.cas_number);
+  const hasSdsNotRequired = payload && Object.prototype.hasOwnProperty.call(payload, 'sds_not_required');
+  const sdsNotRequired = normalizeSdsNotRequired(
+    payload && payload.sds_not_required,
+    hasSdsNotRequired ? false : true
+  );
 
   if (payload && payload.cas_number && !casNumber) {
     throw new Error('cas_number must match XXX-XX-X format');
@@ -667,6 +703,10 @@ function normalizeMaterialPayload(payload) {
     division: division || '0',
     cas_number: casNumber,
     assigned_department: normalizeText(payload && payload.assigned_department, DEFAULT_DEPARTMENT),
+    manufacturer: normalizeManufacturer(payload && payload.manufacturer),
+    sds_not_required: sdsNotRequired,
+    sds_id: normalizeNumericId(payload && payload.sds_id) || null,
+    sds_file_path: normalizeSdsPath(payload && payload.sds_file_path),
     ghs_symbols: selectedSymbols,
     ghs_auto_symbols: autoSymbols,
     ghs_manual_overrides: manualOverrides,
@@ -719,6 +759,31 @@ function formatCasThresholdDefault(record) {
   };
 }
 
+function formatSdsDocument(record) {
+  const payload = record && typeof record.toJSON === 'function' ? record.toJSON() : (record || {});
+  const manufacturerRecord = payload && payload.manufacturer_record && typeof payload.manufacturer_record === 'object'
+    ? payload.manufacturer_record
+    : null;
+  const manufacturerId = normalizeNumericId(
+    payload && payload.manufacturer_id != null
+      ? payload.manufacturer_id
+      : (manufacturerRecord && manufacturerRecord.id)
+  ) || null;
+  const manufacturerName = normalizeManufacturer(
+    (manufacturerRecord && manufacturerRecord.name)
+      || payload.manufacturer
+  );
+
+  return {
+    id: normalizeNumericId(payload.id),
+    cas_number: normalizeCasNumber(payload.cas_number),
+    manufacturer_id: manufacturerId,
+    manufacturer: manufacturerName,
+    sds_file_path: normalizeSdsPath(payload.sds_file_path),
+    created_at: payload.created_at || null,
+  };
+}
+
 function normalizeTemplateId(value) {
   const numeric = Number(value);
   return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
@@ -751,6 +816,19 @@ function normalizeDepartmentPayload(payload) {
   };
 }
 
+function normalizeManufacturerPayload(payload) {
+  const name = normalizeManufacturer(
+    (payload && (payload.name || payload.manufacturer || payload.manufacturer_name)) || ''
+  );
+  if (!name) {
+    throw new Error('name is required');
+  }
+
+  return {
+    name,
+  };
+}
+
 function formatDepartment(department) {
   const payload = department && typeof department.toJSON === 'function'
     ? department.toJSON()
@@ -759,6 +837,16 @@ function formatDepartment(department) {
     id: payload.id,
     name: normalizeDepartmentName(payload.name),
     supervisor: normalizeDepartmentName(payload.supervisor),
+  };
+}
+
+function formatManufacturer(manufacturer) {
+  const payload = manufacturer && typeof manufacturer.toJSON === 'function'
+    ? manufacturer.toJSON()
+    : (manufacturer || {});
+  return {
+    id: payload.id,
+    name: normalizeManufacturer(payload.name),
   };
 }
 
@@ -1167,10 +1255,12 @@ function buildLogActor(req) {
   };
 }
 
-function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, calibrationAttachmentUpload, casService }) {
+function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, calibrationAttachmentUpload, hazmatSdsUpload, casService }) {
   const {
     Material,
     CasThresholdDefault,
+    SdsDocument,
+    Manufacturer,
     UsageLog,
     HazmatTemplate,
     CommandLog: HazmatLog,
@@ -1190,6 +1280,25 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
     CommandLog: DebugLog,
     sequelize: debugSequelize,
   } = debugDb || {};
+
+  function runSingleUpload(uploadHandler, req, res) {
+    return new Promise((resolve, reject) => {
+      if (!uploadHandler || typeof uploadHandler.single !== 'function') {
+        return reject(new Error('upload handler is not configured'));
+      }
+
+      uploadHandler.single('file')(req, res, (error) => {
+        if (error) return reject(error);
+        return resolve(req.file || null);
+      });
+    });
+  }
+
+  function buildRelativeUploadPath(folderName, fileName) {
+    const safeFolder = String(folderName || '').replace(/^\/+|\/+$/g, '');
+    const safeFile = encodeURIComponent(String(fileName || '').trim());
+    return `/uploads/${safeFolder}/${safeFile}`;
+  }
 
   async function recordHazmatLog(req, payload, transaction) {
     const actor = buildLogActor(req);
@@ -1256,6 +1365,212 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
     return normalizeNumber(row && row.min_threshold);
   }
 
+  async function resolveManufacturerRecordForSds(value, transaction, options = {}) {
+    const source = value && typeof value === 'object'
+      ? value
+      : { manufacturer: value };
+    const requireExisting = options.requireExisting !== false;
+    const allowCreate = Boolean(options.allowCreate);
+
+    if (!Manufacturer) {
+      if (requireExisting) {
+        throw new Error('manufacturer catalog is unavailable');
+      }
+      return null;
+    }
+
+    const manufacturerId = normalizeNumericId(source && (source.manufacturer_id || source.id));
+    if (manufacturerId) {
+      const byId = await Manufacturer.findByPk(manufacturerId, { transaction });
+      if (byId) return byId;
+      if (requireExisting) {
+        throw new Error('manufacturer not found');
+      }
+      return null;
+    }
+
+    const manufacturerName = normalizeManufacturer(source && (source.manufacturer || source.name || source.manufacturer_name));
+    if (!manufacturerName) {
+      return null;
+    }
+
+    const existing = await findManufacturerByName(manufacturerName, transaction);
+    if (existing) return existing;
+
+    if (allowCreate) {
+      return Manufacturer.create({ name: manufacturerName }, { transaction });
+    }
+
+    if (requireExisting) {
+      throw new Error('manufacturer not found');
+    }
+
+    return null;
+  }
+
+  async function findSdsDocumentByCasManufacturer(casNumber, manufacturer, transaction) {
+    const normalizedCas = normalizeCasNumber(casNumber);
+    const manufacturerRecord = await resolveManufacturerRecordForSds(manufacturer, transaction, {
+      requireExisting: false,
+      allowCreate: false,
+    });
+    const normalizedManufacturer = normalizeManufacturer(
+      manufacturerRecord && manufacturerRecord.name
+        ? manufacturerRecord.name
+        : (manufacturer && typeof manufacturer === 'object'
+          ? (manufacturer.manufacturer || manufacturer.name || manufacturer.manufacturer_name)
+          : manufacturer)
+    );
+
+    if (!SdsDocument || !normalizedCas) return null;
+
+    const baseQuery = {
+      include: [{
+        model: Manufacturer,
+        as: 'manufacturer_record',
+        required: false,
+      }],
+      order: [['id', 'ASC']],
+      transaction,
+    };
+
+    if (manufacturerRecord && normalizeNumericId(manufacturerRecord.id)) {
+      const byId = await SdsDocument.findOne({
+        ...baseQuery,
+        where: {
+          cas_number: normalizedCas,
+          manufacturer_id: normalizeNumericId(manufacturerRecord.id),
+        },
+      });
+      if (byId) return byId;
+    }
+
+    if (!normalizedManufacturer) return null;
+
+    return SdsDocument.findOne({
+      ...baseQuery,
+      where: {
+        cas_number: normalizedCas,
+        [Op.and]: [
+          where(fn('lower', col('manufacturer')), normalizeManufacturerKey(normalizedManufacturer)),
+        ],
+      },
+    });
+  }
+
+  async function findSdsDocumentById(id, transaction) {
+    const normalizedId = normalizeNumericId(id);
+    if (!SdsDocument || !normalizedId) return null;
+    return SdsDocument.findByPk(normalizedId, {
+      include: [{
+        model: Manufacturer,
+        as: 'manufacturer_record',
+        required: false,
+      }],
+      transaction,
+    });
+  }
+
+  async function applySdsRequirementPolicy(payload, transaction) {
+    const normalizedPayload = {
+      ...payload,
+      manufacturer: normalizeManufacturer(payload && payload.manufacturer),
+      sds_not_required: normalizeSdsNotRequired(payload && payload.sds_not_required, true),
+      sds_id: normalizeNumericId(payload && payload.sds_id) || null,
+      sds_file_path: normalizeSdsPath(payload && payload.sds_file_path),
+    };
+
+    if (normalizedPayload.sds_not_required) {
+      return {
+        ...normalizedPayload,
+        sds_id: null,
+        sds_file_path: null,
+      };
+    }
+
+    if (!SdsDocument) {
+      throw new Error('sds catalog is unavailable');
+    }
+
+    if (!normalizedPayload.cas_number) {
+      throw new Error('cas_number is required when SDS is required');
+    }
+
+    if (!normalizedPayload.manufacturer) {
+      throw new Error('manufacturer is required when SDS is required');
+    }
+
+    const manufacturerRecord = await resolveManufacturerRecordForSds({
+      manufacturer: normalizedPayload.manufacturer,
+    }, transaction, {
+      requireExisting: true,
+      allowCreate: false,
+    });
+
+    if (!manufacturerRecord || !normalizeNumericId(manufacturerRecord.id)) {
+      throw new Error('manufacturer not found');
+    }
+
+    normalizedPayload.manufacturer = normalizeManufacturer(manufacturerRecord.name);
+
+    let linkedSds = null;
+    if (normalizedPayload.sds_id) {
+      linkedSds = await findSdsDocumentById(normalizedPayload.sds_id, transaction);
+      if (!linkedSds) {
+        throw new Error('sds_id is invalid');
+      }
+    } else {
+      linkedSds = await findSdsDocumentByCasManufacturer(
+        normalizedPayload.cas_number,
+        {
+          manufacturer_id: manufacturerRecord.id,
+          manufacturer: manufacturerRecord.name,
+        },
+        transaction
+      );
+    }
+
+    if (!linkedSds) {
+      throw new Error('sds_id is required when SDS is required');
+    }
+
+    const sdsPayload = linkedSds && typeof linkedSds.toJSON === 'function' ? linkedSds.toJSON() : linkedSds;
+    const sdsCasNumber = normalizeCasNumber(sdsPayload && sdsPayload.cas_number);
+    const sdsManufacturerId = normalizeNumericId(
+      sdsPayload && sdsPayload.manufacturer_id != null
+        ? sdsPayload.manufacturer_id
+        : (sdsPayload && sdsPayload.manufacturer_record && sdsPayload.manufacturer_record.id)
+    );
+    const sdsManufacturerKey = normalizeManufacturerKey(sdsPayload && sdsPayload.manufacturer);
+    const payloadManufacturerKey = normalizeManufacturerKey(normalizedPayload.manufacturer);
+
+    if (sdsCasNumber !== normalizedPayload.cas_number) {
+      throw new Error('sds_id does not match cas_number and manufacturer');
+    }
+
+    if (sdsManufacturerId) {
+      if (sdsManufacturerId !== normalizeNumericId(manufacturerRecord.id)) {
+        throw new Error('sds_id does not match cas_number and manufacturer');
+      }
+    } else if (sdsManufacturerKey !== payloadManufacturerKey) {
+      throw new Error('sds_id does not match cas_number and manufacturer');
+    }
+
+    const sdsFilePath = normalizeSdsPath(sdsPayload && sdsPayload.sds_file_path);
+    if (!sdsFilePath) {
+      throw new Error('sds_id is missing an uploaded SDS file');
+    }
+
+    return {
+      ...normalizedPayload,
+      sds_id: normalizeNumericId(sdsPayload.id),
+      sds_file_path: sdsFilePath,
+      manufacturer: normalizeManufacturer(
+        (sdsPayload && sdsPayload.manufacturer_record && sdsPayload.manufacturer_record.name)
+        || sdsPayload.manufacturer
+      ),
+    };
+  }
   async function resolveDebugImportDepartmentId(payload) {
     const departmentId = normalizeNumericId(payload && payload.department_id);
     if (departmentId > 0) {
@@ -1582,6 +1897,15 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
     });
   }
 
+  async function findManufacturerByName(name, transaction) {
+    const normalized = normalizeManufacturer(name);
+    if (!normalized || !Manufacturer) return null;
+    return Manufacturer.findOne({
+      where: where(fn('lower', col('name')), normalizeManufacturerKey(normalized)),
+      transaction,
+    });
+  }
+
   async function resolveCalibrationTemplate(payload, transaction) {
     if (payload.template_id) {
       const template = await CalibrationTemplate.findByPk(payload.template_id, { transaction });
@@ -1844,6 +2168,96 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
       }
     },
 
+    listManufacturers: async (req, res) => {
+      try {
+        if (!Manufacturer) {
+          return res.json([]);
+        }
+
+        const manufacturers = await Manufacturer.findAll({
+          order: [['name', 'ASC']],
+        });
+        return res.json(manufacturers.map(formatManufacturer));
+      } catch (error) {
+        console.error('command center list manufacturers', error && error.message ? error.message : error);
+        return res.status(500).json({ error: 'failed to load manufacturers' });
+      }
+    },
+
+    createManufacturer: async (req, res) => {
+      try {
+        if (!Manufacturer) {
+          return res.status(503).json({ error: 'manufacturer catalog is unavailable' });
+        }
+
+        const payload = normalizeManufacturerPayload(req.body || {});
+        const existing = await findManufacturerByName(payload.name);
+        if (existing) {
+          return res.status(400).json({ error: 'manufacturer already exists' });
+        }
+
+        const manufacturer = await hazmatSequelize.transaction(async (transaction) => {
+          const created = await Manufacturer.create(payload, { transaction });
+          await recordHazmatLog(req, {
+            module: 'inventory',
+            entity_type: 'manufacturer',
+            entity_id: String(created.id),
+            action: 'created',
+            detail: `Created manufacturer ${created.name}`,
+          }, transaction);
+          return created;
+        });
+
+        return res.status(201).json(formatManufacturer(manufacturer));
+      } catch (error) {
+        const message = error && error.name === 'SequelizeUniqueConstraintError'
+          ? 'manufacturer already exists'
+          : (error && error.message) || 'failed to create manufacturer';
+        return res.status(/required|exists/i.test(message) ? 400 : 500).json({ error: message });
+      }
+    },
+
+    deleteManufacturer: async (req, res) => {
+      try {
+        if (!Manufacturer) {
+          return res.status(503).json({ error: 'manufacturer catalog is unavailable' });
+        }
+
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id) || id <= 0) {
+          return res.status(400).json({ error: 'invalid manufacturer id' });
+        }
+
+        const manufacturer = await Manufacturer.findByPk(id);
+        if (!manufacturer) {
+          return res.status(404).json({ error: 'manufacturer not found' });
+        }
+
+        const linkedSdsMappings = SdsDocument
+          ? await SdsDocument.count({ where: { manufacturer_id: id } })
+          : 0;
+        if (linkedSdsMappings > 0) {
+          return res.status(400).json({ error: 'manufacturer has SDS mappings; remove mappings first' });
+        }
+
+        await hazmatSequelize.transaction(async (transaction) => {
+          await recordHazmatLog(req, {
+            module: 'inventory',
+            entity_type: 'manufacturer',
+            entity_id: String(manufacturer.id),
+            action: 'deleted',
+            detail: `Deleted manufacturer ${manufacturer.name}`,
+          }, transaction);
+          await manufacturer.destroy({ transaction });
+        });
+
+        return res.json({ ok: true, id });
+      } catch (error) {
+        console.error('command center delete manufacturer', error && error.message ? error.message : error);
+        return res.status(500).json({ error: 'failed to delete manufacturer' });
+      }
+    },
+
     listMaterials: async (req, res) => {
       try {
         const [materials, casThresholdLookup] = await Promise.all([
@@ -1860,6 +2274,306 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
       } catch (error) {
         console.error('command center list materials', error && error.message ? error.message : error);
         return res.status(500).json({ error: 'failed to load materials' });
+      }
+    },
+
+    listSdsDocuments: async (req, res) => {
+      try {
+        if (!SdsDocument) {
+          return res.status(503).json({ error: 'sds catalog is unavailable' });
+        }
+
+        const manufacturerId = normalizeNumericId((req.query && req.query.manufacturer_id) || (req.query && req.query.manufacturerId));
+        const requestedCas = String((req.query && (req.query.cas_number || req.query.casNumber)) || '').trim();
+        const casNumber = requestedCas ? normalizeCasNumber(requestedCas) : null;
+
+        if (requestedCas && !casNumber) {
+          return res.status(400).json({ error: 'cas_number must match XXX-XX-X format' });
+        }
+
+        const whereClause = {};
+        if (manufacturerId) {
+          whereClause.manufacturer_id = manufacturerId;
+        }
+        if (casNumber) {
+          whereClause.cas_number = casNumber;
+        }
+
+        const records = await SdsDocument.findAll({
+          where: whereClause,
+          include: [{
+            model: Manufacturer,
+            as: 'manufacturer_record',
+            required: false,
+          }],
+          order: [
+            ['manufacturer', 'ASC'],
+            ['cas_number', 'ASC'],
+            ['id', 'ASC'],
+          ],
+        });
+
+        return res.json(records.map(formatSdsDocument));
+      } catch (error) {
+        console.error('command center list SDS documents', error && error.message ? error.message : error);
+        return res.status(500).json({ error: 'failed to load sds documents' });
+      }
+    },
+
+    deleteSdsDocument: async (req, res) => {
+      try {
+        if (!SdsDocument) {
+          return res.status(503).json({ error: 'sds catalog is unavailable' });
+        }
+
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id) || id <= 0) {
+          return res.status(400).json({ error: 'invalid sds document id' });
+        }
+
+        const record = await SdsDocument.findByPk(id, {
+          include: [{
+            model: Manufacturer,
+            as: 'manufacturer_record',
+            required: false,
+          }],
+        });
+        if (!record) {
+          return res.status(404).json({ error: 'sds document not found' });
+        }
+
+        const linkedMaterials = await Material.count({
+          where: {
+            sds_id: id,
+            sds_not_required: 0,
+          },
+        });
+        if (linkedMaterials > 0) {
+          return res.status(400).json({ error: 'sds document is linked to active materials' });
+        }
+
+        const formatted = formatSdsDocument(record);
+        await hazmatSequelize.transaction(async (transaction) => {
+          await recordHazmatLog(req, {
+            module: 'inventory',
+            entity_type: 'sds_document',
+            entity_id: String(id),
+            action: 'deleted',
+            detail: `Deleted SDS mapping for ${formatted.cas_number || 'unknown CAS'} / ${formatted.manufacturer || 'unknown manufacturer'}`,
+          }, transaction);
+          await record.destroy({ transaction });
+        });
+
+        return res.json({ ok: true, id });
+      } catch (error) {
+        console.error('command center delete SDS document', error && error.message ? error.message : error);
+        return res.status(500).json({ error: 'failed to delete sds document' });
+      }
+    },
+
+    getHazmatSdsCompliance: async (req, res) => {
+      try {
+        const materials = await Material.findAll({
+          attributes: ['id', 'cas_number', 'manufacturer', 'sds_not_required', 'sds_id', 'sds_file_path'],
+          order: [['id', 'ASC']],
+        });
+
+        let requiredTotal = 0;
+        let coveredTotal = 0;
+        let missingManufacturerTotal = 0;
+        let missingCasTotal = 0;
+        let missingLinkTotal = 0;
+        const missingPairMap = new Map();
+
+        materials.forEach((material) => {
+          const payload = material && typeof material.toJSON === 'function' ? material.toJSON() : (material || {});
+          const sdsNotRequired = normalizeSdsNotRequired(payload && payload.sds_not_required, true);
+          if (sdsNotRequired) return;
+
+          requiredTotal += 1;
+
+          const casNumber = normalizeCasNumber(payload && payload.cas_number);
+          const manufacturer = normalizeManufacturer(payload && payload.manufacturer);
+          const sdsId = normalizeNumericId(payload && payload.sds_id);
+          const sdsPath = normalizeSdsPath(payload && payload.sds_file_path);
+          const hasCoverage = Boolean(sdsId && sdsPath);
+
+          if (hasCoverage) {
+            coveredTotal += 1;
+            return;
+          }
+
+          missingLinkTotal += 1;
+          if (!casNumber) {
+            missingCasTotal += 1;
+          }
+          if (!manufacturer) {
+            missingManufacturerTotal += 1;
+          }
+
+          if (casNumber && manufacturer) {
+            const key = `${casNumber}::${normalizeManufacturerKey(manufacturer)}`;
+            const current = missingPairMap.get(key) || {
+              cas_number: casNumber,
+              manufacturer,
+              count: 0,
+            };
+            current.count += 1;
+            missingPairMap.set(key, current);
+          }
+        });
+
+        const missingTotal = Math.max(requiredTotal - coveredTotal, 0);
+        const coveragePercent = requiredTotal > 0
+          ? Number(((coveredTotal / requiredTotal) * 100).toFixed(2))
+          : 100;
+        const mappedDocumentsTotal = SdsDocument ? await SdsDocument.count() : 0;
+        const topMissingPairs = Array.from(missingPairMap.values())
+          .sort((left, right) => right.count - left.count || left.cas_number.localeCompare(right.cas_number))
+          .slice(0, 12);
+
+        return res.json({
+          required_total: requiredTotal,
+          covered_total: coveredTotal,
+          missing_total: missingTotal,
+          missing_link_total: missingLinkTotal,
+          missing_manufacturer_total: missingManufacturerTotal,
+          missing_cas_total: missingCasTotal,
+          coverage_percent: coveragePercent,
+          mapped_documents_total: mappedDocumentsTotal,
+          top_missing_pairs: topMissingPairs,
+        });
+      } catch (error) {
+        console.error('command center hazmat SDS compliance', error && error.message ? error.message : error);
+        return res.status(500).json({ error: 'failed to build hazmat sds compliance' });
+      }
+    },
+
+    resolveSdsDocument: async (req, res) => {
+      try {
+        if (!SdsDocument) {
+          return res.status(503).json({ error: 'sds catalog is unavailable' });
+        }
+
+        const casNumber = normalizeCasNumber((req.query && req.query.cas_number) || '');
+        const manufacturerId = normalizeNumericId((req.query && req.query.manufacturer_id) || (req.query && req.query.manufacturerId));
+        const manufacturer = normalizeManufacturer((req.query && req.query.manufacturer) || '');
+
+        if (!casNumber) {
+          return res.status(400).json({ error: 'cas_number must match XXX-XX-X format' });
+        }
+
+        if (!manufacturerId && !manufacturer) {
+          return res.status(400).json({ error: 'manufacturer is required' });
+        }
+
+        const manufacturerRecord = await resolveManufacturerRecordForSds({
+          manufacturer_id: manufacturerId,
+          manufacturer,
+        }, null, {
+          requireExisting: false,
+          allowCreate: false,
+        });
+
+        const record = await findSdsDocumentByCasManufacturer(casNumber, {
+          manufacturer_id: manufacturerRecord && manufacturerRecord.id,
+          manufacturer: manufacturerRecord && manufacturerRecord.name ? manufacturerRecord.name : manufacturer,
+        });
+        if (!record) {
+          return res.json({ found: false, sds: null });
+        }
+
+        return res.json({ found: true, sds: formatSdsDocument(record) });
+      } catch (error) {
+        console.error('command center resolve SDS', error && error.message ? error.message : error);
+        return res.status(500).json({ error: 'failed to resolve sds document' });
+      }
+    },
+
+    uploadSdsDocument: async (req, res) => {
+      try {
+        if (!SdsDocument) {
+          return res.status(503).json({ error: 'sds catalog is unavailable' });
+        }
+
+        if (!paths || !paths.SDS_UPLOADS_DIR) {
+          return res.status(500).json({ error: 'sds uploads path is not configured' });
+        }
+
+        const file = await runSingleUpload(hazmatSdsUpload, req, res);
+        if (!file) {
+          return res.status(400).json({ error: 'file is required' });
+        }
+
+        const casNumber = normalizeCasNumber((req.body && req.body.cas_number) || (req.query && req.query.cas_number) || '');
+        const manufacturerId = normalizeNumericId(
+          (req.body && (req.body.manufacturer_id || req.body.manufacturerId))
+          || (req.query && (req.query.manufacturer_id || req.query.manufacturerId))
+        );
+        const manufacturer = normalizeManufacturer((req.body && req.body.manufacturer) || (req.query && req.query.manufacturer) || '');
+
+        if (!casNumber) {
+          return res.status(400).json({ error: 'cas_number must match XXX-XX-X format' });
+        }
+
+        const publicPath = buildRelativeUploadPath('sds', file.filename);
+        const result = await hazmatSequelize.transaction(async (transaction) => {
+          const manufacturerRecord = await resolveManufacturerRecordForSds({
+            manufacturer_id: manufacturerId,
+            manufacturer,
+          }, transaction, {
+            requireExisting: true,
+            allowCreate: false,
+          });
+          if (!manufacturerRecord) {
+            throw new Error('manufacturer is required');
+          }
+
+          const normalizedManufacturerId = normalizeNumericId(manufacturerRecord.id);
+          const normalizedManufacturerName = normalizeManufacturer(manufacturerRecord.name);
+
+          const existing = await findSdsDocumentByCasManufacturer(casNumber, {
+            manufacturer_id: normalizedManufacturerId,
+            manufacturer: normalizedManufacturerName,
+          }, transaction);
+          if (existing) {
+            await existing.update({
+              cas_number: casNumber,
+              manufacturer_id: normalizedManufacturerId,
+              manufacturer: normalizedManufacturerName,
+              sds_file_path: publicPath,
+            }, { transaction });
+            return { record: existing, created: false };
+          }
+
+          const created = await SdsDocument.create({
+            cas_number: casNumber,
+            manufacturer_id: normalizedManufacturerId,
+            manufacturer: normalizedManufacturerName,
+            sds_file_path: publicPath,
+          }, { transaction });
+
+          await created.reload({
+            include: [{
+              model: Manufacturer,
+              as: 'manufacturer_record',
+              required: false,
+            }],
+            transaction,
+          });
+
+          return { record: created, created: true };
+        });
+
+        return res.status(result.created ? 201 : 200).json({
+          ok: true,
+          created: result.created,
+          sds: formatSdsDocument(result.record),
+        });
+      } catch (error) {
+        const message = (error && error.message) || 'failed to upload sds document';
+        const status = /required|format|invalid|only|file|not found/i.test(message) ? 400 : 500;
+        return res.status(status).json({ error: message });
       }
     },
 
@@ -2031,7 +2745,8 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
       try {
         const payload = applyCasThresholdWritePolicy(normalizeMaterialPayload(req.body || {}));
         const material = await hazmatSequelize.transaction(async (transaction) => {
-          const finalizedPayload = await finalizeMaterialLabelId(Material, payload, { transaction });
+          const sdsAwarePayload = await applySdsRequirementPolicy(payload, transaction);
+          const finalizedPayload = await finalizeMaterialLabelId(Material, sdsAwarePayload, { transaction });
           const created = await Material.create(finalizedPayload, { transaction });
           await recordHazmatLog(req, {
             module: 'inventory',
@@ -2054,7 +2769,7 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
         const message = error && error.name === 'SequelizeUniqueConstraintError'
           ? 'label_id already exists'
           : (error && error.message) || 'failed to create material';
-        return res.status(/required|exists/i.test(message) ? 400 : 500).json({ error: message });
+        return res.status(/required|exists|invalid|not found|format|missing/i.test(message) ? 400 : 500).json({ error: message });
       }
     },
 
@@ -2069,7 +2784,8 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
         );
         const forceRegenerate = shouldRegenerateMaterialLabel(material, payload);
         await hazmatSequelize.transaction(async (transaction) => {
-          const finalizedPayload = await finalizeMaterialLabelId(Material, payload, {
+          const sdsAwarePayload = await applySdsRequirementPolicy(payload, transaction);
+          const finalizedPayload = await finalizeMaterialLabelId(Material, sdsAwarePayload, {
             excludeId: material.id,
             forceRegenerate,
             transaction,
@@ -2095,7 +2811,7 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
         const message = error && error.name === 'SequelizeUniqueConstraintError'
           ? 'label_id already exists'
           : (error && error.message) || 'failed to update material';
-        return res.status(/required|exists/i.test(message) ? 400 : 500).json({ error: message });
+        return res.status(/required|exists|invalid|not found|format|missing/i.test(message) ? 400 : 500).json({ error: message });
       }
     },
 
@@ -2138,9 +2854,10 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
         await hazmatSequelize.transaction(async (transaction) => {
           for (const rawRow of rows) {
             const payload = applyCasThresholdWritePolicy(normalizeMaterialPayload(rawRow || {}));
+            const sdsAwarePayload = await applySdsRequirementPolicy(payload, transaction);
             const lookupValues = Array.from(new Set([
-              normalizeLabelId(payload.label_id),
-              normalizeLabelId(payload.batch_id),
+              normalizeLabelId(sdsAwarePayload.label_id),
+              normalizeLabelId(sdsAwarePayload.batch_id),
             ].filter(Boolean)));
 
             const existing = lookupValues.length
@@ -2156,8 +2873,8 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
               : null;
 
             if (existing) {
-              const forceRegenerate = shouldRegenerateMaterialLabel(existing, payload);
-              const finalizedPayload = await finalizeMaterialLabelId(Material, payload, {
+              const forceRegenerate = shouldRegenerateMaterialLabel(existing, sdsAwarePayload);
+              const finalizedPayload = await finalizeMaterialLabelId(Material, sdsAwarePayload, {
                 excludeId: existing.id,
                 forceRegenerate,
                 transaction,
@@ -2165,7 +2882,7 @@ function createCommandCenterController({ hazmatDb, gagesDb, debugDb, paths, cali
               await existing.update(finalizedPayload, { transaction });
               result.updated += 1;
             } else {
-              const finalizedPayload = await finalizeMaterialLabelId(Material, payload, { transaction });
+              const finalizedPayload = await finalizeMaterialLabelId(Material, sdsAwarePayload, { transaction });
               await Material.create(finalizedPayload, { transaction });
               result.created += 1;
             }

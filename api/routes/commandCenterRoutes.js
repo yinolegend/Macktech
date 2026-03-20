@@ -14,11 +14,19 @@ function registerCommandCenterRoutes(app, controller, authMiddleware, requireRol
   app.post('/api/command-center/departments', authMiddleware, settingsOnly, controller.createDepartment);
   app.put('/api/command-center/departments/:id', authMiddleware, settingsOnly, controller.updateDepartment);
   app.delete('/api/command-center/departments/:id', authMiddleware, settingsOnly, controller.deleteDepartment);
+  app.get('/api/command-center/manufacturers', authMiddleware, hazmatRead, controller.listManufacturers);
+  app.post('/api/command-center/manufacturers', authMiddleware, hazmatRead, settingsOnly, controller.createManufacturer);
+  app.delete('/api/command-center/manufacturers/:id', authMiddleware, hazmatRead, settingsOnly, controller.deleteManufacturer);
 
   app.get('/api/command-center/materials', authMiddleware, hazmatRead, controller.listMaterials);
   app.get('/api/command-center/cas-index', authMiddleware, hazmatRead, controller.listCasIndex);
   app.get('/api/command-center/cas-index/summary', authMiddleware, hazmatRead, controller.casIndexSummary);
   app.get('/api/command-center/cas/:casNumber', authMiddleware, hazmatRead, controller.lookupCas);
+  app.get('/api/command-center/sds/resolve', authMiddleware, hazmatRead, controller.resolveSdsDocument);
+  app.post('/api/command-center/sds/upload', authMiddleware, hazmatRead, editOnly, controller.uploadSdsDocument);
+  app.get('/api/command-center/sds-documents', authMiddleware, hazmatRead, settingsOnly, controller.listSdsDocuments);
+  app.delete('/api/command-center/sds-documents/:id', authMiddleware, hazmatRead, settingsOnly, controller.deleteSdsDocument);
+  app.get('/api/command-center/hazmat/sds-compliance', authMiddleware, hazmatRead, controller.getHazmatSdsCompliance);
   app.get('/api/command-center/cas-thresholds', authMiddleware, hazmatRead, controller.listCasThresholdDefaults);
   app.post('/api/command-center/cas-thresholds', authMiddleware, hazmatRead, settingsOnly, controller.createCasThresholdDefault);
   app.put('/api/command-center/cas-thresholds/:casNumber', authMiddleware, hazmatRead, settingsOnly, controller.updateCasThresholdDefault);

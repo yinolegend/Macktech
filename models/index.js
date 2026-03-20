@@ -8,6 +8,8 @@ const { Sequelize, DataTypes, QueryTypes } = backendRequire('sequelize');
 
 const defineMaterial = require('./Material');
 const defineCasThresholdDefault = require('./CasThresholdDefault');
+const defineSdsDocument = require('./SdsDocument');
+const defineManufacturer = require('./Manufacturer');
 const defineUsageLog = require('./UsageLog');
 const defineHazmatTemplate = require('./HazmatTemplate');
 const defineCalibrationTemplate = require('./CalibrationTemplate');
@@ -59,6 +61,8 @@ const debugSequelize = createSQLiteSequelize(paths.DEBUG_LAB_DB_PATH);
 
 const Material = defineMaterial(hazmatSequelize, DataTypes);
 const CasThresholdDefault = defineCasThresholdDefault(hazmatSequelize, DataTypes);
+const SdsDocument = defineSdsDocument(hazmatSequelize, DataTypes);
+const Manufacturer = defineManufacturer(hazmatSequelize, DataTypes);
 const UsageLog = defineUsageLog(hazmatSequelize, DataTypes);
 const HazmatTemplate = defineHazmatTemplate(hazmatSequelize, DataTypes);
 const HazmatLog = defineCommandLog(hazmatSequelize, DataTypes);
@@ -81,6 +85,28 @@ Material.hasMany(UsageLog, {
 UsageLog.belongsTo(Material, {
   foreignKey: 'material_id',
   as: 'material',
+});
+
+Material.belongsTo(SdsDocument, {
+  foreignKey: 'sds_id',
+  as: 'sds_document',
+});
+
+SdsDocument.hasMany(Material, {
+  foreignKey: 'sds_id',
+  as: 'materials',
+});
+
+SdsDocument.belongsTo(Manufacturer, {
+  foreignKey: 'manufacturer_id',
+  as: 'manufacturer_record',
+  constraints: false,
+});
+
+Manufacturer.hasMany(SdsDocument, {
+  foreignKey: 'manufacturer_id',
+  as: 'sds_documents',
+  constraints: false,
 });
 
 CalibrationTemplate.hasMany(CalibrationAsset, {
@@ -266,6 +292,8 @@ async function syncHazmatModels() {
   await ensureHazmatMaterialColumns({ allowMissingTable: true });
   await hazmatSequelize.sync();
   await ensureHazmatMaterialColumns();
+  await ensureManufacturersTable();
+  await ensureSdsDocumentsTable();
   await ensureCasThresholdDefaultsTable();
   await ensureHazmatMaterialIndexes();
 }
@@ -306,6 +334,15 @@ async function ensureHazmatMaterialColumns(options = {}) {
   if (!columns.has('assigned_department')) {
     missingColumns.push(`ALTER TABLE materials ADD COLUMN assigned_department TEXT NOT NULL DEFAULT '${DEFAULT_DEPARTMENT}'`);
   }
+  if (!columns.has('manufacturer')) {
+    missingColumns.push('ALTER TABLE materials ADD COLUMN manufacturer TEXT');
+  }
+  if (!columns.has('sds_not_required')) {
+    missingColumns.push('ALTER TABLE materials ADD COLUMN sds_not_required INTEGER NOT NULL DEFAULT 1');
+  }
+  if (!columns.has('sds_id')) {
+    missingColumns.push('ALTER TABLE materials ADD COLUMN sds_id INTEGER');
+  }
   if (!columns.has('sds_file_path')) {
     missingColumns.push('ALTER TABLE materials ADD COLUMN sds_file_path TEXT');
   }
@@ -324,6 +361,10 @@ async function ensureHazmatMaterialColumns(options = {}) {
   await hazmatSequelize.query("UPDATE materials SET ghs_manual_overrides = COALESCE(ghs_manual_overrides, '{\"on\":[],\"off\":[]}')");
   await hazmatSequelize.query("UPDATE materials SET image_paths = COALESCE(image_paths, '[]')");
   await hazmatSequelize.query(`UPDATE materials SET assigned_department = COALESCE(NULLIF(TRIM(assigned_department), ''), '${DEFAULT_DEPARTMENT}')`);
+  await hazmatSequelize.query("UPDATE materials SET manufacturer = NULLIF(TRIM(COALESCE(manufacturer, '')), '')");
+  await hazmatSequelize.query('UPDATE materials SET sds_not_required = CASE WHEN sds_not_required IS NULL THEN 1 WHEN CAST(sds_not_required AS INTEGER) = 0 THEN 0 ELSE 1 END');
+  await hazmatSequelize.query('UPDATE materials SET sds_id = CASE WHEN sds_id IS NULL OR CAST(sds_id AS INTEGER) <= 0 THEN NULL ELSE CAST(sds_id AS INTEGER) END');
+  await hazmatSequelize.query("UPDATE materials SET sds_file_path = NULL WHERE TRIM(COALESCE(sds_file_path, '')) = ''");
 
   const rows = await Material.findAll({
     attributes: ['id', 'label_id', 'batch_id', 'primary_class', 'division', 'ghs_symbols', 'ghs_auto_symbols', 'expiration_date'],
@@ -374,6 +415,155 @@ async function ensureHazmatMaterialIndexes() {
   await hazmatSequelize.query('CREATE INDEX IF NOT EXISTS materials_primary_class_idx ON materials(primary_class)');
   await hazmatSequelize.query('CREATE INDEX IF NOT EXISTS materials_cas_number_idx ON materials(cas_number)');
   await hazmatSequelize.query('CREATE INDEX IF NOT EXISTS materials_assigned_department_idx ON materials(assigned_department)');
+  await hazmatSequelize.query('CREATE INDEX IF NOT EXISTS materials_manufacturer_idx ON materials(manufacturer)');
+  await hazmatSequelize.query('CREATE INDEX IF NOT EXISTS materials_sds_id_idx ON materials(sds_id)');
+  await hazmatSequelize.query('CREATE INDEX IF NOT EXISTS materials_sds_not_required_idx ON materials(sds_not_required)');
+}
+
+async function ensureManufacturersTable() {
+  const hasTable = await tableExists(hazmatSequelize, 'manufacturers');
+  if (!hasTable) {
+    await Manufacturer.sync();
+  }
+
+  const columns = await listTableColumns(hazmatSequelize, 'manufacturers');
+  const missingColumns = [];
+  if (!columns.has('name')) {
+    missingColumns.push('ALTER TABLE manufacturers ADD COLUMN name TEXT');
+  }
+
+  for (const statement of missingColumns) {
+    await hazmatSequelize.query(statement);
+  }
+
+  await hazmatSequelize.query("UPDATE manufacturers SET name = TRIM(COALESCE(name, ''))");
+  await hazmatSequelize.query("DELETE FROM manufacturers WHERE name = ''");
+  await hazmatSequelize.query('DELETE FROM manufacturers WHERE id NOT IN (SELECT MIN(id) FROM manufacturers GROUP BY lower(name))');
+  await hazmatSequelize.query('CREATE UNIQUE INDEX IF NOT EXISTS manufacturers_name_uidx ON manufacturers(name COLLATE NOCASE)');
+  await hazmatSequelize.query('CREATE INDEX IF NOT EXISTS manufacturers_name_idx ON manufacturers(name)');
+
+  const materialColumns = await listTableColumns(hazmatSequelize, 'materials');
+  if (materialColumns.has('manufacturer')) {
+    await hazmatSequelize.query("INSERT OR IGNORE INTO manufacturers(name) SELECT DISTINCT TRIM(manufacturer) AS name FROM materials WHERE TRIM(COALESCE(manufacturer, '')) <> ''");
+  }
+
+  const hasSdsTable = await tableExists(hazmatSequelize, 'sds_documents');
+  if (hasSdsTable) {
+    await hazmatSequelize.query("INSERT OR IGNORE INTO manufacturers(name) SELECT DISTINCT TRIM(manufacturer) AS name FROM sds_documents WHERE TRIM(COALESCE(manufacturer, '')) <> ''");
+  }
+
+  await hazmatSequelize.query("DELETE FROM manufacturers WHERE name = ''");
+}
+
+async function ensureSdsDocumentsTable() {
+  const hasTable = await tableExists(hazmatSequelize, 'sds_documents');
+  if (!hasTable) {
+    await SdsDocument.sync();
+  }
+
+  const columns = await listTableColumns(hazmatSequelize, 'sds_documents');
+  const missingColumns = [];
+  if (!columns.has('cas_number')) {
+    missingColumns.push('ALTER TABLE sds_documents ADD COLUMN cas_number TEXT');
+  }
+  if (!columns.has('manufacturer')) {
+    missingColumns.push('ALTER TABLE sds_documents ADD COLUMN manufacturer TEXT');
+  }
+  if (!columns.has('manufacturer_id')) {
+    missingColumns.push('ALTER TABLE sds_documents ADD COLUMN manufacturer_id INTEGER');
+  }
+  if (!columns.has('sds_file_path')) {
+    missingColumns.push('ALTER TABLE sds_documents ADD COLUMN sds_file_path TEXT');
+  }
+  if (!columns.has('created_at')) {
+    missingColumns.push('ALTER TABLE sds_documents ADD COLUMN created_at DATETIME');
+  }
+
+  for (const statement of missingColumns) {
+    await hazmatSequelize.query(statement);
+  }
+
+  await hazmatSequelize.query("UPDATE sds_documents SET cas_number = TRIM(COALESCE(cas_number, ''))");
+  await hazmatSequelize.query("UPDATE sds_documents SET manufacturer = TRIM(COALESCE(manufacturer, ''))");
+  await hazmatSequelize.query('UPDATE sds_documents SET manufacturer_id = CASE WHEN manufacturer_id IS NULL OR CAST(manufacturer_id AS INTEGER) <= 0 THEN NULL ELSE CAST(manufacturer_id AS INTEGER) END');
+  await hazmatSequelize.query("UPDATE sds_documents SET sds_file_path = NULLIF(TRIM(COALESCE(sds_file_path, '')), '')");
+  await hazmatSequelize.query('UPDATE sds_documents SET created_at = COALESCE(created_at, CURRENT_TIMESTAMP)');
+  await hazmatSequelize.query("INSERT OR IGNORE INTO manufacturers(name) SELECT DISTINCT manufacturer FROM sds_documents WHERE TRIM(COALESCE(manufacturer, '')) <> ''");
+  await hazmatSequelize.query(`
+    UPDATE sds_documents
+    SET manufacturer_id = (
+      SELECT id
+      FROM manufacturers
+      WHERE lower(name) = lower(sds_documents.manufacturer)
+      ORDER BY id ASC
+      LIMIT 1
+    )
+    WHERE manufacturer_id IS NULL
+      AND TRIM(COALESCE(manufacturer, '')) <> ''
+  `);
+  await hazmatSequelize.query(`
+    UPDATE sds_documents
+    SET manufacturer = (
+      SELECT name
+      FROM manufacturers
+      WHERE manufacturers.id = sds_documents.manufacturer_id
+      LIMIT 1
+    )
+    WHERE manufacturer_id IS NOT NULL
+      AND TRIM(COALESCE(manufacturer, '')) = ''
+  `);
+  await hazmatSequelize.query("DELETE FROM sds_documents WHERE cas_number = '' OR sds_file_path IS NULL OR (TRIM(COALESCE(manufacturer, '')) = '' AND manufacturer_id IS NULL)");
+
+  const hasMaterialsTable = await tableExists(hazmatSequelize, 'materials');
+  const sdsRows = await hazmatSequelize.query('SELECT id, cas_number, manufacturer_id FROM sds_documents ORDER BY id ASC', {
+    type: QueryTypes.SELECT,
+  });
+  const keepByKey = new Map();
+  const duplicates = [];
+
+  sdsRows.forEach((row) => {
+    const casNumber = String(row && row.cas_number ? row.cas_number : '').trim();
+    const manufacturerId = Number(row && row.manufacturer_id);
+    const id = Number(row && row.id);
+    if (!casNumber || !Number.isInteger(manufacturerId) || manufacturerId <= 0 || !Number.isInteger(id) || id <= 0) {
+      return;
+    }
+
+    const key = `${casNumber.toLowerCase()}::${manufacturerId}`;
+    if (!keepByKey.has(key)) {
+      keepByKey.set(key, id);
+      return;
+    }
+
+    duplicates.push({
+      duplicateId: id,
+      keepId: keepByKey.get(key),
+    });
+  });
+
+  for (const duplicate of duplicates) {
+    if (hasMaterialsTable) {
+      await hazmatSequelize.query('UPDATE materials SET sds_id = :keepId WHERE sds_id = :duplicateId', {
+        replacements: {
+          keepId: duplicate.keepId,
+          duplicateId: duplicate.duplicateId,
+        },
+      });
+    }
+
+    await hazmatSequelize.query('DELETE FROM sds_documents WHERE id = :duplicateId', {
+      replacements: {
+        duplicateId: duplicate.duplicateId,
+      },
+    });
+  }
+
+  await hazmatSequelize.query('DROP INDEX IF EXISTS sds_documents_cas_manufacturer_uidx');
+  await hazmatSequelize.query('DROP INDEX IF EXISTS sds_documents_cas_manufacturer_id_uidx');
+  await hazmatSequelize.query('CREATE UNIQUE INDEX IF NOT EXISTS sds_documents_cas_manufacturer_id_uidx ON sds_documents(cas_number, manufacturer_id) WHERE manufacturer_id IS NOT NULL');
+  await hazmatSequelize.query('CREATE INDEX IF NOT EXISTS sds_documents_cas_number_idx ON sds_documents(cas_number)');
+  await hazmatSequelize.query('CREATE INDEX IF NOT EXISTS sds_documents_manufacturer_id_idx ON sds_documents(manufacturer_id)');
+  await hazmatSequelize.query('CREATE INDEX IF NOT EXISTS sds_documents_manufacturer_idx ON sds_documents(manufacturer)');
 }
 
 async function ensureCasThresholdDefaultsTable() {
@@ -850,6 +1040,8 @@ const hazmatDb = {
   sequelize: hazmatSequelize,
   Material,
   CasThresholdDefault,
+  SdsDocument,
+  Manufacturer,
   UsageLog,
   HazmatTemplate,
   CommandLog: HazmatLog,
@@ -881,6 +1073,8 @@ module.exports = {
   debugSequelize,
   Material,
   CasThresholdDefault,
+  SdsDocument,
+  Manufacturer,
   UsageLog,
   HazmatTemplate,
   Department,

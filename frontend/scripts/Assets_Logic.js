@@ -424,6 +424,7 @@
       departments: DEFAULT_SETTINGS.departments.slice(),
     },
     departmentRecords: [],
+    manufacturerRecords: [],
     assetFilters: {
       duePreset: 'all',
       dueMin: '',
@@ -450,6 +451,9 @@
     },
     logs: [],
     casThresholdDefaults: [],
+    manufacturerSdsDocuments: [],
+    manufacturerSdsUploadBusy: false,
+    hazmatSdsCompliance: null,
     inventoryTable: null,
     templateTable: null,
     settingsTemplateTable: null,
@@ -474,6 +478,10 @@
     currentPatternTimeout: null,
     casLookupDebounceId: null,
     casLookupRequestId: 0,
+    materialSdsLookupRequestId: 0,
+    materialSdsUploadBusy: false,
+    materialSdsLinkedCas: '',
+    materialSdsLinkedManufacturer: '',
     materialFormInitialSnapshot: '',
     materialFormDirty: false,
     materialHazardDraft: createMaterialHazardDraft([], { on: [], off: [] }, []),
@@ -595,9 +603,17 @@
     elements.materialForm = document.getElementById('material-form');
     elements.materialModalTitle = document.getElementById('material-modal-title');
     elements.materialAssignedDepartment = document.getElementById('material-assigned-department');
+    elements.materialManufacturer = document.getElementById('material-manufacturer');
     elements.materialManualThresholdWrap = document.getElementById('material-manual-threshold-wrap');
     elements.materialThresholdSourceNote = document.getElementById('material-threshold-source-note');
     elements.materialExpirationCalendarButton = document.getElementById('material-expiration-calendar-button');
+    elements.materialSdsUploadButton = document.getElementById('material-sds-upload-button');
+    elements.materialSdsViewButton = document.getElementById('material-sds-view-button');
+    elements.materialSdsUploadInput = document.getElementById('material-sds-upload-input');
+    elements.materialSdsStatus = document.getElementById('material-sds-status');
+    elements.materialSdsNotRequired = document.getElementById('material-sds-not-required');
+    elements.materialSdsId = document.getElementById('material-sds-id');
+    elements.materialSdsPath = document.getElementById('material-sds-file-path');
     elements.usageModal = document.getElementById('usage-modal');
     elements.usageForm = document.getElementById('usage-form');
     elements.usageModalTitle = document.getElementById('usage-modal-title');
@@ -669,6 +685,16 @@
     elements.departmentAdminList = document.getElementById('department-admin-list');
     elements.departmentSupervisorField = document.getElementById('department-supervisor-field');
     elements.departmentViewMode = document.getElementById('department-view-mode');
+    elements.manufacturerAdmin = document.getElementById('manufacturer-admin');
+    elements.manufacturerCreateForm = document.getElementById('manufacturer-create-form');
+    elements.manufacturerAdminList = document.getElementById('manufacturer-admin-list');
+    elements.manufacturerSdsForm = document.getElementById('manufacturer-sds-form');
+    elements.manufacturerSdsManufacturer = document.getElementById('manufacturer-sds-manufacturer');
+    elements.manufacturerSdsCasNumber = document.getElementById('manufacturer-sds-cas-number');
+    elements.manufacturerSdsUploadButton = document.getElementById('manufacturer-sds-upload-button');
+    elements.manufacturerSdsUploadInput = document.getElementById('manufacturer-sds-upload-input');
+    elements.manufacturerSdsStatus = document.getElementById('manufacturer-sds-status');
+    elements.manufacturerSdsList = document.getElementById('manufacturer-sds-list');
     elements.settingsAddTemplateButton = document.getElementById('settings-add-template-button');
     elements.settingsTemplateTitle = document.getElementById('settings-template-title');
     elements.casThresholdPanel = document.getElementById('cas-threshold-panel');
@@ -793,7 +819,12 @@
     addEvent(elements.materialForm && elements.materialForm.primary_class, 'change', handleMaterialPrimaryClassChange);
     addEvent(elements.materialForm && elements.materialForm.division, 'input', handleMaterialDivisionInput);
     addEvent(elements.materialForm && elements.materialForm.expiration_date, 'change', handleMaterialExpirationChange);
+    addEvent(elements.materialForm && elements.materialForm.manufacturer, 'change', handleMaterialManufacturerChange);
     addEvent(elements.materialExpirationCalendarButton, 'click', openMaterialExpirationCalendar);
+    addEvent(elements.materialSdsNotRequired, 'change', handleMaterialSdsNotRequiredToggle);
+    addEvent(elements.materialSdsUploadButton, 'click', handleMaterialSdsUploadButtonClick);
+    addEvent(elements.materialSdsViewButton, 'click', handleMaterialSdsViewButtonClick);
+    addEvent(elements.materialSdsUploadInput, 'change', handleMaterialSdsUploadFileChange);
     addEvent(elements.labelIdTooltipToggle, 'mouseenter', () => previewLabelIdTooltip(true));
     addEvent(elements.labelIdTooltipToggle, 'mouseleave', () => previewLabelIdTooltip(false));
     addEvent(elements.labelIdTooltipToggle, 'focus', () => previewLabelIdTooltip(true));
@@ -812,6 +843,13 @@
     addEvent(elements.departmentViewMode, 'change', handleDepartmentViewModeChange);
     addEvent(elements.departmentAdminList, 'click', handleDepartmentAdminClick);
     addEvent(elements.departmentModalForm, 'submit', submitDepartmentModalForm);
+    addEvent(elements.manufacturerCreateForm, 'submit', submitManufacturerCreateForm);
+    addEvent(elements.manufacturerAdminList, 'click', handleManufacturerAdminClick);
+    addEvent(elements.manufacturerSdsManufacturer, 'change', handleManufacturerSdsManufacturerChange);
+    addEvent(elements.manufacturerSdsCasNumber, 'input', handleManufacturerSdsCasInput);
+    addEvent(elements.manufacturerSdsUploadButton, 'click', handleManufacturerSdsUploadButtonClick);
+    addEvent(elements.manufacturerSdsUploadInput, 'change', handleManufacturerSdsUploadInputChange);
+    addEvent(elements.manufacturerSdsList, 'click', handleManufacturerSdsListClick);
     addEvent(elements.casThresholdForm && elements.casThresholdForm.cas_number, 'input', handleCasThresholdCasInput);
     addEvent(elements.casThresholdForm, 'submit', submitCasThresholdForm);
     addEvent(elements.casThresholdList, 'click', handleCasThresholdListClick);
@@ -1020,6 +1058,7 @@
       const canReadHazmat = hasModuleAccess('hazmat');
       const canReadCalibration = hasModuleAccess('calibration');
       const canReadDebug = hasModuleAccess('debug');
+      const canManageManufacturerMappings = canReadHazmat && canManageManufacturers();
 
       const [
         materials,
@@ -1030,6 +1069,9 @@
         debugTickets,
         debugAnalytics,
         departments,
+        manufacturers,
+        manufacturerSdsDocuments,
+        hazmatSdsCompliance,
         logs,
       ] = await Promise.all([
         canReadHazmat ? apiFetch('/api/command-center/materials') : Promise.resolve([]),
@@ -1050,6 +1092,9 @@
           chronic_failures: [],
         }),
         apiFetch('/api/command-center/departments').catch(() => []),
+        canReadHazmat ? apiFetch('/api/command-center/manufacturers').catch(() => []) : Promise.resolve([]),
+        canManageManufacturerMappings ? apiFetch('/api/command-center/sds-documents').catch(() => []) : Promise.resolve([]),
+        canReadHazmat ? apiFetch('/api/command-center/hazmat/sds-compliance').catch(() => null) : Promise.resolve(null),
         apiFetch('/api/command-center/logs?limit=24'),
       ]);
 
@@ -1066,6 +1111,9 @@
         chronic_failures: Array.isArray(debugAnalytics && debugAnalytics.chronic_failures) ? debugAnalytics.chronic_failures : [],
       };
       state.departmentRecords = normalizeDepartmentRecords(departments);
+      state.manufacturerRecords = normalizeManufacturerRecords(manufacturers);
+      state.manufacturerSdsDocuments = normalizeManufacturerSdsDocuments(manufacturerSdsDocuments);
+      state.hazmatSdsCompliance = normalizeHazmatSdsCompliance(hazmatSdsCompliance);
       state.logs = Array.isArray(logs) ? logs : [];
       syncDepartmentsFromRuntime();
 
@@ -2027,6 +2075,11 @@
         value: hazmatStats.lowStock,
         hint: `${hazmatStats.warning} in warning window`,
       },
+      {
+        label: 'SDS Coverage',
+        value: `${hazmatStats.sdsCoveragePercent}%`,
+        hint: `${hazmatStats.sdsCovered}/${hazmatStats.sdsRequired} required materials linked`,
+      },
     ]);
 
     renderReportMetricCards(elements.calibrationReportMetrics, [
@@ -2109,6 +2162,22 @@
     const lowStock = state.materials.filter((item) => item.low_stock).length;
     const highHazard = state.materials.filter((item) => item.high_hazard).length;
     const missingExpiration = state.materials.filter((item) => !item.expiration_date).length;
+
+    const localRequired = state.materials.filter((item) => !item.sds_not_required).length;
+    const localCovered = state.materials.filter((item) => (
+      !item.sds_not_required
+      && normalizeMaterialSdsId(item.sds_id)
+      && String(item.sds_file_path || '').trim()
+    )).length;
+    const compliance = normalizeHazmatSdsCompliance(state.hazmatSdsCompliance);
+    const useServerCompliance = Boolean(compliance);
+    const sdsRequired = useServerCompliance ? compliance.required_total : localRequired;
+    const sdsCovered = useServerCompliance ? compliance.covered_total : localCovered;
+    const sdsMissing = Math.max(sdsRequired - sdsCovered, 0);
+    const sdsCoveragePercent = sdsRequired > 0
+      ? Number(((sdsCovered / sdsRequired) * 100).toFixed(2))
+      : 100;
+
     return {
       total,
       late,
@@ -2117,6 +2186,13 @@
       lowStock,
       highHazard,
       missingExpiration,
+      sdsRequired,
+      sdsCovered,
+      sdsMissing,
+      sdsCoveragePercent,
+      sdsMissingManufacturer: useServerCompliance ? compliance.missing_manufacturer_total : 0,
+      sdsMissingCas: useServerCompliance ? compliance.missing_cas_total : 0,
+      sdsTopMissingPairs: useServerCompliance ? compliance.top_missing_pairs : [],
     };
   }
 
@@ -2176,6 +2252,19 @@
     }
     if (stats.missingExpiration > 0) {
       notes.push(`Add expiration dates for ${stats.missingExpiration} hazmat asset(s) to improve tracking accuracy.`);
+    }
+    if (stats.sdsMissing > 0) {
+      notes.push(`Resolve SDS linkage for ${stats.sdsMissing} required hazmat asset(s) to close compliance gaps.`);
+    }
+    if (stats.sdsMissingManufacturer > 0) {
+      notes.push(`Capture manufacturer values for ${stats.sdsMissingManufacturer} SDS-required asset(s) so CAS mappings can resolve automatically.`);
+    }
+    if (stats.sdsMissingCas > 0) {
+      notes.push(`Add valid CAS numbers for ${stats.sdsMissingCas} SDS-required asset(s) to enable manufacturer-specific SDS matching.`);
+    }
+    if (stats.sdsTopMissingPairs && stats.sdsTopMissingPairs.length) {
+      const topPair = stats.sdsTopMissingPairs[0];
+      notes.push(`Priority SDS gap: ${topPair.manufacturer} / ${topPair.cas_number} affects ${topPair.count} material record(s).`);
     }
     if (!notes.length) {
       notes.push('Hazmat performance is stable. Continue current handling cadence and periodic spot checks.');
@@ -3798,11 +3887,13 @@
   function renderDepartmentControls() {
     renderDefaultDepartmentOptions();
     renderMaterialDepartmentOptions();
+    renderMaterialManufacturerOptions();
     renderTemplateDepartmentOptions();
     renderCalibrationDepartmentOptions();
     syncDebugTicketDepartmentOptions();
     renderDepartmentFormControls();
     renderDepartmentAdminList();
+    renderManufacturerAdminList();
     renderCasThresholdControls();
   }
 
@@ -5038,6 +5129,623 @@
     return true;
   }
 
+  function normalizeManufacturerName(value) {
+    return normalizeManufacturerInputValue(value);
+  }
+
+  function normalizeManufacturerRecord(record) {
+    const id = Number(record && record.id);
+    const name = normalizeManufacturerName(record && (record.name || record.manufacturer || record.manufacturer_name));
+    if (!Number.isInteger(id) || id <= 0 || !name) return null;
+    return { id, name };
+  }
+
+  function normalizeManufacturerRecords(records) {
+    const output = [];
+    const seen = new Set();
+
+    for (const entry of Array.isArray(records) ? records : []) {
+      const normalized = normalizeManufacturerRecord(entry);
+      if (!normalized) continue;
+      const key = normalized.name.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      output.push(normalized);
+    }
+
+    output.sort((left, right) => left.name.localeCompare(right.name));
+    return output;
+  }
+
+  function normalizeManufacturerSdsRecord(record) {
+    const id = Number(record && record.id);
+    const manufacturerId = Number(record && (record.manufacturer_id || record.manufacturerId));
+    const manufacturer = normalizeManufacturerName(
+      record && (record.manufacturer || record.manufacturer_name || record.manufacturerName)
+    );
+    const casNumber = formatCasNumber(String(record && (record.cas_number || record.casNumber) || '').trim());
+    const sdsPath = String(record && (record.sds_file_path || record.sdsPath || '') || '').trim();
+    const createdAt = record && record.created_at ? String(record.created_at) : null;
+
+    if (!Number.isInteger(id) || id <= 0) return null;
+    if (!Number.isInteger(manufacturerId) || manufacturerId <= 0) return null;
+    if (!manufacturer) return null;
+    if (!isValidCasNumber(casNumber)) return null;
+    if (!sdsPath) return null;
+
+    return {
+      id,
+      manufacturer_id: manufacturerId,
+      manufacturer,
+      cas_number: casNumber,
+      sds_file_path: sdsPath,
+      created_at: createdAt,
+    };
+  }
+
+  function normalizeManufacturerSdsDocuments(records) {
+    const output = [];
+    const seen = new Set();
+
+    for (const entry of Array.isArray(records) ? records : []) {
+      const normalized = normalizeManufacturerSdsRecord(entry);
+      if (!normalized) continue;
+      if (seen.has(normalized.id)) continue;
+      seen.add(normalized.id);
+      output.push(normalized);
+    }
+
+    output.sort((left, right) => {
+      const manufacturerDelta = left.manufacturer.localeCompare(right.manufacturer);
+      if (manufacturerDelta !== 0) return manufacturerDelta;
+      const casDelta = left.cas_number.localeCompare(right.cas_number);
+      if (casDelta !== 0) return casDelta;
+      return left.id - right.id;
+    });
+    return output;
+  }
+
+  function normalizeHazmatSdsCompliance(payload) {
+    if (!payload || typeof payload !== 'object') {
+      return null;
+    }
+
+    const source = payload;
+    const asNumber = (value, fallback = 0) => {
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : fallback;
+    };
+
+    const pairs = Array.isArray(source.top_missing_pairs)
+      ? source.top_missing_pairs
+      : [];
+
+    return {
+      required_total: Math.max(0, Math.round(asNumber(source.required_total))),
+      covered_total: Math.max(0, Math.round(asNumber(source.covered_total))),
+      missing_total: Math.max(0, Math.round(asNumber(source.missing_total))),
+      missing_link_total: Math.max(0, Math.round(asNumber(source.missing_link_total))),
+      missing_manufacturer_total: Math.max(0, Math.round(asNumber(source.missing_manufacturer_total))),
+      missing_cas_total: Math.max(0, Math.round(asNumber(source.missing_cas_total))),
+      coverage_percent: Math.max(0, Math.min(100, asNumber(source.coverage_percent))),
+      mapped_documents_total: Math.max(0, Math.round(asNumber(source.mapped_documents_total))),
+      top_missing_pairs: pairs.map((entry) => ({
+        cas_number: formatCasNumber(String(entry && entry.cas_number ? entry.cas_number : '').trim()),
+        manufacturer: normalizeManufacturerName(entry && entry.manufacturer),
+        count: Math.max(0, Math.round(asNumber(entry && entry.count))),
+      })).filter((entry) => entry.cas_number && entry.manufacturer),
+    };
+  }
+
+  function normalizeManufacturerList(values) {
+    const seen = new Set();
+    const output = [];
+
+    for (const value of Array.isArray(values) ? values : []) {
+      const normalized = normalizeManufacturerName(value);
+      if (!normalized) continue;
+      const key = normalized.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      output.push(normalized);
+    }
+
+    return output.sort((left, right) => left.localeCompare(right));
+  }
+
+  function resolveManufacturerName(value, availableManufacturers) {
+    const expected = normalizeManufacturerName(value);
+    if (!expected) return '';
+
+    return (Array.isArray(availableManufacturers) ? availableManufacturers : [])
+      .find((item) => normalizeManufacturerName(item).toLowerCase() === expected.toLowerCase()) || '';
+  }
+
+  function findManufacturerRecordByName(name) {
+    const resolved = normalizeManufacturerName(name);
+    if (!resolved) return null;
+
+    return (state.manufacturerRecords || []).find((record) => (
+      normalizeManufacturerName(record && record.name).toLowerCase() === resolved.toLowerCase()
+    )) || null;
+  }
+
+  function findManufacturerRecordById(id) {
+    const numericId = Number(id);
+    if (!Number.isInteger(numericId) || numericId <= 0) return null;
+    return (state.manufacturerRecords || []).find((record) => Number(record && record.id) === numericId) || null;
+  }
+
+  function upsertManufacturerRecord(record) {
+    const normalized = normalizeManufacturerRecord(record);
+    if (!normalized) return null;
+
+    const list = (state.manufacturerRecords || []).slice();
+    const existingIndex = list.findIndex((entry) => Number(entry.id) === Number(normalized.id));
+    if (existingIndex >= 0) {
+      list[existingIndex] = normalized;
+    } else {
+      list.push(normalized);
+    }
+
+    state.manufacturerRecords = normalizeManufacturerRecords(list);
+    return normalized;
+  }
+
+  function removeManufacturerRecordById(id) {
+    const numericId = Number(id);
+    if (!Number.isInteger(numericId) || numericId <= 0) return;
+    state.manufacturerRecords = normalizeManufacturerRecords(
+      (state.manufacturerRecords || []).filter((record) => Number(record.id) !== numericId)
+    );
+  }
+
+  function canManageManufacturers() {
+    return hasPermissionAccess('settings_access') || hasPermissionAccess('department_management');
+  }
+
+  function renderMaterialManufacturerOptions(selectedManufacturer) {
+    const select = elements.materialManufacturer || (elements.materialForm && elements.materialForm.manufacturer);
+    if (!select) return;
+
+    const fromCatalog = normalizeManufacturerList((state.manufacturerRecords || []).map((record) => record.name));
+    const preferred = normalizeManufacturerName(
+      selectedManufacturer || select.value || ''
+    );
+
+    const merged = fromCatalog.slice();
+    if (preferred && !resolveManufacturerName(preferred, merged)) {
+      merged.push(preferred);
+    }
+
+    const manufacturers = normalizeManufacturerList(merged);
+    const resolved = resolveManufacturerName(preferred, manufacturers);
+    select.innerHTML = ['<option value="">Select manufacturer</option>']
+      .concat(manufacturers.map((manufacturer) => (
+        `<option value="${escapeHtml(manufacturer)}">${escapeHtml(manufacturer)}</option>`
+      )))
+      .join('');
+    select.value = resolved;
+  }
+
+  function renderManufacturerAdminList() {
+    const canManage = canManageManufacturers();
+    if (elements.manufacturerAdmin) {
+      elements.manufacturerAdmin.classList.toggle('hidden', !canManage);
+    }
+
+    if (!canManage || !elements.manufacturerAdminList) {
+      renderManufacturerSdsManager();
+      return;
+    }
+
+    const manufacturers = normalizeManufacturerList(
+      (state.manufacturerRecords || []).map((record) => record.name)
+    );
+
+    if (!manufacturers.length) {
+      elements.manufacturerAdminList.innerHTML = '<div class="department-admin-empty">No manufacturers configured.</div>';
+      return;
+    }
+
+    elements.manufacturerAdminList.innerHTML = manufacturers.map((manufacturer) => {
+      return [
+        '<div class="department-admin-row">',
+        '<div class="department-admin-meta">',
+        `<span class="department-admin-name">${escapeHtml(manufacturer)}</span>`,
+        '</div>',
+        '<div class="department-admin-actions">',
+        `<button class="table-button" type="button" data-manufacturer-action="delete" data-manufacturer-name="${escapeHtml(manufacturer)}">Delete</button>`,
+        '</div>',
+        '</div>',
+      ].join('');
+    }).join('');
+
+    renderManufacturerSdsManager();
+  }
+
+  async function createPersistedManufacturerRecord(name) {
+    const created = await apiFetch('/api/command-center/manufacturers', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: normalizeManufacturerName(name),
+      }),
+    });
+    return upsertManufacturerRecord(created);
+  }
+
+  async function deletePersistedManufacturerRecord(name) {
+    const existing = findManufacturerRecordByName(name);
+    if (!existing) return false;
+    await apiFetch(`/api/command-center/manufacturers/${existing.id}`, {
+      method: 'DELETE',
+    });
+    removeManufacturerRecordById(existing.id);
+    return true;
+  }
+
+  async function submitManufacturerCreateForm(event) {
+    event.preventDefault();
+    if (!elements.manufacturerCreateForm) return;
+
+    if (!canManageManufacturers()) {
+      setStatus('You do not have permission to manage manufacturers.', 'error');
+      return;
+    }
+
+    const rawName = elements.manufacturerCreateForm.manufacturer_name
+      ? elements.manufacturerCreateForm.manufacturer_name.value
+      : '';
+    const name = normalizeManufacturerName(rawName);
+    if (!name) {
+      setStatus('Enter a manufacturer name to add.', 'error');
+      return;
+    }
+
+    if (findManufacturerRecordByName(name)) {
+      setStatus('That manufacturer already exists.', 'error');
+      return;
+    }
+
+    try {
+      const saved = await createPersistedManufacturerRecord(name);
+      elements.manufacturerCreateForm.reset();
+      renderManufacturerAdminList();
+      renderMaterialManufacturerOptions(saved && saved.name ? saved.name : '');
+      renderManufacturerSdsManager();
+      refreshMaterialFormDirtyState();
+      setStatus(`Manufacturer ${saved && saved.name ? saved.name : name} added.`, 'info');
+    } catch (error) {
+      setStatus(error.message || 'Failed to add manufacturer.', 'error');
+    }
+  }
+
+  async function handleManufacturerAdminClick(event) {
+    const button = event && event.target
+      ? event.target.closest('[data-manufacturer-action][data-manufacturer-name]')
+      : null;
+    if (!button || (elements.manufacturerAdminList && !elements.manufacturerAdminList.contains(button))) {
+      return;
+    }
+
+    const action = button.dataset.manufacturerAction;
+    const manufacturerName = button.dataset.manufacturerName;
+    if (action === 'delete') {
+      await deleteManufacturer(manufacturerName);
+    }
+  }
+
+  async function deleteManufacturer(manufacturerName) {
+    const currentName = resolveManufacturerName(
+      manufacturerName,
+      normalizeManufacturerList((state.manufacturerRecords || []).map((record) => record.name))
+    );
+    if (!currentName) return;
+
+    const usageCount = (state.materials || []).filter((material) => (
+      normalizeManufacturerName(material && material.manufacturer).toLowerCase() === currentName.toLowerCase()
+    )).length;
+
+    const confirmMessage = usageCount > 0
+      ? `Delete manufacturer ${currentName} from the dropdown catalog? ${usageCount} material record(s) currently reference it.`
+      : `Delete manufacturer ${currentName}?`;
+    if (!window.confirm(confirmMessage)) return;
+
+    try {
+      await deletePersistedManufacturerRecord(currentName);
+      renderManufacturerAdminList();
+      renderMaterialManufacturerOptions(
+        elements.materialForm && elements.materialForm.manufacturer
+          ? elements.materialForm.manufacturer.value
+          : ''
+      );
+      renderManufacturerSdsManager();
+      refreshMaterialFormDirtyState();
+      setStatus(`Manufacturer ${currentName} deleted.`, 'info');
+    } catch (error) {
+      setStatus(error.message || 'Failed to delete manufacturer.', 'error');
+    }
+  }
+
+  function setManufacturerSdsStatus(message, tone) {
+    if (!elements.manufacturerSdsStatus) return;
+
+    const text = String(message || '').trim() || 'Select manufacturer and CAS, then upload an SDS PDF.';
+    elements.manufacturerSdsStatus.textContent = text;
+
+    const variant = String(tone || '').trim().toLowerCase();
+    if (variant === 'success') {
+      elements.manufacturerSdsStatus.style.color = '#7fdca7';
+    } else if (variant === 'warning') {
+      elements.manufacturerSdsStatus.style.color = '#ffd46a';
+    } else if (variant === 'error') {
+      elements.manufacturerSdsStatus.style.color = '#ff9b9b';
+    } else {
+      elements.manufacturerSdsStatus.style.color = '';
+    }
+  }
+
+  function upsertManufacturerSdsRecord(record) {
+    const normalized = normalizeManufacturerSdsRecord(record);
+    if (!normalized) return null;
+
+    const list = (state.manufacturerSdsDocuments || []).slice();
+    const existingIndex = list.findIndex((entry) => Number(entry && entry.id) === normalized.id);
+    if (existingIndex >= 0) {
+      list[existingIndex] = normalized;
+    } else {
+      list.push(normalized);
+    }
+
+    state.manufacturerSdsDocuments = normalizeManufacturerSdsDocuments(list);
+    return normalized;
+  }
+
+  function removeManufacturerSdsRecordById(id) {
+    const numericId = Number(id);
+    if (!Number.isInteger(numericId) || numericId <= 0) return;
+    state.manufacturerSdsDocuments = normalizeManufacturerSdsDocuments(
+      (state.manufacturerSdsDocuments || []).filter((entry) => Number(entry && entry.id) !== numericId)
+    );
+  }
+
+  function readSelectedManufacturerSdsManufacturerId() {
+    const select = elements.manufacturerSdsManufacturer;
+    const numericId = Number(select && select.value);
+    return Number.isInteger(numericId) && numericId > 0 ? numericId : 0;
+  }
+
+  function syncManufacturerSdsUploadControls() {
+    const hasManufacturerId = readSelectedManufacturerSdsManufacturerId() > 0;
+    const casValue = formatCasNumber(String(elements.manufacturerSdsCasNumber ? elements.manufacturerSdsCasNumber.value : '').trim());
+    const canUpload = hasManufacturerId && isValidCasNumber(casValue) && !state.manufacturerSdsUploadBusy;
+
+    if (elements.manufacturerSdsUploadButton) {
+      elements.manufacturerSdsUploadButton.disabled = !canUpload;
+    }
+  }
+
+  function renderManufacturerSdsManufacturerOptions(preferredId) {
+    const select = elements.manufacturerSdsManufacturer;
+    if (!select) return 0;
+
+    const records = normalizeManufacturerRecords(state.manufacturerRecords);
+    const resolvedPreferred = Number(preferredId || select.value || 0);
+    const hasPreferred = records.some((entry) => Number(entry.id) === resolvedPreferred);
+    const selectedId = hasPreferred
+      ? resolvedPreferred
+      : (records.length ? Number(records[0].id) : 0);
+
+    select.innerHTML = ['<option value="">Select manufacturer</option>']
+      .concat(records.map((entry) => (
+        `<option value="${entry.id}">${escapeHtml(entry.name)}</option>`
+      )))
+      .join('');
+
+    select.value = selectedId > 0 ? String(selectedId) : '';
+    return selectedId;
+  }
+
+  function renderManufacturerSdsList() {
+    if (!elements.manufacturerSdsList) return;
+
+    const selectedManufacturerId = readSelectedManufacturerSdsManufacturerId();
+    const records = normalizeManufacturerSdsDocuments(state.manufacturerSdsDocuments).filter((entry) => (
+      !selectedManufacturerId || Number(entry.manufacturer_id) === selectedManufacturerId
+    ));
+
+    if (!records.length) {
+      elements.manufacturerSdsList.innerHTML = '<div class="department-admin-empty">No SDS mappings configured.</div>';
+      return;
+    }
+
+    elements.manufacturerSdsList.innerHTML = records.map((entry) => {
+      const rawFileName = String(entry.sds_file_path.split('/').pop() || '').trim();
+      let fileName = rawFileName;
+      try {
+        fileName = rawFileName ? decodeURIComponent(rawFileName) : '';
+      } catch (error) {
+        fileName = rawFileName;
+      }
+
+      return [
+        '<article class="manufacturer-sds-row">',
+        '<div class="manufacturer-sds-meta">',
+        `<strong>${escapeHtml(entry.cas_number)}</strong>`,
+        `<small>${escapeHtml(entry.manufacturer)} · ${escapeHtml(fileName || 'SDS PDF')}</small>`,
+        '</div>',
+        '<div class="manufacturer-sds-actions">',
+        `<button class="table-button" type="button" data-manufacturer-sds-action="view" data-sds-path="${escapeHtml(entry.sds_file_path)}">View SDS</button>`,
+        `<button class="table-button" type="button" data-manufacturer-sds-action="delete" data-sds-id="${entry.id}">Delete</button>`,
+        '</div>',
+        '</article>',
+      ].join('');
+    }).join('');
+  }
+
+  function renderManufacturerSdsManager() {
+    const canManage = canManageManufacturers();
+    if (!canManage) return;
+
+    const selectedId = renderManufacturerSdsManufacturerOptions(readSelectedManufacturerSdsManufacturerId());
+    if (elements.manufacturerSdsCasNumber) {
+      const currentCas = formatCasNumber(String(elements.manufacturerSdsCasNumber.value || '').trim());
+      if (elements.manufacturerSdsCasNumber.value !== currentCas) {
+        elements.manufacturerSdsCasNumber.value = currentCas;
+      }
+    }
+
+    renderManufacturerSdsList();
+    syncManufacturerSdsUploadControls();
+
+    if (!selectedId) {
+      setManufacturerSdsStatus('Add a manufacturer before assigning SDS mappings.', 'warning');
+    }
+  }
+
+  function handleManufacturerSdsManufacturerChange() {
+    renderManufacturerSdsList();
+    syncManufacturerSdsUploadControls();
+  }
+
+  function handleManufacturerSdsCasInput(event) {
+    if (!event || !event.target) return;
+    const formatted = formatCasNumber(String(event.target.value || '').trim());
+    if (event.target.value !== formatted) {
+      event.target.value = formatted;
+    }
+    syncManufacturerSdsUploadControls();
+  }
+
+  function handleManufacturerSdsUploadButtonClick() {
+    if (!elements.manufacturerSdsUploadButton || !elements.manufacturerSdsUploadInput) return;
+    if (elements.manufacturerSdsUploadButton.disabled) return;
+    elements.manufacturerSdsUploadInput.click();
+  }
+
+  async function handleManufacturerSdsUploadInputChange(event) {
+    const input = event && event.target;
+    const file = input && input.files && input.files[0] ? input.files[0] : null;
+    if (!file) return;
+
+    const manufacturerId = readSelectedManufacturerSdsManufacturerId();
+    const manufacturerRecord = findManufacturerRecordById(manufacturerId);
+    const casNumber = formatCasNumber(String(elements.manufacturerSdsCasNumber ? elements.manufacturerSdsCasNumber.value : '').trim());
+    const lowerName = String(file.name || '').toLowerCase();
+
+    if (!manufacturerRecord) {
+      setStatus('Select a manufacturer before assigning SDS.', 'error');
+      if (input) input.value = '';
+      return;
+    }
+
+    if (!isValidCasNumber(casNumber)) {
+      setStatus('CAS number must match XXX-XX-X before assigning SDS.', 'error');
+      if (input) input.value = '';
+      return;
+    }
+
+    if (!lowerName.endsWith('.pdf')) {
+      setStatus('Only PDF files are allowed for SDS assignments.', 'error');
+      if (input) input.value = '';
+      return;
+    }
+
+    state.manufacturerSdsUploadBusy = true;
+    syncManufacturerSdsUploadControls();
+    setManufacturerSdsStatus('Uploading and assigning SDS mapping...', 'info');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('cas_number', casNumber);
+      formData.append('manufacturer_id', String(manufacturerRecord.id));
+
+      const response = await apiFetch('/api/command-center/sds/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const saved = upsertManufacturerSdsRecord(response && response.sds ? response.sds : null);
+      renderManufacturerSdsList();
+      setManufacturerSdsStatus(
+        saved ? `SDS mapped to ${saved.manufacturer} / ${saved.cas_number}.` : 'SDS mapping updated.',
+        'success'
+      );
+
+      const materialContext = readMaterialSdsContext();
+      if (
+        saved
+        && formatCasNumber(String(materialContext.cas_number || '').trim()) === saved.cas_number
+        && normalizeManufacturerInputKey(materialContext.manufacturer) === normalizeManufacturerInputKey(saved.manufacturer)
+      ) {
+        setMaterialSdsLink(saved);
+        syncMaterialSdsControls({ keepStatus: true });
+      }
+
+      setStatus('SDS mapping saved.', 'info');
+    } catch (error) {
+      setManufacturerSdsStatus((error && error.message) || 'Failed to assign SDS mapping.', 'error');
+      setStatus((error && error.message) || 'Failed to assign SDS mapping.', 'error');
+    } finally {
+      state.manufacturerSdsUploadBusy = false;
+      if (input) input.value = '';
+      syncManufacturerSdsUploadControls();
+    }
+  }
+
+  async function handleManufacturerSdsListClick(event) {
+    const button = event && event.target
+      ? event.target.closest('[data-manufacturer-sds-action]')
+      : null;
+    if (!button || (elements.manufacturerSdsList && !elements.manufacturerSdsList.contains(button))) {
+      return;
+    }
+
+    const action = button.dataset.manufacturerSdsAction;
+    if (action === 'view') {
+      const pathValue = String(button.dataset.sdsPath || '').trim();
+      if (!pathValue) return;
+      window.open(pathValue, '_blank', 'noopener');
+      return;
+    }
+
+    if (action !== 'delete') return;
+    const sdsId = Number(button.dataset.sdsId);
+    if (!Number.isInteger(sdsId) || sdsId <= 0) return;
+
+    const record = normalizeManufacturerSdsDocuments(state.manufacturerSdsDocuments)
+      .find((entry) => Number(entry.id) === sdsId) || null;
+    if (!record) return;
+
+    if (!window.confirm(`Delete SDS mapping ${record.manufacturer} / ${record.cas_number}?`)) {
+      return;
+    }
+
+    try {
+      await apiFetch(`/api/command-center/sds-documents/${sdsId}`, {
+        method: 'DELETE',
+      });
+      removeManufacturerSdsRecordById(sdsId);
+      renderManufacturerSdsList();
+      setManufacturerSdsStatus(`Deleted SDS mapping for ${record.manufacturer} / ${record.cas_number}.`, 'info');
+
+      if (readLinkedMaterialSdsId() === sdsId) {
+        clearMaterialSdsLink({
+          message: 'SDS mapping was deleted. Upload or assign a replacement mapping.',
+          variant: 'warning',
+        });
+        syncMaterialSdsControls({ keepStatus: true });
+      }
+
+      setStatus('SDS mapping deleted.', 'info');
+    } catch (error) {
+      const message = (error && error.message) || 'Failed to delete SDS mapping.';
+      setManufacturerSdsStatus(message, 'error');
+      setStatus(message, 'error');
+    }
+  }
+
   function readDepartmentSupervisor(departmentName) {
     const resolved = resolveDepartmentName(departmentName, state.settings.departments) || normalizeDepartmentName(departmentName);
     if (!resolved) return '';
@@ -5317,6 +6025,365 @@
     dateInput.click();
   }
 
+  function normalizeManufacturerInputValue(value) {
+    return String(value || '').trim().replace(/\s+/g, ' ');
+  }
+
+  function normalizeManufacturerInputKey(value) {
+    const text = normalizeManufacturerInputValue(value);
+    return text ? text.toLowerCase() : '';
+  }
+
+  function normalizeMaterialSdsId(value) {
+    const numeric = Number(value);
+    return Number.isInteger(numeric) && numeric > 0 ? numeric : 0;
+  }
+
+  function readMaterialSdsContext() {
+    const casRaw = elements.materialForm && elements.materialForm.cas_number
+      ? String(elements.materialForm.cas_number.value || '').trim()
+      : '';
+    const manufacturerName = normalizeManufacturerInputValue(elements.materialForm && elements.materialForm.manufacturer
+      ? elements.materialForm.manufacturer.value
+      : '');
+    const manufacturerRecord = findManufacturerRecordByName(manufacturerName);
+
+    return {
+      cas_number: casRaw ? formatCasNumber(casRaw) : '',
+      manufacturer: manufacturerName,
+      manufacturer_id: manufacturerRecord && Number.isInteger(Number(manufacturerRecord.id))
+        ? Number(manufacturerRecord.id)
+        : 0,
+    };
+  }
+
+  function readLinkedMaterialSdsId() {
+    return normalizeMaterialSdsId(elements.materialSdsId ? elements.materialSdsId.value : '');
+  }
+
+  function setMaterialSdsStatus(message, tone) {
+    if (!elements.materialSdsStatus) return;
+
+    const text = String(message || '').trim() || 'No SDS linked.';
+    elements.materialSdsStatus.textContent = text;
+    elements.materialSdsStatus.classList.remove('is-success', 'is-warning', 'is-error', 'is-muted');
+
+    const variant = String(tone || '').trim().toLowerCase();
+    if (variant === 'success') {
+      elements.materialSdsStatus.classList.add('is-success');
+    } else if (variant === 'warning') {
+      elements.materialSdsStatus.classList.add('is-warning');
+    } else if (variant === 'error') {
+      elements.materialSdsStatus.classList.add('is-error');
+    } else {
+      elements.materialSdsStatus.classList.add('is-muted');
+    }
+  }
+
+  function clearMaterialSdsLink(options) {
+    const sourceOptions = options && typeof options === 'object' ? options : {};
+    if (elements.materialSdsId) elements.materialSdsId.value = '';
+    if (elements.materialSdsPath) elements.materialSdsPath.value = '';
+    state.materialSdsLinkedCas = '';
+    state.materialSdsLinkedManufacturer = '';
+    if (!sourceOptions.keepStatus) {
+      setMaterialSdsStatus(sourceOptions.message || 'No SDS linked.', sourceOptions.variant || 'muted');
+    }
+  }
+
+  function setMaterialSdsLink(record) {
+    const payload = record && typeof record === 'object' ? record : {};
+    const id = normalizeMaterialSdsId(payload.id);
+    if (!id) {
+      clearMaterialSdsLink();
+      return;
+    }
+
+    const context = readMaterialSdsContext();
+    const casNumber = String(payload.cas_number || context.cas_number || '').trim();
+    const manufacturer = normalizeManufacturerInputValue(payload.manufacturer || context.manufacturer);
+    const pathValue = String(payload.sds_file_path || '').trim();
+
+    if (elements.materialSdsId) elements.materialSdsId.value = String(id);
+    if (elements.materialSdsPath) elements.materialSdsPath.value = pathValue;
+    state.materialSdsLinkedCas = casNumber;
+    state.materialSdsLinkedManufacturer = manufacturer;
+
+    const rawFileName = pathValue ? String(pathValue.split('/').pop() || '') : '';
+    let fileName = rawFileName;
+    try {
+      fileName = rawFileName ? decodeURIComponent(rawFileName) : '';
+    } catch (error) {
+      fileName = rawFileName;
+    }
+    const detail = fileName ? `SDS Found: ${fileName}` : `SDS Found (ID ${id})`;
+    setMaterialSdsStatus(detail, 'success');
+  }
+
+  function hasMatchingMaterialSdsLink(casNumber, manufacturer) {
+    const linkedId = readLinkedMaterialSdsId();
+    if (!linkedId) return false;
+
+    return formatCasNumber(String(state.materialSdsLinkedCas || '').trim()) === formatCasNumber(String(casNumber || '').trim())
+      && normalizeManufacturerInputKey(state.materialSdsLinkedManufacturer) === normalizeManufacturerInputKey(manufacturer);
+  }
+
+  async function resolveMaterialSdsDocument(options) {
+    const sourceOptions = options && typeof options === 'object' ? options : {};
+    if (!elements.materialForm) return null;
+    if (elements.materialSdsNotRequired && elements.materialSdsNotRequired.checked) return null;
+
+    const context = readMaterialSdsContext();
+    if (!isValidCasNumber(context.cas_number) || !context.manufacturer) {
+      return null;
+    }
+
+    if (sourceOptions.skipIfLinked !== false && hasMatchingMaterialSdsLink(context.cas_number, context.manufacturer)) {
+      return {
+        id: readLinkedMaterialSdsId(),
+        cas_number: context.cas_number,
+        manufacturer: context.manufacturer,
+        manufacturer_id: context.manufacturer_id || null,
+        sds_file_path: elements.materialSdsPath ? String(elements.materialSdsPath.value || '').trim() : '',
+      };
+    }
+
+    const requestId = state.materialSdsLookupRequestId + 1;
+    state.materialSdsLookupRequestId = requestId;
+
+    if (!sourceOptions.silentStatus) {
+      setMaterialSdsStatus('Searching SDS library for CAS + manufacturer...', 'muted');
+    }
+
+    try {
+      const manufacturerQuery = context.manufacturer_id > 0
+        ? `&manufacturer_id=${encodeURIComponent(String(context.manufacturer_id))}`
+        : '';
+      const response = await apiFetch(
+        `/api/command-center/sds/resolve?cas_number=${encodeURIComponent(context.cas_number)}&manufacturer=${encodeURIComponent(context.manufacturer)}${manufacturerQuery}&ts=${Date.now()}`
+      );
+
+      if (requestId !== state.materialSdsLookupRequestId) return null;
+
+      if (response && response.found && response.sds && normalizeMaterialSdsId(response.sds.id)) {
+        setMaterialSdsLink(response.sds);
+        return response.sds;
+      }
+
+      clearMaterialSdsLink({
+        message: sourceOptions.silentStatus ? 'No SDS linked.' : 'SDS Missing for selected manufacturer + CAS. Upload an SDS PDF.',
+        variant: sourceOptions.silentStatus ? 'muted' : 'warning',
+      });
+      return null;
+    } catch (error) {
+      if (requestId !== state.materialSdsLookupRequestId) return null;
+      if (!sourceOptions.silentStatus) {
+        setMaterialSdsStatus((error && error.message) || 'Failed to resolve SDS.', 'error');
+      }
+      return null;
+    }
+  }
+
+  async function uploadMaterialSdsDocument(file) {
+    if (!file) {
+      throw new Error('Select an SDS PDF to upload.');
+    }
+
+    if (elements.materialSdsNotRequired && elements.materialSdsNotRequired.checked) {
+      throw new Error('Disable "SDS Not Required" before uploading an SDS.');
+    }
+
+    const context = readMaterialSdsContext();
+    if (!isValidCasNumber(context.cas_number)) {
+      throw new Error('Valid CAS number is required before uploading SDS.');
+    }
+    if (!context.manufacturer) {
+      throw new Error('Manufacturer is required before uploading SDS.');
+    }
+
+    const lowerName = String(file.name || '').toLowerCase();
+    if (!lowerName.endsWith('.pdf')) {
+      throw new Error('Only PDF files are allowed for SDS uploads.');
+    }
+
+    state.materialSdsUploadBusy = true;
+    syncMaterialSdsControls();
+    setMaterialSdsStatus('Uploading SDS document...', 'muted');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('cas_number', context.cas_number);
+      formData.append('manufacturer', context.manufacturer);
+      if (context.manufacturer_id > 0) {
+        formData.append('manufacturer_id', String(context.manufacturer_id));
+      }
+
+      const response = await apiFetch('/api/command-center/sds/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const documentRecord = response && response.sds ? response.sds : null;
+      if (!documentRecord || !normalizeMaterialSdsId(documentRecord.id)) {
+        throw new Error('Upload succeeded but SDS response was invalid.');
+      }
+
+      setMaterialSdsLink(documentRecord);
+      return documentRecord;
+    } finally {
+      state.materialSdsUploadBusy = false;
+      syncMaterialSdsControls();
+    }
+  }
+
+  function syncMaterialSdsControls(options) {
+    const sourceOptions = options && typeof options === 'object' ? options : {};
+    if (!elements.materialForm) return;
+
+    const notRequired = Boolean(elements.materialSdsNotRequired && elements.materialSdsNotRequired.checked);
+    const manufacturerInput = elements.materialForm.manufacturer;
+    const row = document.getElementById('material-sds-row');
+
+    if (manufacturerInput) {
+      manufacturerInput.disabled = notRequired;
+    }
+
+    if (elements.materialSdsUploadButton) {
+      elements.materialSdsUploadButton.disabled = notRequired || state.materialSdsUploadBusy;
+    }
+
+    if (elements.materialSdsViewButton) {
+      const linkedPath = elements.materialSdsPath ? String(elements.materialSdsPath.value || '').trim() : '';
+      const canView = !notRequired && Boolean(readLinkedMaterialSdsId()) && Boolean(linkedPath);
+      elements.materialSdsViewButton.classList.toggle('hidden', !canView);
+      elements.materialSdsViewButton.disabled = !canView;
+    }
+
+    if (row) {
+      row.classList.toggle('is-disabled', notRequired);
+    }
+
+    if (notRequired) {
+      clearMaterialSdsLink({ message: 'SDS optional for this material.', variant: 'muted' });
+      return;
+    }
+
+    const context = readMaterialSdsContext();
+    if (readLinkedMaterialSdsId() && !hasMatchingMaterialSdsLink(context.cas_number, context.manufacturer)) {
+      clearMaterialSdsLink({
+        message: 'SDS mapping cleared because CAS number or manufacturer changed.',
+        variant: 'warning',
+      });
+    }
+
+    if (readLinkedMaterialSdsId()) {
+      if (!sourceOptions.keepStatus) {
+        const pathValue = elements.materialSdsPath ? String(elements.materialSdsPath.value || '').trim() : '';
+        const rawFileName = pathValue ? String(pathValue.split('/').pop() || '') : '';
+        let fileName = rawFileName;
+        try {
+          fileName = rawFileName ? decodeURIComponent(rawFileName) : '';
+        } catch (error) {
+          fileName = rawFileName;
+        }
+        setMaterialSdsStatus(fileName ? `SDS Found: ${fileName}` : 'SDS Found.', 'success');
+      }
+      return;
+    }
+
+    if (!context.cas_number) {
+      setMaterialSdsStatus('Enter CAS number to check SDS mapping.', 'muted');
+      return;
+    }
+
+    if (!isValidCasNumber(context.cas_number)) {
+      setMaterialSdsStatus('CAS number must match XXX-XX-X format before SDS lookup.', 'warning');
+      return;
+    }
+
+    if (!context.manufacturer) {
+      setMaterialSdsStatus('Select manufacturer to check SDS mapping.', 'muted');
+      return;
+    }
+
+    if (sourceOptions.resolveIfPossible) {
+      resolveMaterialSdsDocument({ silentStatus: Boolean(sourceOptions.silentResolve) });
+      return;
+    }
+
+    setMaterialSdsStatus('SDS Missing for selected manufacturer + CAS. Upload an SDS PDF.', 'warning');
+  }
+
+  function handleMaterialManufacturerInput(event) {
+    const input = event && event.target;
+    if (!input) return;
+
+    const normalized = normalizeManufacturerInputValue(input.value);
+    if (input.value !== normalized) {
+      input.value = normalized;
+    }
+
+    syncMaterialSdsControls({ keepStatus: true });
+    refreshMaterialFormDirtyState();
+  }
+
+  async function handleMaterialManufacturerChange(event) {
+    const input = event && event.target;
+    if (!input) return;
+
+    input.value = normalizeManufacturerInputValue(input.value);
+    if (elements.materialSdsNotRequired && elements.materialSdsNotRequired.checked) {
+      syncMaterialSdsControls();
+    } else {
+      await resolveMaterialSdsDocument({ silentStatus: true });
+      syncMaterialSdsControls({ keepStatus: true });
+    }
+    refreshMaterialFormDirtyState();
+  }
+
+  async function handleMaterialSdsNotRequiredToggle() {
+    if (elements.materialSdsNotRequired && !elements.materialSdsNotRequired.checked) {
+      await resolveMaterialSdsDocument({ silentStatus: true });
+      syncMaterialSdsControls({ keepStatus: true });
+    } else {
+      syncMaterialSdsControls();
+    }
+    refreshMaterialFormDirtyState();
+  }
+
+  function handleMaterialSdsUploadButtonClick() {
+    if (!elements.materialSdsUploadInput || !elements.materialSdsUploadButton) return;
+    if (elements.materialSdsUploadButton.disabled) return;
+    elements.materialSdsUploadInput.click();
+  }
+
+  function handleMaterialSdsViewButtonClick() {
+    const linkedPath = elements.materialSdsPath ? String(elements.materialSdsPath.value || '').trim() : '';
+    if (!linkedPath) {
+      setStatus('No SDS file is linked for this material yet.', 'error');
+      return;
+    }
+
+    window.open(linkedPath, '_blank', 'noopener');
+  }
+
+  async function handleMaterialSdsUploadFileChange(event) {
+    const input = event && event.target;
+    const file = input && input.files && input.files[0] ? input.files[0] : null;
+    if (!file) return;
+
+    try {
+      await uploadMaterialSdsDocument(file);
+      setStatus('SDS uploaded and linked.', 'info');
+    } catch (error) {
+      setStatus((error && error.message) || 'Failed to upload SDS.', 'error');
+    } finally {
+      if (input) input.value = '';
+      refreshMaterialFormDirtyState();
+    }
+  }
+
   function buildMaterialFormSnapshot() {
     if (!elements.materialForm) return '{}';
 
@@ -5325,6 +6392,10 @@
       name: String(form.name ? form.name.value : '').trim(),
       cas_number: String(form.cas_number ? form.cas_number.value : '').trim(),
       assigned_department: String(form.assigned_department ? form.assigned_department.value : '').trim(),
+      manufacturer: normalizeManufacturerInputValue(form.manufacturer ? form.manufacturer.value : ''),
+      sds_not_required: Boolean(elements.materialSdsNotRequired && elements.materialSdsNotRequired.checked),
+      sds_id: String(elements.materialSdsId ? elements.materialSdsId.value : '').trim(),
+      sds_file_path: String(elements.materialSdsPath ? elements.materialSdsPath.value : '').trim(),
       label_id: String(form.label_id ? form.label_id.value : '').trim(),
       primary_class: String(form.primary_class ? form.primary_class.value : '').trim(),
       division: String(form.division ? form.division.value : '').trim(),
@@ -5369,14 +6440,8 @@
 
     if (elements.materialThresholdSourceNote) {
       let note = '';
-      if (hasCas) {
-        if (matchedThreshold) {
-          note = `CAS default threshold applied: ${matchedThreshold.min_threshold}`;
-        } else {
-          note = 'CAS linked material: no CAS threshold default found, fallback is 0.';
-        }
-      } else {
-        note = 'No CAS number provided: manual minimum threshold is used for this material.';
+      if (hasCas && matchedThreshold) {
+        note = `CAS default threshold applied: ${matchedThreshold.min_threshold}`;
       }
 
       elements.materialThresholdSourceNote.textContent = note;
@@ -5508,6 +6573,7 @@
     renderMaterialHazardDraft();
     elements.materialForm.name.value = material ? material.name : '';
     elements.materialForm.cas_number.value = material && material.cas_number ? material.cas_number : '';
+    renderMaterialManufacturerOptions(material ? normalizeManufacturerInputValue(material.manufacturer) : '');
     const resolvedClass = material
       ? (normalizePrimaryClassValue(material.primary_class)
         || (deriveClassDivisionFromHazards(material.ghs_auto_symbols || material.ghs_symbols) || {}).primaryClass
@@ -5531,24 +6597,8 @@
     }
     renderMaterialDepartmentOptions(material ? material.assigned_department : state.settings.defaultDepartment);
     elements.materialForm.expiration_date.value = material ? (material.expiration_date || '') : '';
-    
-    // Auto-populate creation date for new materials
-    if (!material) {
-      const today = new Date().toISOString().split('T')[0];
-      if (elements.materialForm.created_date) {
-        elements.materialForm.created_date.value = today;
-      }
-    } else if (elements.materialForm.created_date) {
-      elements.materialForm.created_date.value = material.created_date || '';
-    }
-    
+
     elements.materialForm.stock_level.value = material ? material.stock_level : '0';
-    if (elements.materialForm.min_threshold) {
-      const manualThreshold = material && !material.cas_number
-        ? Number(material.manual_min_threshold != null ? material.manual_min_threshold : material.min_threshold)
-        : 0;
-      elements.materialForm.min_threshold.value = String(Number.isFinite(manualThreshold) ? manualThreshold : 0);
-    }
     
     // Restore container size if editing
     if (material && material.container_size) {
@@ -5559,9 +6609,38 @@
       elements.materialForm.container_unit.value = 'g';
     }
 
+    state.materialSdsLookupRequestId += 1;
+    state.materialSdsUploadBusy = false;
+    if (elements.materialSdsUploadInput) {
+      elements.materialSdsUploadInput.value = '';
+    }
+
+    const sdsNotRequired = material
+      ? Boolean(material.sds_not_required)
+      : true;
+    if (elements.materialSdsNotRequired) {
+      elements.materialSdsNotRequired.checked = sdsNotRequired;
+    }
+
+    if (!sdsNotRequired && material && material.sds_id) {
+      setMaterialSdsLink({
+        id: material.sds_id,
+        cas_number: material.cas_number,
+        manufacturer: material.manufacturer,
+        sds_file_path: material.sds_file_path,
+      });
+    } else {
+      clearMaterialSdsLink({ keepStatus: true });
+    }
+
     setGhsLookupStatus('', 'info');
     setLabelIdTooltipVisibility(false);
     syncMaterialThresholdInputVisibility();
+    syncMaterialSdsControls({
+      resolveIfPossible: !sdsNotRequired,
+      silentResolve: true,
+      keepStatus: !sdsNotRequired && Boolean(material && material.sds_id),
+    });
 
     if (material && elements.materialForm.label_id && !elements.materialForm.label_id.value) {
       regenerateMaterialLabelId();
@@ -5588,16 +6667,19 @@
     }
     casNumber = formatted;
     syncMaterialThresholdInputVisibility();
+    syncMaterialSdsControls({ keepStatus: true });
 
     if (!casNumber) {
       setMaterialAutoHazards([]);
       setGhsLookupStatus('', 'info');
+      syncMaterialSdsControls();
       return;
     }
 
     if (!isValidCasNumber(casNumber)) {
       setMaterialAutoHazards([]);
       setGhsLookupStatus('Invalid CAS format. Expected XXX-XX-X.', 'warning');
+      syncMaterialSdsControls();
       return;
     }
 
@@ -5615,6 +6697,7 @@
         if (!record) {
           setMaterialAutoHazards([]);
           setGhsLookupStatus('CAS not found in local or live database.', 'info');
+          syncMaterialSdsControls({ resolveIfPossible: true, silentResolve: true });
           return;
         }
 
@@ -5654,12 +6737,14 @@
           : (hasExplicitAutoHazards && symbols.length === 0 ? ' - Hazard profile pending review' : '');
         setGhsLookupStatus(`CAS matched: ${matchedName}${datasetText}${hazardNote}`, 'success');
         syncMaterialThresholdInputVisibility();
+        syncMaterialSdsControls({ resolveIfPossible: true, silentResolve: true });
       } catch (error) {
         if (requestId !== state.casLookupRequestId) return;
         console.error('CAS lookup error:', error);
         setMaterialAutoHazards([]);
         setGhsLookupStatus((error && error.message) || 'Failed to query local CAS database.', 'error');
         syncMaterialThresholdInputVisibility();
+        syncMaterialSdsControls();
       }
     }, CAS_LOOKUP_DEBOUNCE_MS);
   }
@@ -6000,6 +7085,12 @@
       setLabelIdTooltipVisibility(false);
       state.materialFormInitialSnapshot = '{}';
       state.materialFormDirty = false;
+      state.materialSdsLookupRequestId += 1;
+      state.materialSdsUploadBusy = false;
+      clearMaterialSdsLink({ keepStatus: true });
+      if (elements.materialSdsUploadInput) {
+        elements.materialSdsUploadInput.value = '';
+      }
     }
     if (id === 'department-modal') {
       state.editingDepartmentName = '';
@@ -6026,6 +7117,9 @@
     const rawCasNumber = elements.materialForm.cas_number ? String(elements.materialForm.cas_number.value || '').trim() : '';
     const casNumber = rawCasNumber ? formatCasNumber(rawCasNumber) : '';
     const hasCasNumber = Boolean(casNumber);
+    const manufacturer = normalizeManufacturerInputValue(elements.materialForm.manufacturer ? elements.materialForm.manufacturer.value : '');
+    const sdsNotRequired = Boolean(elements.materialSdsNotRequired && elements.materialSdsNotRequired.checked);
+    let sdsId = readLinkedMaterialSdsId();
 
     if (!primaryClass) {
       setStatus('Primary Class is required.', 'error');
@@ -6035,6 +7129,38 @@
     if (hasCasNumber && !isValidCasNumber(casNumber)) {
       setStatus('CAS number must match XXX-XX-X format.', 'error');
       return;
+    }
+
+    if (!sdsNotRequired && !hasCasNumber) {
+      setStatus('CAS number is required when SDS is required.', 'error');
+      return;
+    }
+
+    if (!sdsNotRequired && !manufacturer) {
+      setStatus('Manufacturer is required when SDS is required.', 'error');
+      return;
+    }
+
+    if (!sdsNotRequired && sdsId && !hasMatchingMaterialSdsLink(casNumber, manufacturer)) {
+      clearMaterialSdsLink({
+        message: 'SDS link cleared because CAS number or manufacturer changed.',
+        variant: 'warning',
+      });
+      sdsId = 0;
+    }
+
+    if (!sdsNotRequired && !sdsId) {
+      const resolvedSds = await resolveMaterialSdsDocument({ silentStatus: true });
+      sdsId = normalizeMaterialSdsId(resolvedSds && resolvedSds.id);
+    }
+
+    if (!sdsNotRequired && !sdsId) {
+      setStatus('Upload an SDS PDF or mark SDS as not required before saving.', 'error');
+      return;
+    }
+
+    if (elements.materialSdsId) {
+      elements.materialSdsId.value = sdsNotRequired ? '' : String(sdsId || '');
     }
 
     const division = normalizeDivisionValue(elements.materialForm.division && elements.materialForm.division.value)
@@ -6059,13 +7185,21 @@
         state.settings.departments
       ) || state.settings.defaultDepartment,
       cas_number: hasCasNumber ? casNumber : null,
+      manufacturer: manufacturer || null,
+      sds_not_required: sdsNotRequired,
+      sds_id: sdsNotRequired ? null : sdsId,
+      sds_file_path: sdsNotRequired
+        ? null
+        : (elements.materialSdsPath ? (String(elements.materialSdsPath.value || '').trim() || null) : null),
       label_id: labelId,
       batch_id: labelId,
       primary_class: primaryClass,
       division,
       expiration_date: elements.materialForm.expiration_date.value || null,
       stock_level: Number(elements.materialForm.stock_level.value || 0),
-      min_threshold: hasCasNumber ? 0 : Number(elements.materialForm.min_threshold.value || 0),
+      min_threshold: hasCasNumber
+        ? 0
+        : Number(elements.materialForm.min_threshold ? elements.materialForm.min_threshold.value || 0 : 0),
       ghs_symbols: getSelectedGhsSymbols(),
       ghs_auto_symbols: hazardMetadata.ghs_auto_symbols,
       ghs_manual_overrides: hazardMetadata.ghs_manual_overrides,
@@ -6687,6 +7821,7 @@
     return rows.map(normalizeRow).map((row) => ({
       name: pickValue(row, ['name', 'material_name', 'material', 'chemical', 'chemical_name']),
       label_id: pickValue(row, ['label_id', 'label', 'labelid', 'batch_id', 'batch', 'batch_number', 'lot', 'lot_number']),
+      manufacturer: pickValue(row, ['manufacturer', 'maker']),
       ghs_symbols: pickValue(row, ['ghs_symbols', 'ghs', 'hazards', 'hazard_symbols']),
       expiration_date: pickValue(row, ['expiration_date', 'expiration', 'expiry', 'exp_date']),
       stock_level: pickValue(row, ['stock_level', 'stock', 'current_stock', 'quantity_on_hand']),
@@ -6833,6 +7968,9 @@
       { label: 'Asset ID', value: item.asset_uid || `HAZ-ASSET-${String(item.id || '').padStart(6, '0')}` },
       { label: 'Material Name', value: item.name },
       { label: 'Label ID', value: item.label_id || item.batch_id },
+      { label: 'CAS Number', value: item.cas_number || 'Not set' },
+      { label: 'Manufacturer', value: item.manufacturer || 'Not set' },
+      { label: 'SDS', html: formatMaterialSdsDetail(item) },
       { label: 'Primary Class', value: item.primary_class ? `C${item.primary_class}` : 'Not set' },
       { label: 'Division', value: item.division || 'Not set' },
       { label: 'Assigned Department / Owner', value: item.assigned_department || state.settings.defaultDepartment },
@@ -6843,6 +7981,23 @@
       { label: 'Minimum Threshold', value: formatMaterialThresholdValue(item) },
       { label: 'High Hazard', value: item.high_hazard ? 'Yes' : 'No' },
     ];
+  }
+
+  function formatMaterialSdsDetail(item) {
+    if (item && item.sds_not_required) {
+      return '<span class="status-chip">Not required</span>';
+    }
+
+    const pathValue = item && item.sds_file_path ? String(item.sds_file_path).trim() : '';
+    if (pathValue) {
+      return `<a class="resource-link" href="${escapeHtml(pathValue)}" target="_blank" rel="noreferrer">Open SDS</a>`;
+    }
+
+    if (item && normalizeMaterialSdsId(item.sds_id)) {
+      return `<span class="status-chip status-blue">Linked ID ${escapeHtml(String(item.sds_id))}</span>`;
+    }
+
+    return '<span class="status-chip status-danger">Missing SDS</span>';
   }
 
   function buildCalibrationDetailItems(item) {

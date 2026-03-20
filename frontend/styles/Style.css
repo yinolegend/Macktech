@@ -1037,24 +1037,119 @@ small,
   background: transparent;
 }
 
-.material-top-grid {
-  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr) minmax(0, 0.9fr);
+.material-form {
+  min-width: 0;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.col-1 {
+  grid-column: span 1;
+}
+
+.col-2 {
+  grid-column: span 2;
+}
+
+.col-3 {
+  grid-column: span 3;
+}
+
+.material-form-grid {
   align-items: end;
 }
 
-.material-top-grid > label {
-  align-content: start;
+.material-form-grid > label,
+.material-form-grid > .col-3 {
+  min-width: 0;
+}
+
+.material-form-grid input,
+.material-form-grid select {
+  min-height: 42px;
+  height: 42px;
+  border-radius: 10px;
+}
+
+.material-form-grid input:focus,
+.material-form-grid input:focus-visible,
+.material-form-grid select:focus,
+.material-form-grid select:focus-visible {
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .material-name-field {
   min-width: 0;
 }
 
-.material-top-grid input,
-.material-top-grid select,
-.manual-threshold-row input {
-  min-height: 38px;
-  border-radius: 10px;
+.sds-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.material-sds-row.is-disabled {
+  opacity: 0.74;
+}
+
+.material-sds-upload {
+  min-width: 0;
+  flex: 1 1 auto;
+  align-content: start;
+}
+
+.material-sds-upload-controls {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#material-sds-view-button.hidden {
+  display: none;
+}
+
+.material-sds-status {
+  display: inline-block;
+  line-height: 1.35;
+  color: var(--text-dim);
+}
+
+.material-sds-status.is-success {
+  color: #7fdca7;
+}
+
+.material-sds-status.is-warning {
+  color: #ffd46a;
+}
+
+.material-sds-status.is-error {
+  color: #ff9b9b;
+}
+
+.material-sds-status.is-muted {
+  color: var(--text-dim);
+}
+
+.material-sds-toggle {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.material-sds-toggle input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
 }
 
 .date-input-shell {
@@ -1065,14 +1160,14 @@ small,
 }
 
 .date-input-shell input[type='date'] {
-  min-height: 38px;
+  min-height: 42px;
 }
 
 .calendar-trigger-button {
-  width: 38px;
-  min-width: 38px;
-  min-height: 38px;
-  height: 38px;
+  width: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  height: 42px;
   padding: 0;
   border-radius: 10px;
   border: 1px solid var(--line-strong);
@@ -1090,10 +1185,6 @@ small,
   outline: none;
 }
 
-.material-threshold-note {
-  margin-top: -4px;
-}
-
 .container-label {
   gap: 6px;
 }
@@ -1106,19 +1197,14 @@ small,
 
 .container-size-grid .container-input,
 .container-size-grid .container-select {
-  min-height: 36px;
-  height: 36px;
+  min-height: 42px;
+  height: 42px;
   border-radius: 10px;
 }
 
 .modal-form small {
   font-size: 12px;
   color: var(--text-dim);
-}
-
-.material-label-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: start;
 }
 
 .material-label-grid > label {
@@ -1188,12 +1274,89 @@ small,
   background: rgba(255, 180, 0, 0.2);
 }
 
+.manufacturer-sds-manager {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.manufacturer-sds-manager h4 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.manufacturer-sds-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+  margin: 10px 0;
+}
+
+.manufacturer-sds-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.manufacturer-sds-field input,
+.manufacturer-sds-field select {
+  min-height: 42px;
+  height: 42px;
+  border-radius: 10px;
+}
+
+#manufacturer-sds-upload-button {
+  min-height: 42px;
+  align-self: end;
+}
+
+.manufacturer-sds-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--accent-card-fill);
+}
+
+.manufacturer-sds-meta {
+  display: grid;
+  gap: 3px;
+}
+
+.manufacturer-sds-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .cas-threshold-form {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.8fr) auto;
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
   align-items: end;
   margin-bottom: 12px;
+}
+
+.cas-threshold-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cas-threshold-field input {
+  min-height: 42px;
+  height: 42px;
+  border-radius: 10px;
+}
+
+.cas-threshold-submit {
+  min-height: 42px;
+  align-self: end;
 }
 
 .cas-threshold-row {
@@ -1259,6 +1422,18 @@ small,
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+@media (max-width: 980px) {
+  .manufacturer-sds-form,
+  .cas-threshold-form {
+    grid-template-columns: 1fr;
+  }
+
+  #manufacturer-sds-upload-button,
+  .cas-threshold-submit {
+    width: 100%;
+  }
 }
 
 .ghs-token {
@@ -1444,6 +1619,15 @@ small,
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .material-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .material-form-grid .col-2,
+  .material-form-grid .col-3 {
+    grid-column: span 2;
+  }
+
   .overview-grid,
   .reports-grid,
   .settings-grid {
@@ -1480,6 +1664,7 @@ small,
 
   .stats-grid,
   .field-grid,
+  .form-grid,
   .compliance-grid,
   .asset-filter-grid,
   .dna-grid,
@@ -1518,10 +1703,20 @@ small,
     justify-content: flex-start;
   }
 
-  .material-top-grid,
+  .col-1,
+  .col-2,
+  .col-3 {
+    grid-column: span 1;
+  }
+
   .cas-threshold-form,
   .container-size-grid {
     grid-template-columns: 1fr;
+  }
+
+  .sds-row {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 

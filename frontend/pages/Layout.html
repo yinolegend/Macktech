@@ -718,6 +718,43 @@
                 <div id="department-admin-list" class="department-admin-list"></div>
               </div>
 
+              <div id="manufacturer-admin" class="department-admin">
+                <div class="panel-header-row">
+                  <div>
+                    <p class="eyebrow">Administrate Manufacturers</p>
+                    <h3>Manufacturer Manager</h3>
+                  </div>
+                </div>
+                <form id="manufacturer-create-form" class="department-create-form">
+                  <input id="new-manufacturer-name" name="manufacturer_name" type="text" placeholder="Add a manufacturer" maxlength="80" />
+                  <button class="table-button" type="submit">Add</button>
+                </form>
+                <div id="manufacturer-admin-list" class="department-admin-list"></div>
+
+                <div class="manufacturer-sds-manager">
+                  <div class="panel-header-row">
+                    <div>
+                      <p class="eyebrow">Assign SDS to CAS</p>
+                      <h4>Manufacturer SDS Mapping</h4>
+                    </div>
+                  </div>
+                  <form id="manufacturer-sds-form" class="manufacturer-sds-form">
+                    <label class="manufacturer-sds-field">
+                      Manufacturer
+                      <select id="manufacturer-sds-manufacturer" name="manufacturer_id"></select>
+                    </label>
+                    <label class="manufacturer-sds-field">
+                      CAS Number
+                      <input id="manufacturer-sds-cas-number" name="cas_number" type="text" placeholder="XXX-XX-X" data-format="cas" required />
+                    </label>
+                    <button id="manufacturer-sds-upload-button" class="action-button secondary" type="button">Upload and Assign SDS</button>
+                    <input id="manufacturer-sds-upload-input" type="file" accept=".pdf,application/pdf" class="hidden" />
+                  </form>
+                  <div id="manufacturer-sds-status" class="config-note">Select manufacturer and CAS, then upload an SDS PDF.</div>
+                  <div id="manufacturer-sds-list" class="department-admin-list"></div>
+                </div>
+              </div>
+
               <div class="settings-report-launch">
                 <div class="panel-header-row">
                   <div>
@@ -775,15 +812,15 @@
               </div>
               <p class="panel-copy">Configure minimum stock thresholds by CAS. CAS-linked materials always follow these defaults.</p>
               <form id="cas-threshold-form" class="cas-threshold-form">
-                <label>
+                <label class="cas-threshold-field">
                   CAS Number
                   <input id="cas-threshold-cas-number" name="cas_number" type="text" placeholder="XXX-XX-X" data-format="cas" required />
                 </label>
-                <label>
-                  Minimum Threshold
+                <label class="cas-threshold-field">
+                  Minimum Stock Threshold
                   <input id="cas-threshold-value" name="min_threshold" type="number" min="0" step="0.01" required />
                 </label>
-                <button id="cas-threshold-save-button" class="action-button secondary" type="submit">Save Threshold</button>
+                <button id="cas-threshold-save-button" class="action-button secondary cas-threshold-submit" type="submit">Save Threshold</button>
               </form>
               <div id="cas-threshold-status" class="config-note">Save a CAS threshold to apply automatic low-stock alerts.</div>
               <div id="cas-threshold-list" class="department-admin-list"></div>
@@ -817,42 +854,32 @@
         <div class="modal-header">
           <h2 id="material-modal-title">Add Material</h2>
         </div>
-        <form id="material-form" class="modal-form">
-          <div class="field-grid compact-row material-top-grid">
-            <label class="material-name-field">
+        <form id="material-form" class="modal-form material-form">
+          <div class="form-grid material-form-grid">
+            <label class="col-2 material-name-field">
               Material Name
               <input name="name" type="text" required />
             </label>
-            <label>
+            <label class="col-1">
               Department
               <select id="material-assigned-department" name="assigned_department"></select>
             </label>
-            <label>
+
+            <label class="col-2">
+              CAS Number
+              <input name="cas_number" type="text" placeholder="XXX-XX-X" data-format="cas" />
+              <small id="cas-lookup-status" style="display: none; margin-top: 4px; font-size: 0.85em;"></small>
+            </label>
+            <label class="col-1">
               Quantity
               <input name="stock_level" type="number" min="0" step="0.01" required />
             </label>
-          </div>
-          <label>
-            CAS Number
-            <input name="cas_number" type="text" placeholder="XXX-XX-X" data-format="cas" />
-            <small id="cas-lookup-status" style="display: none; margin-top: 4px; font-size: 0.85em;"></small>
-          </label>
-          <div class="field-grid compact-row material-label-grid">
-            <label class="label-id-field">
-              <span class="label-id-heading">
-                <span id="label-id-tooltip-toggle" class="label-id-tooltip-button" tabindex="0" aria-expanded="false" aria-controls="label-id-tooltip-panel">
-                  Label ID
-                  <span class="label-id-tooltip-cue" aria-hidden="true">?</span>
-                </span>
-                <div id="label-id-tooltip-panel" class="label-id-tooltip-panel hidden" role="tooltip">
-                  <small>Auto-generated from class, division, and expiration date.</small>
-                  <strong>C[class][division]-[RANDOM]-[MMDDYY]</strong>
-                  <small>Example: C23-7F3Q1A-031926 means Class 2, Division 3, random serial, and date code.</small>
-                </div>
-              </span>
-              <input name="label_id" type="text" readonly aria-readonly="true" />
+
+            <label class="col-1">
+              Manufacturer
+              <select id="material-manufacturer" name="manufacturer"></select>
             </label>
-            <label>
+            <label class="col-1">
               Primary Class
               <select name="primary_class" required>
                 <option value="">Select class</option>
@@ -868,13 +895,12 @@
                 <option value="9">C9</option>
               </select>
             </label>
-            <label>
+            <label class="col-1">
               Division
               <input name="division" type="text" placeholder="Auto from CAS or manual override" />
             </label>
-          </div>
-          <div class="field-grid compact-row">
-            <label>
+
+            <label class="col-1">
               Expiration Date
               <div class="date-input-shell">
                 <input name="expiration_date" type="date" />
@@ -888,48 +914,58 @@
                 </button>
               </div>
             </label>
-            <label>
-              Added On (Auto)
-              <input name="created_date" type="date" readonly />
+
+            <label class="col-2 container-label">
+              Container Size (Optional)
+              <div class="container-size-grid">
+                <input name="container_value" type="number" min="0" step="0.01" placeholder="Amount" class="container-input" />
+                <select name="container_unit" class="container-select">
+                  <option value="">-- Select Unit --</option>
+                  <optgroup label="Mass">
+                    <option value="mg">mg</option>
+                    <option value="g" selected>g</option>
+                    <option value="kg">kg</option>
+                    <option value="lb">lb</option>
+                    <option value="oz">oz</option>
+                  </optgroup>
+                  <optgroup label="Volume">
+                    <option value="mL">mL</option>
+                    <option value="L">L</option>
+                    <option value="gal">gal</option>
+                  </optgroup>
+                  <optgroup label="Industrial">
+                    <option value="drum">drum (55 gal)</option>
+                    <option value="IBC">IBC (1000 L)</option>
+                    <option value="tank">tank</option>
+                  </optgroup>
+                </select>
+              </div>
             </label>
-          </div>
-          <div id="material-manual-threshold-wrap" class="field-grid compact-row manual-threshold-row hidden">
-            <label>
-              Minimum Threshold (Manual - No CAS)
-              <input name="min_threshold" type="number" min="0" step="0.01" />
-            </label>
-          </div>
-          <div id="material-threshold-source-note" class="config-note material-threshold-note hidden"></div>
-          <label class="container-label">
-            Container Size (Optional)
-            <div class="container-size-grid">
-              <input name="container_value" type="number" min="0" step="0.01" placeholder="Amount" class="container-input" />
-              <select name="container_unit" class="container-select">
-                <option value="">-- Select Unit --</option>
-                <optgroup label="Mass">
-                  <option value="mg">mg</option>
-                  <option value="g" selected>g</option>
-                  <option value="kg">kg</option>
-                  <option value="lb">lb</option>
-                  <option value="oz">oz</option>
-                </optgroup>
-                <optgroup label="Volume">
-                  <option value="mL">mL</option>
-                  <option value="L">L</option>
-                  <option value="gal">gal</option>
-                </optgroup>
-                <optgroup label="Industrial">
-                  <option value="drum">drum (55 gal)</option>
-                  <option value="IBC">IBC (1000 L)</option>
-                  <option value="tank">tank</option>
-                </optgroup>
-              </select>
+
+            <div id="material-sds-row" class="col-3 sds-row material-sds-row">
+              <div class="material-sds-upload">
+                <span class="field-label">SDS Document</span>
+                <div class="material-sds-upload-controls">
+                  <button id="material-sds-upload-button" class="table-button" type="button">Upload SDS</button>
+                  <button id="material-sds-view-button" class="table-button secondary hidden" type="button">View SDS</button>
+                  <small id="material-sds-status" class="material-sds-status is-muted" aria-live="polite">SDS optional for this material.</small>
+                  <input id="material-sds-upload-input" type="file" accept=".pdf,application/pdf" class="hidden" />
+                  <input id="material-sds-id" name="sds_id" type="hidden" />
+                  <input id="material-sds-file-path" name="sds_file_path" type="hidden" />
+                </div>
+              </div>
+              <label class="material-sds-toggle">
+                <input id="material-sds-not-required" name="sds_not_required" type="checkbox" checked />
+                <span>SDS Not Required</span>
+              </label>
             </div>
-          </label>
-          <div>
-            <span class="field-label" id="ghs-label">Hazard DNA (Auto-detected + Manual)</span>
-            <div id="ghs-selector" class="ghs-selector"></div>
+
+            <div class="col-3">
+              <span class="field-label" id="ghs-label">Hazard DNA (Auto-detected + Manual)</span>
+              <div id="ghs-selector" class="ghs-selector"></div>
+            </div>
           </div>
+          <input name="label_id" type="hidden" />
           <div class="modal-actions">
             <button class="action-button secondary" type="button" data-close-modal="material-modal">Cancel</button>
             <button class="action-button" type="submit">Save Material</button>

@@ -230,6 +230,7 @@ function createServerApp() {
       debugDb,
       paths,
       calibrationAttachmentUpload,
+      hazmatSdsUpload,
       casService,
     }),
     adminConsoleController: createAdminConsoleController({
