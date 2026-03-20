@@ -106,3 +106,4 @@ The container exposes port `3000` and persists operational data through the `dat
 ### Deployment note
 
 The repository still includes `render.yaml`, but the application is now documented and wired primarily for local or private-network execution with a root startup command of `node server.js`.
+By default, the server binds to `0.0.0.0` for managed platform compatibility, and you can set `HOST=127.0.0.1` for localhost-only runs.

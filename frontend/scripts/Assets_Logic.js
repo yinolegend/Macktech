@@ -28,7 +28,7 @@
     { key: 'health_hazard', label: 'Health', description: 'Long-term respiratory or organ impact.' },
     { key: 'exclamation_mark', label: 'Irritant', description: 'Skin, eye, or respiratory irritant.' },
     { key: 'environmental_hazard', label: 'Environment', description: 'Environmental contamination risk.' },
-    { key: 'non_hazardous', label: 'IDENTIFIED NON-HAZARDOUS MATERIAL', description: 'Material identified as non-hazardous after review.' },
+    { key: 'non_hazardous', label: 'NON-HAZARDOUS', description: 'Material identified as non-hazardous after review.' },
   ];
 
   const MATERIAL_CLASS_RULES = [

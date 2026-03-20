@@ -789,9 +789,18 @@
           </label>
           <div class="field-grid compact-row material-label-grid">
             <label class="label-id-field">
-              Label ID
+              <span class="label-id-heading">
+                <button id="label-id-tooltip-toggle" class="label-id-tooltip-button" type="button" aria-expanded="false" aria-controls="label-id-tooltip-panel">
+                  Label ID
+                  <span class="label-id-tooltip-cue" aria-hidden="true">?</span>
+                </button>
+                <div id="label-id-tooltip-panel" class="label-id-tooltip-panel hidden" role="tooltip">
+                  <small>Auto-generated from class, division, and expiration date.</small>
+                  <strong>C[class][division]-[RANDOM]-[MMDDYY]</strong>
+                  <small>Example: C23-7F3Q1A-031926 means Class 2, Division 3, random serial, and date code.</small>
+                </div>
+              </span>
               <input name="label_id" type="text" readonly aria-readonly="true" />
-              <small class="label-id-meta">Auto-generated from class, division, and expiration date.</small>
             </label>
             <label>
               Primary Class
@@ -813,13 +822,6 @@
               Division
               <input name="division" type="text" placeholder="Auto from CAS or manual override" />
             </label>
-          </div>
-          <div class="label-id-tooltip-wrap">
-            <button id="label-id-tooltip-toggle" class="label-id-tooltip-button" type="button" aria-expanded="false" aria-controls="label-id-tooltip-panel">Label ID Decoder</button>
-            <div id="label-id-tooltip-panel" class="label-id-tooltip-panel hidden" role="tooltip">
-              <strong>C[class][division]-[RANDOM]-[MMDDYY]</strong>
-              <small>Example: C23-7F3Q1A-031926 means Class 2, Division 3, random serial, and date code.</small>
-            </div>
           </div>
           <div class="field-grid compact-row">
             <label>
